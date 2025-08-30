@@ -26,7 +26,6 @@ export const Columns = (customActionsRenderer) => [
       />
     ),
   },
-  { field: 'posicion', headerName: 'Posición', width: 150, sortable: false, filterable: false },
   { field: 'estado', headerName: 'Estado', width: 130, sortable: false, filterable: false },
   {
     field: 'acciones',

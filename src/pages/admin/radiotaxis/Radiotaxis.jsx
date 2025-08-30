@@ -5,12 +5,16 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import { Tabla2 } from "../../../shared/components/tablas/tabla";
 import DetalleModal from "./components/modalGenerico";
 import { getRadiotaxisColumns } from "./data/radiotaxisColumns";
-import { radiotaxisRows } from "./data/radiotaxisRows";
 import IconActionButton from "../../../shared/components/botones/Botones";
+// 👉 Datos desde el hook (Firebase)
+import { useRadiotaxisRows } from "./datos";
 
 const Radiotaxis = () => {
   const [openModal, setOpenModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
+  
+  // 👉 Datos desde el hook (Firebase)
+  const { rows, cargando, error } = useRadiotaxisRows();
 
   const handleVer = (row) => {
     setSelectedRow(row);
@@ -23,7 +27,7 @@ const Radiotaxis = () => {
         icon={<VisibilityIcon fontSize="small" />}
         color="primary"
         onClick={(e) => {
-          e.stopPropagation();      // ← evita doble disparo
+          e.stopPropagation();
           handleVer(params.row);
         }}
       />
@@ -32,7 +36,7 @@ const Radiotaxis = () => {
 
   return (
     <>
-        <Paper
+      <Paper
         elevation={6}
         sx={{
           p: 3,
@@ -42,7 +46,7 @@ const Radiotaxis = () => {
           maxWidth: 1200,
           border: "0.1px solid rgba(146, 144, 144, 1)",
         }}
-        >
+      >
         <Typography variant="h4" gutterBottom fontWeight="bold">
           Radiotaxis Registrados
         </Typography>
@@ -51,18 +55,25 @@ const Radiotaxis = () => {
         </Typography>
 
         <Tabla2
-          rows={radiotaxisRows}
+          rows={rows}
           columns={columns}
           height="51vh"
           pageSize={3}
+          loading={cargando}
           onRowClick={(params) => handleVer(params.row)}
         />
+
+        {error && (
+          <Typography color="error" sx={{ mt: 1 }}>
+            {error}
+          </Typography>
+        )}
       </Paper>
 
       <DetalleModal
         open={openModal}
         onClose={() => setOpenModal(false)}
-        rowData={selectedRow}
+        rowData={selectedRow} // aquí tienes rowData.firebaseId si lo necesitas
       />
     </>
   );

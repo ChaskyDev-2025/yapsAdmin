@@ -1,11 +1,19 @@
-// radiotaxisColumns.js
+// src/pages/admin/radiotaxis/data/radiotaxisColumns.jsx
+import { Chip } from "@mui/material";
+import { estado1 } from "./estadoColumns";
+
 export const getRadiotaxisColumns = (customActionsRenderer) => [
-  { field: 'id', headerName: 'ID', width: 10 },
+  {
+    field: 'nro',            // mostrará 1, 2, 3...
+    headerName: 'ID',
+    width: 10,
+    sortable: false,
+  },
   { field: 'nombreEmpresa', headerName: 'Nombre Empresa', flex: 1 },
   { field: 'telefono', headerName: 'Teléfono', width: 150 },
   { field: 'saldo', headerName: 'Saldo', width: 100 },
-  { field: 'estado', headerName: 'Estado', width: 130 },
-  { field: 'fecha', headerName: 'Fecha de Envío', width: 160 },
+  estado1({ field: 'estado', headerName: 'Estado', width: 130 }),
+  { field: 'fecha', headerName: 'Fecha de Envío', width: 200 },
   {
     field: 'acciones',
     headerName: 'Acciones',

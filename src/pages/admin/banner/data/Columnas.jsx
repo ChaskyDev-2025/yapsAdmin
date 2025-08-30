@@ -32,10 +32,6 @@ export const useBannerColumns = (handleEstadoChange) => {
         filterable: false,
         renderCell: renderImagen,
       },
-      posicion: {
-        label: "Posición",
-        width: 90,
-      },
       estado: {
         label: "Estado",
         width: 140,
@@ -56,7 +52,7 @@ export const useBannerColumns = (handleEstadoChange) => {
 
   /* Orden de las columnas en la tabla */
   const fields = React.useMemo(
-    () => ["id", "imagen", "posicion", "estado", "acciones"],
+    () => ["id", "imagen", "estado", "acciones"],
     []
   );
 
