@@ -1,6 +1,6 @@
 // AdminLayout.jsx
-import React from "react";
-import { Outlet, Link, useLocation } from "react-router-dom";
+import React, { useMemo } from "react";
+import { Outlet, Link } from "react-router-dom";
 import { Box, CssBaseline, Toolbar } from "@mui/material";
 import DashboardIcon   from "@mui/icons-material/Dashboard";
 import PeopleIcon      from "@mui/icons-material/People";
@@ -11,28 +11,44 @@ import SchoolIcon from "@mui/icons-material/School";
 import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
 import BuildIcon from "@mui/icons-material/Build";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import SupervisorAccountIcon from "@mui/icons-material/SupervisorAccount";
 import Navbar          from "../components/Navbar";
 import Footer          from "../components/Footer";
 import Sidebar         from "../components/Sidebar";
 import LogoImg         from "../assets/logo.png";
 import ArticleIcon from "@mui/icons-material/Article";
-
-const menuItems = [
-  { path: "/admin/dashboard", label: "Inicio", icon: <DashboardIcon /> },
-  { path: "/admin/usuarios", label: "Usuarios", icon: <PeopleIcon /> },
-  { path: "/admin/radiotaxis", label: "Radiotaxis", icon: <LocalTaxiIcon /> },
-  { path: "/admin/ajustes", label: "Ajustes", icon: <SettingsIcon /> },
-  { path: "/admin/landing", label: "Landing", icon: <WebIcon /> },
-  { path: "/admin/onboarding", label: "Onboarding", icon: <SchoolIcon /> },
-  { path: "/admin/banners", label: "Banners", icon: <PhotoLibraryIcon /> },
-  { path: "/admin/personalizar", label: "Personalizar", icon: <BuildIcon /> },
-  { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },
-  { path: "/admin/documentos", label: "Documentos", icon: <ArticleIcon /> },
-];
-
+import { useAuth } from "../auth/AuthContext";
+import { isSuperAdmin } from "../services/userService";
 
 const AdminLayout = () => {
-  // const location = useLocation();
+  const { userRole } = useAuth();
+
+  // Menú dinámico según el rol
+  const menuItems = useMemo(() => {
+    const baseMenu = [
+      { path: "/admin/dashboard", label: "Inicio", icon: <DashboardIcon /> },
+      { path: "/admin/usuarios", label: "Usuarios", icon: <PeopleIcon /> },
+      { path: "/admin/radiotaxis", label: "Radiotaxis", icon: <LocalTaxiIcon /> },
+      { path: "/admin/ajustes", label: "Ajustes", icon: <SettingsIcon /> },
+      { path: "/admin/landing", label: "Landing", icon: <WebIcon /> },
+      { path: "/admin/onboarding", label: "Onboarding", icon: <SchoolIcon /> },
+      { path: "/admin/banners", label: "Banners", icon: <PhotoLibraryIcon /> },
+      { path: "/admin/personalizar", label: "Personalizar", icon: <BuildIcon /> },
+      { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },
+      { path: "/admin/documentos", label: "Documentos", icon: <ArticleIcon /> },
+    ];
+
+    // Solo SuperAdmin ve "Gestión de Usuarios"
+    if (isSuperAdmin(userRole)) {
+      baseMenu.splice(2, 0, { 
+        path: "/admin/gestion-usuarios", 
+        label: "Gestión Usuarios", 
+        icon: <SupervisorAccountIcon /> 
+      });
+    }
+
+    return baseMenu;
+  }, [userRole]);
 
   return (
     <Box
