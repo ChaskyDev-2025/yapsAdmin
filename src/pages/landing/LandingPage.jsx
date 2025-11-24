@@ -21,7 +21,7 @@ const LandingPage = () => {
         alignItems: "center",
         textAlign: "center",
         position: "relative",
-        background: "linear-gradient(to right, #3189d6ff, #8317ffff)", // Gradiente de color
+        background: "linear-gradient(135deg, #d7171a 0%, #000000 100%)", // Gradiente rojo-negro corporativo
         color: "#fff", // Color de texto blanco
         fontFamily: "'Roboto', sans-serif", // Usamos 'Roboto' de MUI por defecto o define una en tu tema
         overflow: "hidden", // Previene barras de desplazamiento si hay elementos fuera de vista
@@ -51,31 +51,39 @@ const LandingPage = () => {
       <FaTaxi />
       </IconButton>
 
-      <Container maxWidth="md"> {/* Contenedor para limitar el ancho del contenido */}
+      <Container maxWidth="md" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}> {/* Contenedor para limitar el ancho del contenido */}
         {/* Título Principal */}
         <Typography
           variant="h2" // `h2` es adecuado para un título principal de página
           component="h1" // Semánticamente correcto como h1 para el SEO
           sx={{
-            fontWeight: "bold",
+            fontFamily: "'Mulish', sans-serif",
+            fontWeight: 900, // Black weight
             mb: { xs: 2, md: 3 }, // Espaciado adaptable
-            textShadow: "2px 2px 6px rgba(0,0,0,0.4)", // Sombra más pronunciada
-            fontSize: { xs: "2.5rem", sm: "3.5rem", md: "4.5rem" }, // Tamaño adaptable del título
-            letterSpacing: { xs: -0.5, md: -1.5 }, // Ligero ajuste de espaciado entre letras
+            textShadow: "3px 3px 8px rgba(0,0,0,0.5)", // Sombra más pronunciada
+            fontSize: { xs: "3rem", sm: "4.5rem", md: "6rem" }, // Tamaño adaptable del título
+            letterSpacing: { xs: 1, md: 2 }, // Espaciado entre letras para impact
+            textTransform: "uppercase",
+            textAlign: "center",
+            width: "100%",
           }}
         >
-          Bienvenido a Radiotaxi
+          Bienvenido a YAAPS
         </Typography>
 
         {/* Subtítulo / Descripción */}
         <Typography
           variant="h5" // `h5` o `h6` son buenas opciones para el subtítulo
           sx={{
+            fontFamily: "'Mulish', sans-serif",
+            fontWeight: 400,
             maxWidth: 700,
-            lineHeight: 1.6,
+            lineHeight: 1.7,
             mb: { xs: 5, md: 6 }, // Espaciado adaptable
             fontSize: { xs: "1.1rem", sm: "1.3rem", md: "1.5rem" }, // Tamaño adaptable
-            opacity: 0.9, // Ligera opacidad para suavizar el texto
+            opacity: 0.95, // Ligera opacidad para suavizar el texto
+            textAlign: "center",
+            mx: "auto",
           }}
         >
           Tu solución rápida y segura para moverte por la ciudad. Conectamos conductores y pasajeros para viajes eficientes y confiables.
@@ -83,7 +91,7 @@ const LandingPage = () => {
 
         {/* Botón de Llamada a la Acción Principal */}
         <Button
-          onClick={() => alert("¡Descarga la app de Radiotaxi para pedir tu taxi ahora!")} // Mensaje más específico
+          onClick={() => alert("¡Descarga la app de YAAPS para pedir tu taxi ahora!")} // Mensaje más específico
           variant="contained" // Usa el estilo "contained" de MUI
           sx={{
             px: { xs: 4, md: 6 }, // Padding horizontal adaptable
@@ -91,14 +99,15 @@ const LandingPage = () => {
             fontSize: { xs: "1.1rem", md: "1.4rem" }, // Tamaño de fuente adaptable
             fontWeight: "bold",
             borderRadius: "50px", // Bordes más redondeados para un look moderno
-            backgroundColor: theme.palette.common.white, // Color blanco del tema
-            color: theme.palette.primary.main, // Usa el color primario del tema para el texto
-            boxShadow: theme.shadows[5], // Sombra más prominente del tema
+            backgroundColor: "#ffffff", // Botón blanco
+            color: "#d7171a", // Texto en rojo corporativo
+            boxShadow: "0 8px 24px rgba(255, 255, 255, 0.3)", // Sombra blanca prominente
             transition: "all 0.3s ease-in-out", // Transición para hover y otras propiedades
             "&:hover": {
-              backgroundColor: "#e0e0e0", // Ligero cambio al pasar el cursor
+              backgroundColor: "#f5f5f5", // Ligero gris al pasar el cursor
               transform: "translateY(-4px)", // Efecto de elevación más notable
-              boxShadow: theme.shadows[8], // Sombra más profunda al pasar el cursor
+              boxShadow: "0 12px 32px rgba(255, 255, 255, 0.4)", // Sombra más profunda al pasar el cursor
+              color: "#b01217", // Rojo más oscuro en hover
             },
           }}
         >

@@ -5,7 +5,7 @@ const Footer = () => (
   <Box
     component="footer"
     sx={{
-      background: "#1e3c72",
+      background: "#000000",
       color: "#fff",
       py: 1,
       px: 0,
@@ -13,7 +13,7 @@ const Footer = () => (
       alignItems: "center",
       justifyContent: "space-between",
       mt: "auto",
-      boxShadow: "0 -2px 8px rgba(30,60,114,0.15)"
+      boxShadow: "0 -2px 8px rgba(215,23,26,0.3)"
     }}
   >
     {/* Imagen de marca */}
@@ -34,7 +34,7 @@ const Footer = () => (
     <Box sx={{ minWidth: 180, textAlign: "right" }}>
       <Button
         color="inherit"
-        sx={{ mr: 1, bgcolor: "#2a5298", color: "#fff", borderRadius: 2, px: 2, fontWeight: 500 }}
+        sx={{ mr: 1, bgcolor: "#d7171a", color: "#fff", borderRadius: 2, px: 2, fontWeight: 500, '&:hover': { bgcolor: "#b01217" } }}
         href="https://chaskydev.com/servicios"
         target="_blank"
       >
@@ -42,7 +42,7 @@ const Footer = () => (
       </Button>
       <Button
         color="inherit"
-        sx={{ bgcolor: "#2a5298", color: "#fff", borderRadius: 2, px: 2, fontWeight: 500 }}
+        sx={{ bgcolor: "#484848", color: "#fff", borderRadius: 2, px: 2, fontWeight: 500, '&:hover': { bgcolor: "#333" } }}
         href="mailto:soporte@tumarca.com"
       >
         Soporte

@@ -17,7 +17,7 @@ const Sidebar = ({ logo, menuItems }) => {
       sx={{
         width: expanded ? drawerWidthExpanded : drawerWidthCollapsed,
         height: "100vh",
-        background: "#23234f",
+        background: "#000000",
         color: "#fff",
         display: "flex",
         flexDirection: "column",
@@ -33,7 +33,7 @@ const Sidebar = ({ logo, menuItems }) => {
           position: "sticky",
           top: 0,
           zIndex: 1,
-          background: "#23234f",
+          background: "#000000",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -77,9 +77,9 @@ const Sidebar = ({ logo, menuItems }) => {
                 mb: 1,
                 borderRadius: 2,
                 color: "#fff",
-                backgroundColor: isActive ? "rgba(255, 255, 255, 0.1)" : "transparent",
+                backgroundColor: isActive ? "rgba(215, 23, 26, 0.2)" : "transparent",
                 "&:hover": {
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
+                  backgroundColor: "rgba(215, 23, 26, 0.15)",
                 },
                 transition: "background 0.3s",
                 justifyContent: expanded ? "flex-start" : "center",
@@ -90,7 +90,7 @@ const Sidebar = ({ logo, menuItems }) => {
               <ListItemIcon
                 sx={{
                   justifyContent: "center",
-                  color: isActive ? "#90caf9" : "#fff", // <-- aquí cambia el color del ícono si está activo
+                  color: isActive ? "#d7171a" : "#fff", // <-- color rojo cuando está activo
                   transition: "color 0.3s",
                 }}
               >

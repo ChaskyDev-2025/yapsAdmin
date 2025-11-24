@@ -17,7 +17,7 @@ const defaultStyles = {
     color: "#000",
     fontWeight: "bold",
     fontSize: "1rem",
-    borderBottom: "2px solid #1e3c72",
+    borderBottom: "2px solid #d7171a",
   },
   "& .MuiDataGrid-cell": {
     color: "#333",

@@ -8,7 +8,7 @@ import {
 } from "@mui/material";
 
 const ColorEmpresa = ({ onSave }) => {
-  const [color, setColor] = useState("#1976d2");
+  const [color, setColor] = useState("#d7171a"); // Rojo corporativo por defecto
   const [guardado, setGuardado] = useState(false);
 
   const handleGuardar = () => {

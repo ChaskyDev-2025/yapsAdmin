@@ -9,12 +9,12 @@ const CustomModal = ({
   footerButtons = [],
 }) => {
   const commonBtnStyle = {
-    backgroundColor: "#1976d2",
+    backgroundColor: "#d7171a",
     color: "#fff",
     textTransform: "none",
     borderRadius: 2,
     px: 2,
-    "&:hover": { backgroundColor: "#115293" },
+    "&:hover": { backgroundColor: "#b01217" },
   };
 
   // Dividir por posición

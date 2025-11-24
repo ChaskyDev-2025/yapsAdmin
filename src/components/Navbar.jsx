@@ -3,7 +3,7 @@ import { AppBar, Toolbar, Typography, IconButton, Avatar, Box } from "@mui/mater
 import MenuIcon from "@mui/icons-material/Menu";
 
 const Navbar = ({ onMenuClick }) => (
-  <AppBar position="fixed" sx={{ background: "linear-gradient(90deg, #1e3c72 60%, #2a5298 100%)", boxShadow: 3 }}>
+  <AppBar position="fixed" sx={{ background: "linear-gradient(90deg, #d7171a 0%, #000000 100%)", boxShadow: 3 }}>
     <Toolbar>
       {/* Botón de menú para sidebar desplegable */}
       <IconButton
@@ -18,8 +18,8 @@ const Navbar = ({ onMenuClick }) => (
       {/* Logo de marca */}
       <Avatar src="/imagen1.jpg" alt="Logo" sx={{ mr: 2 }} />
       {/* Nombre de la marca */}
-      <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 700, letterSpacing: 2 }}>
-        Panel Admin
+      <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 900, letterSpacing: 2, fontFamily: "'Mulish', sans-serif" }}>
+        YAAPS
       </Typography>
       {/* Usuario o acciones (ejemplo) */}
       <Box sx={{ display: "flex", alignItems: "center" }}>

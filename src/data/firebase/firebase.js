@@ -3,19 +3,23 @@ import { initializeApp } from "firebase/app";
 import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
+import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  apiKey: "AIzaSyDpHcoShSwW-xBExwuZc-Cp6h5XVb15qG0",
+  authDomain: "taxia1.firebaseapp.com",
+  databaseURL: "https://taxia1-default-rtdb.firebaseio.com",
+  projectId: "taxia1",
+  storageBucket: "taxia1.firebasestorage.app",
+  messagingSenderId: "818622038646",
+  appId: "1:818622038646:web:9c18ecdcde0f3e09659557",
+  measurementId: "G-LMSR97W98Q"
 };
 
-console.log("📦 Firebase Project ID:", process.env.REACT_APP_FIREBASE_PROJECT_ID);
+console.log("📦 Firebase Project ID:", firebaseConfig.projectId);
 
 const app = initializeApp(firebaseConfig);
+export const analytics = getAnalytics(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const auth = getAuth(app);

@@ -1,12 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { Box, Paper, Typography, TextField, Button, useTheme, Alert } from "@mui/material";
+import { Box, Paper, Typography, TextField, Button, Alert } from "@mui/material";
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { useState } from "react";
 import { loginWithEmail, mapFirebaseError } from "../services/authService"; // 👈 importa el servicio
 
 const Login = () => {
   const navigate = useNavigate();
-  const theme = useTheme();
 
   const [email, setEmail] = useState("");       // 👈 controlados
   const [password, setPassword] = useState("");
@@ -29,11 +28,11 @@ const Login = () => {
 
   return (
     <Box sx={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center",
-               background: "linear-gradient(135deg, #007bff 0%, #00c6ff 100%)", p: 2 }}>
+               background: "linear-gradient(135deg, #d7171a 0%, #000000 100%)", p: 2 }}>
       <Paper elevation={10} sx={{ p:{ xs:3, sm:4 }, borderRadius:3, width:{ xs:'90%', sm:380 }, maxWidth:400,
-                                   textAlign:"center", backgroundColor:'rgba(255,255,255,0.95)',
-                                   backdropFilter:'blur(5px)', boxShadow:'0 8px 32px rgba(31,38,135,.37)' }}>
-        <LockOutlinedIcon sx={{ fontSize: 60, color: theme.palette.primary.main, mb: 2 }} />
+                                   textAlign:"center", backgroundColor:'rgba(255,255,255,0.98)',
+                                   backdropFilter:'blur(10px)', boxShadow:'0 8px 32px rgba(215,23,26,.4)' }}>
+        <LockOutlinedIcon sx={{ fontSize: 60, color: "#d7171a", mb: 2 }} />
         <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
           Acceso Administrador
         </Typography>
@@ -52,7 +51,8 @@ const Login = () => {
             label="Contraseña" type="password" fullWidth required margin="normal"
             value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password"
           />
-          <Button type="submit" variant="contained" fullWidth size="large" disabled={submitting} sx={{ mt: 3 }}>
+          <Button type="submit" variant="contained" fullWidth size="large" disabled={submitting} 
+                  sx={{ mt: 3, bgcolor: "#d7171a", '&:hover': { bgcolor: "#b01217" }, fontWeight: 600 }}>
             {submitting ? "Entrando…" : "Iniciar sesión"}
           </Button>
         </form>
