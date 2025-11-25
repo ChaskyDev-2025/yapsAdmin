@@ -8,17 +8,18 @@ import {
   TrendingUp,
   Notifications,
 } from "@mui/icons-material";
+import { useDashboardMetrics } from "./hooks/useDashboardMetrics";
 
 const Dashboard = () => {
   // Datos de ejemplo - TODO: Conectar con base de datos real
   const metricas = {
     radiotaxis: { total: 145, activos: 132, inactivos: 13 },
-    usuarios: { total: 3420 },
     documentos: { pendientes: 28, aprobados: 412, rechazados: 15 },
     onboarding: { completados: 95, pendientes: 12 },
     finanzas: { saldoTotal: 45230.5, recargasHoy: 12, ingresosMes: 125400 },
     actividad: { nuevosHoy: 8, usuariosActivos: 234, alertas: 5 },
   };
+  const { totalUsuarios, cargando } = useDashboardMetrics();
 
   // Componente reutilizable para mostrar cards de métricas
   const MetricCard = ({ title, value, subtitle, icon: Icon, color }) => (
@@ -130,7 +131,7 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <MetricCard
             title="Total Usuarios"
-            value={metricas.usuarios.total.toLocaleString()}
+            value={cargando ? "..." : totalUsuarios.toLocaleString()}
             subtitle="Registrados en el sistema"
             icon={People}
             color="#4caf50"

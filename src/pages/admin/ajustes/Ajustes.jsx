@@ -1,5 +1,5 @@
 // src/pages/admin/ajustes/Ajustes.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Typography, Paper, Stack, Box, Avatar } from "@mui/material";
 import BusinessIcon from "@mui/icons-material/Business";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -10,12 +10,55 @@ import DetalleModal from "./components/ModalUsuario";
 import { getUsuariosColumns } from "./data/usuariosColumns";
 import IconActionButton from "../../../shared/components/botones/Botones";
 import { useUsuarios } from "./hooks/useUsuarios";
+import { useAuth } from "../../../auth/AuthContext";
+import { doc, getDoc} from "firebase/firestore";
+import { db } from "../../../data/firebase/firebase";
+
 
 const Ajustes = () => {
   const [openModal, setOpenModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
+  const [nombreEmpresa, setNombreEmpresa] = useState("Empresa");
   
   const { rows, cargando, error } = useUsuarios();
+  const { user } = useAuth();
+
+  //Obtener nombre de empresa del usuario actual
+useEffect(() =>{
+  const fetchEmpresaName = async () => {
+    if (user?.uid){
+      try {
+        console.log("User UID:", user.uid); // 👈 Ver el UID del usuario
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          console.log("userData completo:", userData); // 👈 Ver todos los datos del usuario
+
+          //Si tiene flotaId, buscar el nombre en la flota
+          if (userData.flotaId) {
+            console.log("flotaId encontrado:", userData.flotaId); // 👈 Ver el flotaId
+            const flotaDoc = await getDoc(doc(db, "flotas", userData.flotaId));
+            console.log("flotaDoc existe:", flotaDoc.exists()); // 👈 Ver si encuentra la flota
+            if (flotaDoc.exists()) {
+              const flotaData = flotaDoc.data();
+              console.log("flotaData:", flotaData); // 👈 Ver datos de la flota
+              setNombreEmpresa(flotaData.nombre || flotaData.nombreEmpresa || "Empresa");
+            }
+          } else{
+            console.log("No tiene flotaId"); // 👈 Ver si entra aquí
+            //Si no tiene FlotaID, usar nombreEmpresa del usuario
+            setNombreEmpresa(userData.nombreEmpresa || "Empresa")
+          }
+        } else {
+          console.log("Usuario no existe en Firestore"); // 👈 Ver si el documento existe
+        }
+      }catch (error) {
+        console.error("Error al obtener nombre de empresa:", error)
+      }
+    }
+  };
+  fetchEmpresaName();
+}, [user]);
 
   const handleVer = (row) => {
     setSelectedRow(row);
@@ -29,7 +72,6 @@ const Ajustes = () => {
 
   const handleEliminar = (row) => {
     console.log("Eliminar usuario:", row);
-    // Aquí puedes agregar la lógica para eliminar
   };
 
   const columns = getUsuariosColumns((params) => (
@@ -80,7 +122,7 @@ const Ajustes = () => {
           </Avatar>
           <Box>
             <Typography variant="h4" fontWeight="bold">
-              {rows[0]?.nombreEmpresa || "Empresa"}
+              {nombreEmpresa}
             </Typography>
             <Typography color="text.secondary">
               Gestión de usuarios del sistema
