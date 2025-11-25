@@ -12,6 +12,7 @@ import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
 import BuildIcon from "@mui/icons-material/Build";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import SupervisorAccountIcon from "@mui/icons-material/SupervisorAccount";
+import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import Navbar          from "../components/Navbar";
 import Footer          from "../components/Footer";
 import Sidebar         from "../components/Sidebar";
@@ -25,29 +26,26 @@ const AdminLayout = () => {
 
   // Menú dinámico según el rol
   const menuItems = useMemo(() => {
-    const baseMenu = [
-      { path: "/admin/dashboard", label: "Inicio", icon: <DashboardIcon /> },
-      { path: "/admin/usuarios", label: "Usuarios", icon: <PeopleIcon /> },
-      { path: "/admin/radiotaxis", label: "Radiotaxis", icon: <LocalTaxiIcon /> },
-      { path: "/admin/ajustes", label: "Ajustes", icon: <SettingsIcon /> },
-      { path: "/admin/landing", label: "Landing", icon: <WebIcon /> },
-      { path: "/admin/onboarding", label: "Onboarding", icon: <SchoolIcon /> },
-      { path: "/admin/banners", label: "Banners", icon: <PhotoLibraryIcon /> },
-      { path: "/admin/personalizar", label: "Personalizar", icon: <BuildIcon /> },
-      { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },
-      { path: "/admin/documentos", label: "Documentos", icon: <ArticleIcon /> },
-    ];
-
-    // Solo SuperAdmin ve "Gestión de Usuarios"
     if (isSuperAdmin(userRole)) {
-      baseMenu.splice(2, 0, { 
-        path: "/admin/gestion-usuarios", 
-        label: "Gestión Usuarios", 
-        icon: <SupervisorAccountIcon /> 
-      });
+      // Menú específico para SuperAdmin
+      return [
+        { path: "/admin/dashboard", label: "Inicio", icon: <DashboardIcon /> },
+        { path: "/admin/gestion-usuarios", label: "Gestión Usuarios", icon: <SupervisorAccountIcon /> },
+        { path: "/admin/flotas", label: "Flotas", icon: <DirectionsCarIcon /> },
+        { path: "/admin/banners", label: "Banners", icon: <PhotoLibraryIcon /> },
+        { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },
+        { path: "/admin/documentos", label: "Documentos", icon: <ArticleIcon /> },
+      ];
     }
 
-    return baseMenu;
+    // Menú para Admin regular
+    return [
+      { path: "/admin/dashboard", label: "Inicio", icon: <DashboardIcon /> },
+      { path: "/admin/radiotaxis", label: "Radiotaxis", icon: <LocalTaxiIcon /> },
+      { path: "/admin/ajustes", label: "Ajustes", icon: <SettingsIcon /> },
+      { path: "/admin/personalizar", label: "Personalizar", icon: <BuildIcon /> },
+      { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },
+    ];
   }, [userRole]);
 
   return (

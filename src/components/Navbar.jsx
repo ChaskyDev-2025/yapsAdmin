@@ -7,6 +7,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import SettingsIcon from "@mui/icons-material/Settings";
 import { useAuth } from "../auth/AuthContext";
 import { logout } from "../services/authService";
+import { isSuperAdmin } from "../services/userService";
 
 const Navbar = ({ onMenuClick }) => {
   const { user, userRole } = useAuth();
@@ -141,12 +142,14 @@ const Navbar = ({ onMenuClick }) => {
             </ListItemIcon>
             Mi Perfil
           </MenuItem>
-          <MenuItem onClick={handleSettings}>
-            <ListItemIcon>
-              <SettingsIcon fontSize="small" />
-            </ListItemIcon>
-            Ajustes
-          </MenuItem>
+          {!isSuperAdmin(userRole) && (
+            <MenuItem onClick={handleSettings}>
+              <ListItemIcon>
+                <SettingsIcon fontSize="small" />
+              </ListItemIcon>
+              Ajustes
+            </MenuItem>
+          )}
           <Divider />
           <MenuItem 
             onClick={handleLogout}
