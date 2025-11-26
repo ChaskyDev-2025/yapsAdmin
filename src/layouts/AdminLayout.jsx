@@ -13,6 +13,7 @@ import BuildIcon from "@mui/icons-material/Build";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import SupervisorAccountIcon from "@mui/icons-material/SupervisorAccount";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+import RoomServiceIcon from "@mui/icons-material/RoomService";
 import Navbar          from "../components/Navbar";
 import Footer          from "../components/Footer";
 import Sidebar         from "../components/Sidebar";
@@ -32,6 +33,7 @@ const AdminLayout = () => {
         { path: "/admin/dashboard", label: "Inicio", icon: <DashboardIcon /> },
         { path: "/admin/gestion-usuarios", label: "Gestión Usuarios", icon: <SupervisorAccountIcon /> },
         { path: "/admin/flotas", label: "Flotas", icon: <DirectionsCarIcon /> },
+        { path: "/admin/servicios", label: "Servicios", icon: <RoomServiceIcon /> },
         { path: "/admin/banners", label: "Banners", icon: <PhotoLibraryIcon /> },
         { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },
         { path: "/admin/documentos", label: "Documentos", icon: <ArticleIcon /> },

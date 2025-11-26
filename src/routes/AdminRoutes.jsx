@@ -15,6 +15,7 @@ import Perfil from "../pages/admin/perfil/Perfil";
 import VerificarRol from "../pages/admin/perfil/VerificarRol";
 import Documentos from "../pages/admin/docs/docs"; // Asegúrate de que esta ruta sea correcta
 import GestionFlotas from "../pages/admin/flotas/GestionFlotas";
+import GestionServicios from "../pages/admin/servicios/GestionServicios";
 
 const AdminRoutes = () => (
   <Routes>
@@ -25,6 +26,7 @@ const AdminRoutes = () => (
       <Route path="gestion-usuarios" element={<GestionUsuarios />} />
       <Route path="verificar-rol" element={<VerificarRol />} />
       <Route path="radiotaxis" element={<Radiotaxis />} />
+      <Route path="servicios" element={<GestionServicios />} />
       <Route path="ajustes" element={<Ajustes />} />
       <Route path="landing" element={<Landing />} />
       <Route path="onboarding" element={<Onboarding />} />
@@ -38,8 +40,3 @@ const AdminRoutes = () => (
 );
 
 export default AdminRoutes;
-//instalar npm install react-router-dom 
-//instalar npm install @mui/material @mui/icons-material @emotion/react @emotion/styled
-//instalar npm install @mui/icons-material
-//Todo esto para el funcionamiento del panel de administración
-//Asegúrate de que las rutas de las páginas coincidan con las que has creado  
