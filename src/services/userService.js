@@ -34,14 +34,8 @@ export async function createAdminUser(userData) {
       createdBy: userData.createdBy || null,
     });
     
-    console.log("✅ Documento creado en Firestore:", `users/${uid}`);
-    
-    // 3. Cerrar sesión del usuario recién creado
-    // Esto NO cierra la sesión del SuperAdmin porque Firebase maneja sesiones por pestaña
-    await auth.signOut();
-    
-    // Nota: El usuario SuperAdmin seguirá logueado porque Firebase Auth
-    // mantiene la sesión activa en el navegador. Solo cerramos la sesión del nuevo usuario.
+    // Al final de createAdminUser
+    window.location.reload(); // Recargar la página para re-autenticar
     
     return { success: true, id: uid };
   } catch (error) {

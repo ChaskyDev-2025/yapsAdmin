@@ -573,7 +573,7 @@ const GestionUsuarios = () => {
 
           {!editingUser && (
             <TextField
-              label="Contraseña Temporal"
+              label="Contraseña"
               type="password"
               fullWidth
               margin="normal"
