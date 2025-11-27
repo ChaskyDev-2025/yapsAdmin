@@ -55,7 +55,6 @@ const GestionUsuarios = () => {
     role: "admin",
     password: "",
     flotaId: "",
-    rolFlota: "dueño",
   });
 
   // Cargar usuarios, pasajeros y flotas
@@ -111,7 +110,6 @@ const GestionUsuarios = () => {
         role: usuario.role,
         password: "",
         flotaId: usuario.flotaId || "",
-        rolFlota: usuario.rolFlota || "dueño",
       });
     } else {
       setEditingUser(null);
@@ -121,7 +119,6 @@ const GestionUsuarios = () => {
         role: "admin",
         password: "",
         flotaId: "",
-        rolFlota: "dueño",
       });
     }
     setOpenDialog(true);
@@ -132,7 +129,7 @@ const GestionUsuarios = () => {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setEditingUser(null);
-    setFormData({ email: "", nombre: "", role: "admin", password: "", flotaId: "", rolFlota: "dueño" });
+    setFormData({ email: "", nombre: "", role: "admin", password: "", flotaId: "" });
   };
 
   const handleSaveUser = async () => {
@@ -156,7 +153,6 @@ const GestionUsuarios = () => {
         nombre: formData.nombre,
         role: "admin",
         flotaId: formData.flotaId,
-        rolFlota: formData.rolFlota,
       });
 
       if (result.success) {
@@ -167,42 +163,25 @@ const GestionUsuarios = () => {
         setError(result.error || "Error al actualizar usuario");
       }
     } else {
-      // Crear nuevo usuario - SIN crear cuenta en Auth
+      // Crear nuevo usuario con Firebase Auth + Firestore
       if (!formData.password) {
         setError("La contraseña es obligatoria para nuevos usuarios");
         return;
       }
 
-      // Guardar usuario pendiente en Firestore
       const result = await createAdminUser({
         email: formData.email,
         nombre: formData.nombre,
         role: "admin",
-        password: formData.password, // Se guarda temporalmente
+        password: formData.password,
         flotaId: formData.flotaId,
-        rolFlota: formData.rolFlota,
         createdBy: user.uid,
-        status: "pending", // Usuario pendiente de activación
       });
 
       if (result.success) {
-        setSuccess(
-          `✅ Usuario guardado. 
-          
-          📋 PASOS PARA ACTIVAR:
-          1. Ve a Firebase Console → Authentication
-          2. Haz clic en "Add user"
-          3. Email: ${formData.email}
-          4. Password: ${formData.password}
-          5. Copia el UID generado
-          6. Ve a Firestore → users → ${result.id}
-          7. Agrega el campo "uid" con el valor copiado
-          8. Cambia "status" de "pending" a "active"
-          
-          💡 El usuario podrá iniciar sesión después de esto.`
-        );
+        setSuccess("✅ Usuario creado exitosamente en Authentication y Firestore");
         loadUsers();
-        // No cerramos el dialog para que vea las instrucciones
+        setTimeout(() => handleCloseDialog(), 2000);
       } else {
         setError(result.error || "Error al crear usuario");
       }
@@ -311,7 +290,6 @@ const GestionUsuarios = () => {
               <TableCell sx={{ fontWeight: "bold" }}>Nombre</TableCell>
               <TableCell sx={{ fontWeight: "bold" }}>Rol Sistema</TableCell>
               <TableCell sx={{ fontWeight: "bold" }}>Flota</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Rol Flota</TableCell>
               <TableCell sx={{ fontWeight: "bold" }}>Estado</TableCell>
               <TableCell sx={{ fontWeight: "bold" }}>Contraseña Temp</TableCell>
               <TableCell sx={{ fontWeight: "bold" }}>Creado</TableCell>
@@ -323,13 +301,13 @@ const GestionUsuarios = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={9} align="center">
+                <TableCell colSpan={8} align="center">
                   Cargando usuarios...
                 </TableCell>
               </TableRow>
             ) : usuarios.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} align="center">
+                <TableCell colSpan={8} align="center">
                   No hay usuarios registrados
                 </TableCell>
               </TableRow>
@@ -354,21 +332,6 @@ const GestionUsuarios = () => {
                       <Typography variant="body2">
                         {flotas.find(f => f.id === usuario.flotaId)?.nombre || "Flota no encontrada"}
                       </Typography>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">-</Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {usuario.rolFlota ? (
-                      <Chip
-                        label={usuario.rolFlota === "dueño" ? "Dueño" : "Trabajador"}
-                        size="small"
-                        sx={{
-                          bgcolor: usuario.rolFlota === "dueño" ? "#d7171a" : "#484848",
-                          color: "white",
-                          fontWeight: 600,
-                        }}
-                      />
                     ) : (
                       <Typography variant="body2" color="text.secondary">-</Typography>
                     )}
@@ -606,18 +569,6 @@ const GestionUsuarios = () => {
                 {flota.nombre}
               </MenuItem>
             ))}
-          </TextField>
-
-          <TextField
-            label="Rol en la Flota"
-            select
-            fullWidth
-            margin="normal"
-            value={formData.rolFlota}
-            onChange={(e) => setFormData({ ...formData, rolFlota: e.target.value })}
-          >
-            <MenuItem value="dueño">Dueño</MenuItem>
-            <MenuItem value="trabajador">Trabajador</MenuItem>
           </TextField>
 
           {!editingUser && (
