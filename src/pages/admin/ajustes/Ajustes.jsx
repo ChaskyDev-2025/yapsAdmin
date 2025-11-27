@@ -77,16 +77,8 @@ useEffect(() =>{
   const columns = getUsuariosColumns((params) => (
     <Stack direction="row" spacing={1}>
       <IconActionButton
-        icon={<VisibilityIcon fontSize="small" />}
-        color="primary"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleVer(params.row);
-        }}
-      />
-      <IconActionButton
         icon={<EditIcon fontSize="small" />}
-        color="warning"
+        color="error"
         onClick={(e) => {
           e.stopPropagation();
           handleEditar(params.row);

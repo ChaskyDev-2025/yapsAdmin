@@ -52,7 +52,7 @@ export const useUsuarios = () => {
             nombreUsuario: usuario.nombre || usuario.nombreUsuario || "Usuario sin nombre",
             telefono: usuario.telefono || "Sin teléfono",
             email: usuario.email || "Sin email",
-            rol: usuario.rol || "Usuario",
+            rol: usuario.role || usuario.rol || "Usuario",
             cargo: usuario.cargo || null,
             avatar: usuario.avatar || usuario.foto || null,
             fechaRegistro,
