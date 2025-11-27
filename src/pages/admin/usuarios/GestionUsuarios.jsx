@@ -179,9 +179,16 @@ const GestionUsuarios = () => {
       });
 
       if (result.success) {
-        setSuccess("✅ Usuario creado exitosamente en Authentication y Firestore");
-        loadUsers();
-        setTimeout(() => handleCloseDialog(), 2000);
+        if (result.requiresRelogin) {
+          setSuccess("✅ Usuario creado exitosamente. Por seguridad, debes volver a iniciar sesión...");
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 2000);
+        } else {
+          setSuccess("✅ Usuario creado exitosamente");
+          loadUsers();
+          setTimeout(() => handleCloseDialog(), 2000);
+        }
       } else {
         setError(result.error || "Error al crear usuario");
       }
@@ -189,8 +196,10 @@ const GestionUsuarios = () => {
   };
 
   const handleDeleteUser = async (userId) => {
+    console.log("Intentando eliminar usuario con ID:", userId); // Debug
     if (window.confirm("¿Estás seguro de eliminar este usuario?")) {
       const result = await deleteUser(userId);
+      console.log("Resultado de eliminación:", result); // Debug
       if (result.success) {
         setSuccess("Usuario eliminado correctamente");
         loadUsers();
@@ -579,7 +588,6 @@ const GestionUsuarios = () => {
               margin="normal"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              helperText="Nota: Debes crear la cuenta en Firebase Authentication manualmente con este email."
             />
           )}
         </DialogContent>

@@ -29,15 +29,24 @@ export async function createAdminUser(userData) {
       role: userData.role || "admin",
       nombre: userData.nombre || "",
       flotaId: userData.flotaId || null,
+      password: userData.password,
       active: true,
       createdAt: new Date().toISOString(),
       createdBy: userData.createdBy || null,
     });
     
-    // Al final de createAdminUser
-    window.location.reload(); // Recargar la página para re-autenticar
+    console.log("✅ Documento creado en Firestore:", `users/${uid}`);
     
-    return { success: true, id: uid };
+    // 3. Cerrar sesión del usuario recién creado
+    // Nota: Esto cerrará la sesión actual, por lo que el SuperAdmin debe volver a iniciar sesión
+    await auth.signOut();
+    
+    return {
+      success: true,
+      id: uid,
+      requiresRelogin: true, // Flag para indicar que se necesita re-login
+    };
+
   } catch (error) {
     console.error("❌ Error creando usuario:", error);
     
@@ -63,7 +72,11 @@ export async function getAllUsers() {
     const querySnapshot = await getDocs(collection(db, "users"));
     const users = [];
     querySnapshot.forEach((doc) => {
-      users.push({ id: doc.id, ...doc.data() });
+      const userData = doc.data();
+      // Solo incluir usuarios activos (no eliminados)
+      if (userData.active !== false) {
+        users.push({ id: doc.id, ...userData });
+      }
     });
     return users;
   } catch (error) {
@@ -112,14 +125,16 @@ export async function updateUser(userId, userData) {
  */
 export async function deleteUser(userId) {
   try {
+    console.log("🗑️ Eliminando usuario:", userId); // Debug
     const userRef = doc(db, "users", userId);
     await updateDoc(userRef, {
       active: false,
       deletedAt: new Date().toISOString(),
     });
+    console.log("✅ Usuario marcado como inactivo"); // Debug
     return { success: true };
   } catch (error) {
-    console.error("Error eliminando usuario:", error);
+    console.error("❌ Error eliminando usuario:", error);
     return { success: false, error: error.message };
   }
 }

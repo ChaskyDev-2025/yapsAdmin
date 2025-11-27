@@ -36,6 +36,8 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage" ;
+import { storage } from "../../../data/firebase/firebase";
 
 const GestionFlotas = () => {
   const [flotas, setFlotas] = useState([]);
@@ -109,6 +111,28 @@ const GestionFlotas = () => {
       }
     } catch (error) {
       console.error("Error al obtener servicios:", error);
+    }
+  };
+
+  const uploadImageToStorage = async (file, flotaId) => {
+    try {
+      //crear referencia unica con timeStamp
+      const timeStamp = Date.now();
+      const fileName = `flotas/${flotaId}_${timeStamp}_${file.name}`;
+      const storageRef = ref(storage, fileName);
+
+      //subir archivo
+      const snapshot = await uploadBytes(storageRef, file);
+      console.log("Imagen subida", snapshot);
+
+      //obtener URL de descarga
+      const dowloadURL = await getDownloadURL(snapshot.ref);
+      console.log("URL obtenida:", dowloadURL);
+
+      return dowloadURL;
+    }catch (error) {
+      console.error("Error sunbiendo imagen:" , error);
+      throw error;
     }
   };
 
@@ -197,7 +221,16 @@ const GestionFlotas = () => {
 
     setIsSaving(true);
     
+    let imageUrl = formData.imageUrl || imagePreview || "";
+    
     try {
+      //Si hay un archivo nuevo, subirlo a Storage
+      if (imageFile) {
+        const flotaId = editMode ? currentFlota.id : `temp_${Date.now()}`;
+        imageUrl = await uploadImageToStorage(imageFile, flotaId);
+        console.log("Nueva imagen subida:", imageUrl);
+      }
+    
       // Obtener datos del primer administrador seleccionado
       const primerAdminUid = formData.uidPropietarios[0];
       console.log('UID del primer admin:', primerAdminUid);
@@ -227,7 +260,7 @@ const GestionFlotas = () => {
         const flotaRef = doc(db, "flotas", currentFlota.id);
         await updateDoc(flotaRef, {
           nombre: formData.nombre,
-          imageUrl: imagePreview || "",
+          imageUrl: imageUrl || "",
           perfilFlota: perfilFlota,
           documentosFlota: {
             nit: formData.nit,
@@ -254,7 +287,7 @@ const GestionFlotas = () => {
         console.log('Creando nueva flota...');
         const nuevaFlotaRef = await addDoc(collection(db, "flotas"), {
           nombre: formData.nombre,
-          imageUrl: imagePreview || "",
+          imageUrl: imageUrl || "",
           perfilFlota: perfilFlota,
           documentosFlota: {
             nit: formData.nit,
