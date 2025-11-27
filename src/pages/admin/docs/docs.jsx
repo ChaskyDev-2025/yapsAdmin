@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
-  Typography, Paper, Stack
+  Typography, Paper, Stack, Alert, Box, Chip
 } from "@mui/material";
 import { Tabla2 }        from "../../../shared/components/tablas/tabla";
 import { Columns }       from "./data/Columns";
@@ -11,8 +11,14 @@ import IconActionButton  from "../../../shared/components/botones/Botones";
 import DocumentoModal    from "./components/modalCrearDocs/DocumentoModal";
 import ModalEditDocs from "./components/modalEditDocs/ModalEditDocs";
 import { useDocuments } from "../../../hooks/useDocuments";
+import { useAuth } from "../../../auth/AuthContext";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../../data/firebase/firebase";
 
 const Documentos = () => {
+  const { userFlotaId, userRole } = useAuth();
+  const [flotaInfo, setFlotaInfo] = useState(null);
+  
   /* ── estado del modal ───────────── */
   const { rows, loading, create, update, remove, toggleActivo } = useDocuments();
   const [openCreate, setOpenCreate] = useState(false);
@@ -20,6 +26,24 @@ const Documentos = () => {
   const handleClose = () => setOpenCreate(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [docSeleccionado, setDocSeleccionado] = useState(null);
+
+  // Cargar información de la flota si es admin
+  useEffect(() => {
+    const loadFlotaInfo = async () => {
+      if (userFlotaId) {
+        try {
+          const flotaDoc = await getDoc(doc(db, "flotas", userFlotaId));
+          if (flotaDoc.exists()) {
+            setFlotaInfo(flotaDoc.data());
+          }
+        } catch (error) {
+          console.error("Error cargando info de flota:", error);
+        }
+      }
+    };
+    loadFlotaInfo();
+  }, [userFlotaId]);
+
   const handleSave = async (nuevoDoc) => {
     try {
       await create({ ...nuevoDoc, titulo: nuevoDoc.screenTitle });
@@ -83,7 +107,7 @@ const Documentos = () => {
         }}
       />
     </Stack>
-  ), []);
+  ), [remove]);
 
   const columns = Columns(handleToggleActivo, renderAcciones);
 
@@ -101,12 +125,53 @@ const Documentos = () => {
           border: "0.1px solid rgba(146,144,144,.6)"
         }}
       >
-        <Typography variant="h4" gutterBottom fontWeight="bold">
-          Documentos
-        </Typography>
-        <Typography color="text.secondary" mb={2}>
-          Aquí puedes gestionar los documentos: ver, crear, editar o eliminar.
-        </Typography>
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h4" gutterBottom fontWeight="bold">
+            Documentos
+          </Typography>
+          
+          {userFlotaId && flotaInfo && (
+            <Alert 
+              severity="info" 
+              sx={{ 
+                mt: 2,
+                backgroundColor: "#e3f2fd",
+                "& .MuiAlert-icon": { color: "#1976d2" }
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  📂 Gestionando documentos de la flota:
+                </Typography>
+                <Chip
+                  label={flotaInfo.nombre}
+                  sx={{
+                    bgcolor: "#d7171a",
+                    color: "white",
+                    fontWeight: 600,
+                    fontFamily: "Mulish, sans-serif"
+                  }}
+                />
+                <Typography variant="caption" sx={{ color: "#666", fontStyle: "italic" }}>
+                  (Solo puedes ver y modificar documentos de tu flota)
+                </Typography>
+              </Box>
+            </Alert>
+          )}
+
+          {!userFlotaId && userRole === "superadmin" && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              <Typography variant="body2">
+                ⚠️ <strong>Modo SuperAdmin:</strong> Estás viendo la colección global de documentos. 
+                Los admins de flotas verán sus documentos en colecciones separadas.
+              </Typography>
+            </Alert>
+          )}
+
+          <Typography color="text.secondary" mt={2}>
+            Aquí puedes gestionar los documentos: ver, crear, editar o eliminar.
+          </Typography>
+        </Box>
 
         <Tabla2
           rows={rows}

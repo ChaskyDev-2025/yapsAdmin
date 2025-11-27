@@ -26,6 +26,8 @@ import {
   Select,
   MenuItem,
   OutlinedInput,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -38,6 +40,7 @@ import { db } from "../../../data/firebase/firebase";
 const GestionFlotas = () => {
   const [flotas, setFlotas] = useState([]);
   const [administradores, setAdministradores] = useState([]);
+  const [serviciosDisponibles, setServiciosDisponibles] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentFlota, setCurrentFlota] = useState(null);
@@ -54,11 +57,14 @@ const GestionFlotas = () => {
     telefono: "",
     fotoNit: "",
     uidPropietarios: [],
+    servicios: [],
+    habilitado: true,
   });
 
   useEffect(() => {
     fetchFlotas();
     fetchAdministradores();
+    fetchServicios();
   }, []);
 
   const fetchFlotas = async () => {
@@ -93,6 +99,19 @@ const GestionFlotas = () => {
     }
   };
 
+  const fetchServicios = async () => {
+    try {
+      const serviciosCollection = collection(db, "servicios_departamentos");
+      const serviciosSnapshot = await getDocs(serviciosCollection);
+      if (!serviciosSnapshot.empty) {
+        const docData = serviciosSnapshot.docs[0].data();
+        setServiciosDisponibles(docData.Servicios || []);
+      }
+    } catch (error) {
+      console.error("Error al obtener servicios:", error);
+    }
+  };
+
   const handleOpenDialog = (flota = null) => {
     if (flota) {
       setEditMode(true);
@@ -105,6 +124,8 @@ const GestionFlotas = () => {
         telefono: flota.perfilFlota?.telefono || "",
         fotoNit: flota.documentosFlota?.fotoNit || "",
         uidPropietarios: flota.uidPropietarios || [],
+        servicios: flota.servicios || [],
+        habilitado: flota.habilitado !== undefined ? flota.habilitado : true,
       });
       setImagePreview(flota.imageUrl || null);
       setImageFile(null);
@@ -119,6 +140,8 @@ const GestionFlotas = () => {
         telefono: "",
         fotoNit: "",
         uidPropietarios: [],
+        servicios: [],
+        habilitado: true,
       });
       setImagePreview(null);
       setImageFile(null);
@@ -211,6 +234,8 @@ const GestionFlotas = () => {
             fotoNit: formData.fotoNit,
           },
           uidPropietarios: formData.uidPropietarios,
+          servicios: formData.servicios,
+          habilitado: formData.habilitado,
           updatedAt: serverTimestamp(),
         });
 
@@ -236,6 +261,8 @@ const GestionFlotas = () => {
             fotoNit: formData.fotoNit,
           },
           uidPropietarios: formData.uidPropietarios,
+          servicios: formData.servicios,
+          habilitado: formData.habilitado,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
@@ -278,6 +305,24 @@ const GestionFlotas = () => {
     } catch (error) {
       console.error("Error al eliminar flota:", error);
       showAlert("Error al eliminar la flota", "error");
+    }
+  };
+
+  const handleToggleHabilitado = async (flotaId, currentState) => {
+    try {
+      const flotaRef = doc(db, "flotas", flotaId);
+      await updateDoc(flotaRef, {
+        habilitado: !currentState,
+        updatedAt: serverTimestamp(),
+      });
+      showAlert(
+        `Flota ${!currentState ? "habilitada" : "inhabilitada"} exitosamente`,
+        "success"
+      );
+      fetchFlotas();
+    } catch (error) {
+      console.error("Error al cambiar estado de la flota:", error);
+      showAlert("Error al cambiar el estado de la flota", "error");
     }
   };
 
@@ -340,6 +385,9 @@ const GestionFlotas = () => {
                 Propietarios
               </TableCell>
               <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                Estado
+              </TableCell>
+              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
                 Fecha de Creación
               </TableCell>
               <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
@@ -350,7 +398,7 @@ const GestionFlotas = () => {
           <TableBody>
             {flotas.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} align="center">
+                <TableCell colSpan={8} align="center">
                   <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                     No hay flotas registradas
                   </Typography>
@@ -416,6 +464,32 @@ const GestionFlotas = () => {
                         Sin propietarios
                       </Typography>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Switch
+                        checked={flota.habilitado !== undefined ? flota.habilitado : true}
+                        onChange={() => handleToggleHabilitado(flota.id, flota.habilitado !== undefined ? flota.habilitado : true)}
+                        sx={{
+                          '& .MuiSwitch-switchBase.Mui-checked': {
+                            color: '#4caf50',
+                          },
+                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                            backgroundColor: '#4caf50',
+                          },
+                        }}
+                      />
+                      <Chip
+                        label={flota.habilitado !== undefined && !flota.habilitado ? "Inactiva" : "Activa"}
+                        size="small"
+                        sx={{
+                          bgcolor: flota.habilitado !== undefined && !flota.habilitado ? "#757575" : "#4caf50",
+                          color: "white",
+                          fontWeight: 600,
+                          fontFamily: "Mulish, sans-serif",
+                        }}
+                      />
+                    </Box>
                   </TableCell>
                   <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                     {flota.createdAt?.toDate?.().toLocaleDateString() || "N/A"}
@@ -615,6 +689,10 @@ const GestionFlotas = () => {
                   value={formData.uidPropietarios}
                   onChange={(e) => setFormData({ ...formData, uidPropietarios: e.target.value })}
                   input={<OutlinedInput label="Seleccionar Administradores" />}
+                  onClose={() => {}}
+                  MenuProps={{
+                    autoFocus: false,
+                  }}
                   renderValue={(selected) => (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                       {selected.map((uid) => {
@@ -666,6 +744,137 @@ const GestionFlotas = () => {
               </FormControl>
               <Typography variant="caption" sx={{ fontFamily: "Mulish, sans-serif", color: "#666", mt: 1, display: "block" }}>
                 Selecciona los administradores que serán propietarios de esta flota
+              </Typography>
+            </Box>
+
+            {/* Servicios */}
+            <Box sx={{ mt: 2 }}>
+              <Typography 
+                variant="subtitle1" 
+                sx={{ 
+                  fontFamily: "Mulish, sans-serif", 
+                  fontWeight: 800, 
+                  color: "#d7171a", 
+                  mb: 2,
+                  fontSize: "1.1rem",
+                  borderBottom: "2px solid #d7171a",
+                  pb: 1
+                }}
+              >
+                🚕 Servicios Disponibles
+              </Typography>
+            </Box>
+
+            <Box>
+              <FormControl fullWidth size="small">
+                <InputLabel>Seleccionar Servicios</InputLabel>
+                <Select
+                  multiple
+                  value={formData.servicios}
+                  onChange={(e) => setFormData({ ...formData, servicios: e.target.value })}
+                  input={<OutlinedInput label="Seleccionar Servicios" />}
+                  onClose={() => {}}
+                  MenuProps={{
+                    autoFocus: false,
+                  }}
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selected.map((servicio) => (
+                        <Chip 
+                          key={servicio} 
+                          label={servicio}
+                          size="small"
+                          sx={{ 
+                            bgcolor: "#484848", 
+                            color: "white",
+                            fontFamily: "Mulish, sans-serif",
+                            fontWeight: 600
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  )}
+                  sx={{ fontFamily: "Mulish, sans-serif" }}
+                >
+                  {serviciosDisponibles.length === 0 ? (
+                    <MenuItem disabled>
+                      <Typography sx={{ fontFamily: "Mulish, sans-serif", color: "#484848" }}>
+                        No hay servicios disponibles
+                      </Typography>
+                    </MenuItem>
+                  ) : (
+                    serviciosDisponibles.map((servicio) => (
+                      <MenuItem key={servicio} value={servicio}>
+                        <Typography sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                          {servicio}
+                        </Typography>
+                      </MenuItem>
+                    ))
+                  )}
+                </Select>
+              </FormControl>
+              <Typography variant="caption" sx={{ fontFamily: "Mulish, sans-serif", color: "#666", mt: 1, display: "block" }}>
+                Selecciona los servicios que ofrecerá esta flota
+              </Typography>
+            </Box>
+
+            {/* Estado Habilitado/Inhabilitado */}
+            <Box sx={{ mt: 2 }}>
+              <Typography 
+                variant="subtitle1" 
+                sx={{ 
+                  fontFamily: "Mulish, sans-serif", 
+                  fontWeight: 800, 
+                  color: "#d7171a", 
+                  mb: 2,
+                  fontSize: "1.1rem",
+                  borderBottom: "2px solid #d7171a",
+                  pb: 1
+                }}
+              >
+                ⚙️ Estado de la Flota
+              </Typography>
+            </Box>
+
+            <Box>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.habilitado}
+                    onChange={(e) => setFormData({ ...formData, habilitado: e.target.checked })}
+                    sx={{
+                      '& .MuiSwitch-switchBase.Mui-checked': {
+                        color: '#d7171a',
+                      },
+                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                        backgroundColor: '#d7171a',
+                      },
+                    }}
+                  />
+                }
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                      {formData.habilitado ? "Flota Habilitada" : "Flota Inhabilitada"}
+                    </Typography>
+                    <Chip
+                      label={formData.habilitado ? "Activa" : "Inactiva"}
+                      size="small"
+                      sx={{
+                        bgcolor: formData.habilitado ? "#4caf50" : "#757575",
+                        color: "white",
+                        fontWeight: 600,
+                        fontFamily: "Mulish, sans-serif",
+                      }}
+                    />
+                  </Box>
+                }
+                sx={{ fontFamily: "Mulish, sans-serif" }}
+              />
+              <Typography variant="caption" sx={{ fontFamily: "Mulish, sans-serif", color: "#666", mt: 1, display: "block", ml: 4 }}>
+                {formData.habilitado 
+                  ? "La flota puede recibir y procesar solicitudes de viaje" 
+                  : "La flota no recibirá nuevas solicitudes de viaje"}
               </Typography>
             </Box>
           </Stack>

@@ -36,7 +36,6 @@ const AdminLayout = () => {
         { path: "/admin/servicios", label: "Servicios", icon: <RoomServiceIcon /> },
         { path: "/admin/banners", label: "Banners", icon: <PhotoLibraryIcon /> },
         { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },
-        { path: "/admin/documentos", label: "Documentos", icon: <ArticleIcon /> },
       ];
     }
 
@@ -44,6 +43,7 @@ const AdminLayout = () => {
     return [
       { path: "/admin/dashboard", label: "Inicio", icon: <DashboardIcon /> },
       { path: "/admin/radiotaxis", label: "Radiotaxis", icon: <LocalTaxiIcon /> },
+      { path: "/admin/documentos", label: "Documentos", icon: <ArticleIcon /> },
       { path: "/admin/ajustes", label: "Ajustes", icon: <SettingsIcon /> },
       { path: "/admin/personalizar", label: "Personalizar", icon: <BuildIcon /> },
       { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },

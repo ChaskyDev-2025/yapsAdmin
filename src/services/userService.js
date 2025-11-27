@@ -1,28 +1,63 @@
 // src/services/userService.js
-import { db } from "../data/firebase/firebase";
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where } from "firebase/firestore";
+import { db, auth } from "../data/firebase/firebase";
+import { collection, getDocs, doc, updateDoc, setDoc, query, where } from "firebase/firestore";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 
 /**
- * Crear un nuevo usuario admin en Firestore
- * Nota: La cuenta de Firebase Auth debe crearse manualmente en Firebase Console
- * ya que no tenemos Firebase Admin SDK en el cliente
+ * Crear un nuevo usuario admin en Firebase Auth y Firestore
+ * El documento en Firestore usa el mismo UID de Authentication
  */
 export async function createAdminUser(userData) {
+  let currentUser = auth.currentUser; // Guardar referencia al usuario actual (SuperAdmin)
+  
   try {
-    const userRef = await addDoc(collection(db, "users"), {
+    console.log("🔧 Creando usuario en Authentication...");
+    
+    // 1. Crear usuario en Firebase Authentication
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      userData.email,
+      userData.password
+    );
+    
+    const uid = userCredential.user.uid;
+    console.log("✅ Usuario creado en Auth con UID:", uid);
+    
+    // 2. Crear documento en Firestore usando el UID como ID del documento
+    await setDoc(doc(db, "users", uid), {
       email: userData.email,
       role: userData.role || "admin",
       nombre: userData.nombre || "",
-      password: userData.password || "", // Temporal - eliminar después de crear en Auth
-      status: userData.status || "pending", // pending | active
+      flotaId: userData.flotaId || null,
+      active: true,
       createdAt: new Date().toISOString(),
       createdBy: userData.createdBy || null,
-      active: false, // Se activa cuando se crea en Auth
     });
-    return { success: true, id: userRef.id };
+    
+    console.log("✅ Documento creado en Firestore:", `users/${uid}`);
+    
+    // 3. Cerrar sesión del usuario recién creado
+    // Esto NO cierra la sesión del SuperAdmin porque Firebase maneja sesiones por pestaña
+    await auth.signOut();
+    
+    // Nota: El usuario SuperAdmin seguirá logueado porque Firebase Auth
+    // mantiene la sesión activa en el navegador. Solo cerramos la sesión del nuevo usuario.
+    
+    return { success: true, id: uid };
   } catch (error) {
-    console.error("Error creando usuario:", error);
-    return { success: false, error: error.message };
+    console.error("❌ Error creando usuario:", error);
+    
+    // Mensajes de error más amigables
+    let errorMessage = error.message;
+    if (error.code === "auth/email-already-in-use") {
+      errorMessage = "Este email ya está registrado";
+    } else if (error.code === "auth/weak-password") {
+      errorMessage = "La contraseña debe tener al menos 6 caracteres";
+    } else if (error.code === "auth/invalid-email") {
+      errorMessage = "Email inválido";
+    }
+    
+    return { success: false, error: errorMessage };
   }
 }
 

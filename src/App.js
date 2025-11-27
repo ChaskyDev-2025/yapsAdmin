@@ -18,8 +18,8 @@ import theme from "./theme/theme";
 const App = () => (
   <ThemeProvider theme={theme}>
     <CssBaseline />
-    <DocumentRepoProvider>
-      <AuthProvider> {/* 👈 expone user/loading a todo */}
+    <AuthProvider> {/* 👈 AuthProvider primero */}
+      <DocumentRepoProvider> {/* 👈 DocumentRepoProvider dentro de AuthProvider */}
         <Router>
           <Routes>
             <Route path="/"        element={<StartupPage />} />
@@ -35,8 +35,8 @@ const App = () => (
             <Route path="*" element={<Login />} />
           </Routes>
         </Router>
-      </AuthProvider>
-    </DocumentRepoProvider>
+      </DocumentRepoProvider>
+    </AuthProvider>
   </ThemeProvider>
 );
 

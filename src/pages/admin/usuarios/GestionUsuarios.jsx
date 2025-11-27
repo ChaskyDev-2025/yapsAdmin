@@ -163,41 +163,25 @@ const GestionUsuarios = () => {
         setError(result.error || "Error al actualizar usuario");
       }
     } else {
-      // Crear nuevo usuario - SIN crear cuenta en Auth
+      // Crear nuevo usuario con Firebase Auth + Firestore
       if (!formData.password) {
         setError("La contraseña es obligatoria para nuevos usuarios");
         return;
       }
 
-      // Guardar usuario pendiente en Firestore
       const result = await createAdminUser({
         email: formData.email,
         nombre: formData.nombre,
         role: "admin",
-        password: formData.password, // Se guarda temporalmente
+        password: formData.password,
         flotaId: formData.flotaId,
         createdBy: user.uid,
-        status: "pending", // Usuario pendiente de activación
       });
 
       if (result.success) {
-        setSuccess(
-          `✅ Usuario guardado. 
-          
-          📋 PASOS PARA ACTIVAR:
-          1. Ve a Firebase Console → Authentication
-          2. Haz clic en "Add user"
-          3. Email: ${formData.email}
-          4. Password: ${formData.password}
-          5. Copia el UID generado
-          6. Ve a Firestore → users → ${result.id}
-          7. Agrega el campo "uid" con el valor copiado
-          8. Cambia "status" de "pending" a "active"
-          
-          💡 El usuario podrá iniciar sesión después de esto.`
-        );
+        setSuccess("✅ Usuario creado exitosamente en Authentication y Firestore");
         loadUsers();
-        // No cerramos el dialog para que vea las instrucciones
+        setTimeout(() => handleCloseDialog(), 2000);
       } else {
         setError(result.error || "Error al crear usuario");
       }
