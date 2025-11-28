@@ -14,6 +14,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogContentText,
   DialogActions,
   TextField,
   Alert,
@@ -28,6 +29,7 @@ import {
   OutlinedInput,
   Switch,
   FormControlLabel,
+  Snackbar,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -35,9 +37,8 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
-import { db } from "../../../data/firebase/firebase";
+import { db, auth, storage } from "../../../data/firebase/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage" ;
-import { storage } from "../../../data/firebase/firebase";
 
 const GestionFlotas = () => {
   const [flotas, setFlotas] = useState([]);
@@ -50,6 +51,18 @@ const GestionFlotas = () => {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    flotaId: null,
+    flotaNombre: "",
+  });
   
   const [formData, setFormData] = useState({
     nombre: "",
@@ -62,6 +75,10 @@ const GestionFlotas = () => {
     servicios: [],
     habilitado: true,
   });
+
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbar({ open: true, message, severity });
+  };
 
   useEffect(() => {
     fetchFlotas();
@@ -115,6 +132,10 @@ const GestionFlotas = () => {
   };
 
   const uploadImageToStorage = async (file, flotaId) => {
+    console.log("Usuario authenticado:", auth.currentUser);
+    if (!auth.currentUser) {
+      throw new Error ("Debes estar autenticado para subir imagenes")
+    }
     try {
       //crear referencia unica con timeStamp
       const timeStamp = Date.now();
@@ -326,19 +347,30 @@ const GestionFlotas = () => {
     }
   };
 
-  const handleDelete = async (flotaId) => {
-    if (!window.confirm("¿Estás seguro de que quieres eliminar esta flota?")) {
-      return;
-    }
+  const handleDelete = (flotaId, flotaNombre) => {
+    setConfirmDialog({
+      open: true,
+      flotaId,
+      flotaNombre,
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    const { flotaId } = confirmDialog;
+    setConfirmDialog({ open: false, flotaId: null, flotaNombre: "" });
 
     try {
       await deleteDoc(doc(db, "flotas", flotaId));
-      showAlert("Flota eliminada exitosamente", "success");
+      showSnackbar("Flota eliminada exitosamente", "success");
       fetchFlotas();
     } catch (error) {
       console.error("Error al eliminar flota:", error);
-      showAlert("Error al eliminar la flota", "error");
+      showSnackbar("Error al eliminar la flota", "error");
     }
+  };
+
+  const handleCancelDelete = () => {
+    setConfirmDialog({ open: false, flotaId: null, flotaNombre: "" });
   };
 
   const handleToggleHabilitado = async (flotaId, currentState) => {
@@ -535,7 +567,7 @@ const GestionFlotas = () => {
                       <EditIcon />
                     </IconButton>
                     <IconButton
-                      onClick={() => handleDelete(flota.id)}
+                      onClick={() => handleDelete(flota.id, flota.nombre)}
                       sx={{ color: "#484848" }}
                     >
                       <DeleteIcon />
@@ -940,6 +972,60 @@ const GestionFlotas = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Dialog de confirmación de eliminación */}
+      <Dialog
+        open={confirmDialog.open}
+        onClose={handleCancelDelete}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          Confirmar Eliminación
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            ¿Estás seguro de que quieres eliminar la flota <strong>{confirmDialog.flotaNombre}</strong>? 
+            Esta acción no se puede deshacer.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={handleCancelDelete}
+            sx={{ color: "#484848" }}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleConfirmDelete}
+            variant="contained"
+            sx={{
+              backgroundColor: "#D32F2F",
+              "&:hover": {
+                backgroundColor: "#B71C1C",
+              },
+            }}
+            autoFocus
+          >
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

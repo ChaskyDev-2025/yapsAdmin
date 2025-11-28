@@ -24,6 +24,7 @@ import {
   Tabs,
   Tab,
   Avatar,
+  Snackbar,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -48,6 +49,11 @@ const GestionUsuarios = () => {
   const [editingUser, setEditingUser] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success"
+  });
   
   const [formData, setFormData] = useState({
     email: "",
@@ -477,7 +483,7 @@ const GestionUsuarios = () => {
                     <TableRow key={pasajero.id} hover>
                       <TableCell>
                         <Avatar
-                          src={pasajero.photoURL || pasajero.perfil?.photoURL}
+                          src={pasajero.perfil?.photoUrl || pasajero.photoURL}
                           alt={pasajero.name || pasajero.perfil?.name || pasajero.email}
                           sx={{ width: 40, height: 40, bgcolor: "#d7171a" }}
                         >
@@ -604,6 +610,22 @@ const GestionUsuarios = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

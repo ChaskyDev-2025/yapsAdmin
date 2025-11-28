@@ -8,7 +8,7 @@ import Icons from "../../../../../shared/constants/Icons";
  * Solo contiene la lógica de los tres botones (Editar, Eliminar, Ver).
  * Se usa desde Columnas.jsx.
  */
-const renderAcciones = (params) => {
+const renderAcciones = (params, handleEdit, handleDelete, handleView) => {
   const { row } = params;
 
   const handleClick = (e, accion) => {
@@ -18,20 +18,29 @@ const renderAcciones = (params) => {
 
   return (
     <Stack direction="row" spacing={1}>
-      <IconActionButton
+     {/*  <IconActionButton
         icon={<Icons.Edit fontSize="small" />} // ✏️ Editar
         color="primary"
-        onClick={(e) => handleClick(e, "Editar")}
-      />
+        onClick={(e) => {
+          e.stopPropagation();
+          handleEdit(row);
+        }}
+      /> */}
       <IconActionButton
         icon={<Icons.Delete fontSize="small" />} // 🗑️ Eliminar
         color="error"
-        onClick={(e) => handleClick(e, "Eliminar")}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleDelete(row);
+        }}
       />
       <IconActionButton
         icon={<Icons.View fontSize="small" />} // 👁️ Ver
         color="info"
-        onClick={(e) => handleClick(e, "Ver")}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleView(row);
+        }}
       />
     </Stack>
   );

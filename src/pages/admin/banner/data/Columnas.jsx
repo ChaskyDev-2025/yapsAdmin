@@ -10,11 +10,16 @@ import renderImagen   from "./columnas/Imagen";
 import makeRenderEstado from "./columnas/Estado";
 import renderAcciones from "./columnas/Acciones";
 
-export const useBannerColumns = (handleEstadoChange) => {
+export const useBannerColumns = (handleEstadoChange, handleEdit, handleDelete, handleView) => {
   /* Render especializado para la columna Estado */
   const renderEstado = React.useMemo(
     () => makeRenderEstado(handleEstadoChange),
     [handleEstadoChange]
+  );
+
+  const renderAccionesWithHandlers = React.useMemo(
+    () => (params) => renderAcciones(params, handleEdit, handleDelete, handleView),
+    [handleEdit, handleDelete, handleView]
   );
 
   /* Configuración declarativa por campo */
@@ -44,10 +49,10 @@ export const useBannerColumns = (handleEstadoChange) => {
         width: 160,
         sortable: false,
         filterable: false,
-        renderCell: renderAcciones,
+        renderCell: renderAccionesWithHandlers,
       },
     }),
-    [renderEstado]
+    [renderEstado, renderAccionesWithHandlers]
   );
 
   /* Orden de las columnas en la tabla */
