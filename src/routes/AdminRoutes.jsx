@@ -16,6 +16,7 @@ import VerificarRol from "../pages/admin/perfil/VerificarRol";
 import Documentos from "../pages/admin/docs/docs"; // Asegúrate de que esta ruta sea correcta
 import GestionFlotas from "../pages/admin/flotas/GestionFlotas";
 import GestionServicios from "../pages/admin/servicios/GestionServicios";
+import Referidos from "../pages/admin/referidos/Referidos";
 
 const AdminRoutes = () => (
   <Routes>
@@ -35,6 +36,7 @@ const AdminRoutes = () => (
       <Route path="perfil" element={<Perfil />} />
       <Route path="documentos" element={<Documentos />} />
       <Route path="flotas" element={<GestionFlotas />} />
+      <Route path="referidos" element={<Referidos />} />
     </Route>
   </Routes>
 );

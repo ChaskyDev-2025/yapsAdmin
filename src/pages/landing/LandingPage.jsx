@@ -1,10 +1,28 @@
 import { useNavigate } from "react-router-dom";
-import { FaTaxi  } from "react-icons/fa"; // Icono para el login del dueño
-import { Box, Typography, Button, IconButton, useTheme, Container } from "@mui/material"; // Importamos Container para mejor control del ancho
+import { FaTaxi  } from "react-icons/fa";
+import { Box, Typography, Button, IconButton, useTheme, Container } from "@mui/material";
+import taxiImage from "../../assets/taxi-hero.png";
+import { useState, useEffect } from "react";
 
 const LandingPage = () => {
   const navigate = useNavigate();
-  const theme = useTheme(); // Acceso al tema para colores y espaciado
+  const theme = useTheme();
+
+  const textos = [
+    "Tu solución rápida y segura para moverte por la ciudad.",
+    "Unimos conductores y pasajeros para viajes seguros y eficientes.",
+    "Llega a donde quieras de forma rápida, segura y sin demoras."
+  ];
+
+  const [textoIndex, setTextoIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTextoIndex((prev) => (prev + 1) % textos.length);
+    }, 3000); // Cambia cada 3 segundos
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLoginClick = () => {
     navigate("/login");
@@ -21,7 +39,7 @@ const LandingPage = () => {
         alignItems: "center",
         textAlign: "center",
         position: "relative",
-        background: "linear-gradient(135deg, #d7171a 0%, #000000 100%)", // Gradiente rojo-negro corporativo
+        background: "linear-gradient(135deg, #d61319 0%, #000000 100%)", // Gradiente rojo-negro corporativo
         color: "#fff", // Color de texto blanco
         fontFamily: "'Roboto', sans-serif", // Usamos 'Roboto' de MUI por defecto o define una en tu tema
         overflow: "hidden", // Previene barras de desplazamiento si hay elementos fuera de vista
@@ -51,43 +69,88 @@ const LandingPage = () => {
       <FaTaxi />
       </IconButton>
 
-      <Container maxWidth="md" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}> {/* Contenedor para limitar el ancho del contenido */}
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        textAlign: 'center',
+        width: '100%',
+        pl: { xs: 6, sm: 8},
+        }}>
         {/* Título Principal */}
+
+        {/* Imagen del Taxi */}
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <Box
+            component="img"
+            src={taxiImage}
+            alt="Taxi YAAPS"
+            sx={{
+              width: { xs: '100%', sm: 600, md: 700, lg: 850 },
+              height: 'auto',
+              maxWidth: '850px',
+              mb: 3,
+            }}
+          />
+        </Box>
+
         <Typography
           variant="h2" // `h2` es adecuado para un título principal de página
           component="h1" // Semánticamente correcto como h1 para el SEO
           sx={{
             fontFamily: "'Mulish', sans-serif",
-            fontWeight: 900, // Black weight
-            mb: { xs: 2, md: 3 }, // Espaciado adaptable
-            textShadow: "3px 3px 8px rgba(0,0,0,0.5)", // Sombra más pronunciada
-            fontSize: { xs: "3rem", sm: "4.5rem", md: "6rem" }, // Tamaño adaptable del título
-            letterSpacing: { xs: 1, md: 2 }, // Espaciado entre letras para impact
-            textTransform: "uppercase",
-            textAlign: "center",
-            width: "100%",
+            fontWeight: 900,
+            mb: 2,
+            fontSize: { xs: "3rem", sm: "4rem", md: "4.5rem"},
+            lineHeight: 1.2,
+            color: "#fff",
           }}
         >
-          Bienvenido a YAAPS
+          Bienvenido a YAPPS
         </Typography>
 
         {/* Subtítulo / Descripción */}
-        <Typography
-          variant="h5" // `h5` o `h6` son buenas opciones para el subtítulo
+        <Box
           sx={{
-            fontFamily: "'Mulish', sans-serif",
-            fontWeight: 400,
-            maxWidth: 700,
-            lineHeight: 1.7,
-            mb: { xs: 5, md: 6 }, // Espaciado adaptable
-            fontSize: { xs: "1.1rem", sm: "1.3rem", md: "1.5rem" }, // Tamaño adaptable
-            opacity: 0.95, // Ligera opacidad para suavizar el texto
-            textAlign: "center",
-            mx: "auto",
+           height: '60px', // Altura fija para evitar saltos
+            overflow: 'hidden',
+            mb: 4,
           }}
         >
-          Tu solución rápida y segura para moverte por la ciudad. Conectamos conductores y pasajeros para viajes eficientes y confiables.
-        </Typography>
+          <Typography
+            key={textoIndex}
+            variant="h6"
+            sx={{
+              fontFamily: "'Mulish', sans-serif",
+              fontWeight: 400,
+              fontSize: { xs: "2rem", md: "2.5rem"},
+              opacity: 0.9,
+              lineHeight: 1.6,
+              color: "#fff",
+              animation: 'slideUp 0.6s ease-out',
+              '@keyframes slideUp': {
+              '0%': {
+                transform: 'translateY(100%)',
+                opacity: 0,
+              },
+              '100%': {
+                transform: 'translateY(0)',
+                opacity: 0.9,
+              },
+              },
+            }}
+          >
+            {textos[textoIndex]}
+          </Typography>
+        </Box>
 
         {/* Botón de Llamada a la Acción Principal */}
         <Button
@@ -102,18 +165,20 @@ const LandingPage = () => {
             backgroundColor: "#ffffff", // Botón blanco
             color: "#d7171a", // Texto en rojo corporativo
             boxShadow: "0 8px 24px rgba(255, 255, 255, 0.3)", // Sombra blanca prominente
+            alignSelf: "center",
+            mr: { xs: 6, sm: 8, md: 10},
             transition: "all 0.3s ease-in-out", // Transición para hover y otras propiedades
             "&:hover": {
-              backgroundColor: "#f5f5f5", // Ligero gris al pasar el cursor
-              transform: "translateY(-4px)", // Efecto de elevación más notable
-              boxShadow: "0 12px 32px rgba(255, 255, 255, 0.4)", // Sombra más profunda al pasar el cursor
-              color: "#b01217", // Rojo más oscuro en hover
+            backgroundColor: "#f5f5f5", // Ligero gris al pasar el cursor
+            transform: "translateY(-4px)", // Efecto de elevación más notable
+            boxShadow: "0 12px 32px rgba(255, 255, 255, 0.4)", // Sombra más profunda al pasar el cursor
+            color: "#b01217", // Rojo más oscuro en hover
             },
           }}
         >
           ¡Pide tu taxi ahora!
         </Button>
-      </Container>
+      </Box>
     </Box>
   );
 };

@@ -14,6 +14,7 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import SupervisorAccountIcon from "@mui/icons-material/SupervisorAccount";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import RoomServiceIcon from "@mui/icons-material/RoomService";
+import CardGiftcardIcon from "@mui/icons-material/CardGiftcard";
 import Navbar          from "../components/Navbar";
 import Footer          from "../components/Footer";
 import Sidebar         from "../components/Sidebar";
@@ -35,6 +36,7 @@ const AdminLayout = () => {
         { path: "/admin/flotas", label: "Flotas", icon: <DirectionsCarIcon /> },
         { path: "/admin/servicios", label: "Servicios", icon: <RoomServiceIcon /> },
         { path: "/admin/banners", label: "Banners", icon: <PhotoLibraryIcon /> },
+        { path: "/admin/referidos", label: "Referidos", icon: <CardGiftcardIcon /> },
         { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },
       ];
     }
@@ -46,6 +48,7 @@ const AdminLayout = () => {
       { path: "/admin/documentos", label: "Documentos", icon: <ArticleIcon /> },
       { path: "/admin/ajustes", label: "Ajustes", icon: <SettingsIcon /> },
       { path: "/admin/personalizar", label: "Personalizar", icon: <BuildIcon /> },
+      { path: "/admin/referidos", label: "Referidos", icon: <CardGiftcardIcon /> },
       { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },
     ];
   }, [userRole]);
