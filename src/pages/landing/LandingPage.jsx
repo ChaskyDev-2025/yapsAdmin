@@ -32,7 +32,7 @@ const LandingPage = () => {
     <Box
       sx={{
         minHeight: "100vh",
-        width: "100vw",
+        width: "100%",
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
@@ -42,10 +42,8 @@ const LandingPage = () => {
         background: "linear-gradient(135deg, #d61319 0%, #000000 100%)", // Gradiente rojo-negro corporativo
         color: "#fff", // Color de texto blanco
         fontFamily: "'Roboto', sans-serif", // Usamos 'Roboto' de MUI por defecto o define una en tu tema
-        overflow: "hidden", // Previene barras de desplazamiento si hay elementos fuera de vista
-        [theme.breakpoints.down('sm')]: {
-          py: 6, // Más padding vertical en móviles
-        },
+        overflowX: "hidden", // Solo previene scroll horizontal
+        py: { xs: 6, sm: 4, md: 2 }, // Padding vertical reducido
       }}
     >
       {/* Ícono de Acceso para el Dueño - Discreto y accesible */}
@@ -76,18 +74,19 @@ const LandingPage = () => {
         justifyContent: 'center',
         textAlign: 'center',
         width: '100%',
-        pl: { xs: 6, sm: 8, md: 4},
-        px: { md: 4 },
+        maxWidth: '1400px',
+        px: { xs: 3, sm: 4, md: 6, lg: 8 },
         }}>
         {/* Título Principal */}
 
         {/* Imagen del Taxi */}
         <Box
           sx={{
-            flex: 1,
+            width: '100%',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
+            mb: { xs: 1.5, md: 1 },
           }}
         >
           <Box
@@ -95,10 +94,9 @@ const LandingPage = () => {
             src={taxiImage}
             alt="Taxi YAAPS"
             sx={{
-              width: { xs: '100%', sm: 500, md: 450, lg: 600, xl: 750 },
+              width: { xs: '85%', sm: '75%', md: '55%', lg: '55%', xl: '50%' },
+              maxWidth: '600px',
               height: 'auto',
-              maxWidth: '750px',
-              mb: { xs: 3, md: 2 },
             }}
           />
         </Box>
@@ -109,9 +107,10 @@ const LandingPage = () => {
           sx={{
             fontFamily: "'Mulish', sans-serif",
             fontWeight: 900,
-            mb: { xs: 2, md: 1.5 },
-            fontSize: { xs: "2.5rem", sm: "3.5rem", md: "3rem", lg: "4rem", xl: "4.5rem"},
-            lineHeight: 1.2,
+            mb: { xs: 1.5, md: 1 },
+            px: { xs: 2, sm: 0 },
+            fontSize: { xs: "1.8rem", sm: "2.8rem", md: "2.5rem", lg: "3.5rem", xl: "4.5rem"},
+            lineHeight: 1.1,
             color: "#fff",
           }}
         >
@@ -121,9 +120,11 @@ const LandingPage = () => {
         {/* Subtítulo / Descripción */}
         <Box
           sx={{
-           height: { xs: '60px', md: '50px', lg: '60px' }, // Altura fija para evitar saltos
+           height: { xs: '70px', sm: '60px', md: '50px', lg: '60px' }, // Altura fija para evitar saltos
             overflow: 'hidden',
-            mb: { xs: 4, md: 3 },
+            mb: { xs: 2, md: 1.5 },
+            width: '100%',
+            px: { xs: 2, sm: 3, md: 0 },
           }}
         >
           <Typography
@@ -132,9 +133,9 @@ const LandingPage = () => {
             sx={{
               fontFamily: "'Mulish', sans-serif",
               fontWeight: 400,
-              fontSize: { xs: "1.5rem", sm: "1.8rem", md: "1.6rem", lg: "2rem", xl: "2.5rem"},
+              fontSize: { xs: "1.1rem", sm: "1.5rem", md: "1.3rem", lg: "1.7rem", xl: "2.2rem"},
               opacity: 0.9,
-              lineHeight: 1.6,
+              lineHeight: 1.4,
               color: "#fff",
               animation: 'slideUp 0.6s ease-out',
               '@keyframes slideUp': {
@@ -160,14 +161,13 @@ const LandingPage = () => {
           sx={{
             px: { xs: 3, sm: 4, md: 5, lg: 6 }, // Padding horizontal adaptable
             py: { xs: 1, sm: 1.2, md: 1.3, lg: 1.6 }, // Padding vertical adaptable
-            fontSize: { xs: "1rem", sm: "1.1rem", md: "1.2rem", lg: "1.3rem", xl: "1.4rem" }, // Tamaño de fuente adaptable
+            fontSize: { xs: "0.95rem", sm: "1.1rem", md: "1.15rem", lg: "1.25rem", xl: "1.4rem" }, // Tamaño de fuente adaptable
             fontWeight: "bold",
             borderRadius: "50px", // Bordes más redondeados para un look moderno
             backgroundColor: "#ffffff", // Botón blanco
             color: "#d7171a", // Texto en rojo corporativo
             boxShadow: "0 8px 24px rgba(255, 255, 255, 0.3)", // Sombra blanca prominente
-            alignSelf: "center",
-            mr: { xs: 6, sm: 8, md: 6, lg: 8},
+            mt: { xs: 1, md: 0.5 },
             transition: "all 0.3s ease-in-out", // Transición para hover y otras propiedades
             "&:hover": {
             backgroundColor: "#f5f5f5", // Ligero gris al pasar el cursor
