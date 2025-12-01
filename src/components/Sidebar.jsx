@@ -17,7 +17,7 @@ const Sidebar = ({ logo, menuItems }) => {
       sx={{
         width: expanded ? drawerWidthExpanded : drawerWidthCollapsed,
         height: "100vh",
-        background: "#000000",
+        background: "linear-gradient(180deg, #000000 0%, #484848 100%)",
         color: "#fff",
         display: "flex",
         flexDirection: "column",

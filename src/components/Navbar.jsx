@@ -43,7 +43,7 @@ const Navbar = ({ onMenuClick }) => {
   };
 
   return (
-    <AppBar position="fixed" sx={{ background: "linear-gradient(90deg, #d7171a 0%, #000000 100%)", boxShadow: 3 }}>
+    <AppBar position="fixed" sx={{ background: "linear-gradient(90deg, #D7171A 0%, #D7171A 40%, #000000 100%)", boxShadow: 3 }}>
       <Toolbar>
       {/* Botón de menú para sidebar desplegable */}
       <IconButton
@@ -68,8 +68,8 @@ const Navbar = ({ onMenuClick }) => {
             label={userRole === "superadmin" ? "SuperAdmin" : "Admin"} 
             size="small"
             sx={{ 
-              bgcolor: userRole === "superadmin" ? "#ffffff" : "rgba(255,255,255,0.2)",
-              color: userRole === "superadmin" ? "#d7171a" : "#fff",
+              bgcolor: userRole === "superadmin" ? "#484848" : "rgba(255,255,255,0.2)",
+              color: userRole === "superadmin" ? "#ffffff" : "#fff",
               fontWeight: 700,
               fontSize: "0.7rem"
             }}

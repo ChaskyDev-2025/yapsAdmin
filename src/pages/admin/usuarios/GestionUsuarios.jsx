@@ -240,10 +240,10 @@ const GestionUsuarios = () => {
             startIcon={<AddIcon />}
             onClick={() => handleOpenDialog()}
             sx={{ 
-              bgcolor: "#d7171a", 
+              background: "linear-gradient(135deg, #D7171A 0%, #000000 100%)", 
               fontFamily: "Mulish, sans-serif",
               fontWeight: 700,
-              "&:hover": { bgcolor: "#b01217" } 
+              "&:hover": { backgroundColor: "#b01217" } 
             }}
           >
             Crear Admin
@@ -299,16 +299,16 @@ const GestionUsuarios = () => {
         {tabValue === 0 && (
           <TableContainer component={Paper} sx={{ boxShadow: 0 }}>
         <Table>
-          <TableHead sx={{ bgcolor: "#f0f0f0" }}>
+          <TableHead sx={{ bgcolor: "#000000" }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Nombre</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Rol Sistema</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Flota</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Estado</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Contraseña Temp</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Creado</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }} align="right">
+              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Email</TableCell>
+              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Nombre</TableCell>
+              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Rol Sistema</TableCell>
+              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Flota</TableCell>
+              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Estado</TableCell>
+              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Contraseña Temp</TableCell>
+              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Creado</TableCell>
+              <TableCell sx={{ fontWeight: "bold", color: "white" }} align="right">
                 Acciones
               </TableCell>
             </TableRow>
