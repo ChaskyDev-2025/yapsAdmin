@@ -1,69 +1,46 @@
-import React, { useState, useEffect } from "react";
-import {
-  Box,
-  Paper,
-  Typography,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  TextField,
-  Alert,
-  Avatar,
-  Input,
-  Stack,
-  Chip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  OutlinedInput,
-  Switch,
-  FormControlLabel,
-  Snackbar,
-} from "@mui/material";
+// src/pages/admin/flotas/GestionFlotasRefactored.jsx
+import React, { useState } from "react";
+import { Box, Paper, Typography, Button, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
-import PhotoCamera from "@mui/icons-material/PhotoCamera";
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
+import { updateDoc, doc, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, auth, storage } from "../../../data/firebase/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage" ;
+
+// Hooks personalizados
+import { useFlotas } from "./hooks/useFlotas";
+import { useAdministradores } from "./hooks/useAdministradores";
+import { useServicios } from "./hooks/useServicios";
+import { useDocumentos } from "./hooks/useDocumentos";
+
+// Componentes modulares
+import { FlotasTable } from "./components/FlotasTable";
+import { FlotaFormDialog } from "./components/FlotaFormDialog";
+import { DocumentModal } from "./components/DocumentModal";
+import { DocsManagerModal } from "./components/DocsManagerModal";
 
 const GestionFlotas = () => {
-  const [flotas, setFlotas] = useState([]);
-  const [administradores, setAdministradores] = useState([]);
-  const [serviciosDisponibles, setServiciosDisponibles] = useState([]);
+  // Hooks personalizados
+  const { flotas, loading: flotasLoading, fetchFlotas, createFlota, updateFlota, deleteFlota, toggleHabilitado } = useFlotas();
+  const { administradores } = useAdministradores();
+  const { serviciosDisponibles } = useServicios();
+  const { docFile, docFormData, setDocFormData, handleDocFileChange, uploadDocument, resetDocForm } = useDocumentos();
+
+  // Debug: Verificar datos cargados en el componente principal
+  console.log('🏢 GestionFlotas - Administradores:', administradores);
+  console.log('🏢 GestionFlotas - Servicios:', serviciosDisponibles);
+  console.log('🏢 GestionFlotas - Flotas:', flotas);
+
+  // Estados locales
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentFlota, setCurrentFlota] = useState(null);
-  const [alert, setAlert] = useState({ show: false, message: "", severity: "success" });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [openDocModal, setOpenDocModal] = useState(false);
+  const [openDocsManagerModal, setOpenDocsManagerModal] = useState(false);
+  const [selectedFlotaForDocs, setSelectedFlotaForDocs] = useState(null);
 
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
-
-  const [confirmDialog, setConfirmDialog] = useState({
-    open: false,
-    flotaId: null,
-    flotaNombre: "",
-  });
-  
   const [formData, setFormData] = useState({
     nombre: "",
     imageUrl: "",
@@ -71,103 +48,20 @@ const GestionFlotas = () => {
     representanteLegal: "",
     telefono: "",
     fotoNit: "",
-    otrosDocumentos: [], //apartado para nuevos documentos
+    otrosDocumentos: [],
     uidPropietarios: [],
     servicios: [],
     habilitado: true,
   });
 
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, flotaId: null, flotaNombre: "" });
+
   const showSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
   };
 
-  useEffect(() => {
-    fetchFlotas();
-    fetchAdministradores();
-    fetchServicios();
-  }, []);
-
-  // Estados para gestión de documentos
-  const [openDocModal, setOpenDocModal] = useState(false);
-  const [docFile, setDocFile] = useState(null);
-  const [docFormData, setDocFormData] = useState({
-    tipo: "",
-    nombre: "",
-    contenido: "", // Para texto/información
-    url: "",
-  });
-
-  const fetchFlotas = async () => {
-    try {
-      const flotasCollection = collection(db, "flotas");
-      const flotasSnapshot = await getDocs(flotasCollection);
-      const flotasList = flotasSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setFlotas(flotasList);
-    } catch (error) {
-      console.error("Error al obtener flotas:", error);
-      showAlert("Error al cargar las flotas", "error");
-    }
-  };
-
-  const fetchAdministradores = async () => {
-    try {
-      const usersCollection = collection(db, "users");
-      const usersSnapshot = await getDocs(usersCollection);
-      const adminsList = usersSnapshot.docs
-        .map((doc) => ({
-          id: doc.id,
-          uid: doc.id,
-          ...doc.data(),
-        }))
-        .filter((user) => user.role === "admin");
-      setAdministradores(adminsList);
-    } catch (error) {
-      console.error("Error al obtener administradores:", error);
-    }
-  };
-
-  const fetchServicios = async () => {
-    try {
-      const serviciosCollection = collection(db, "servicios_departamentos");
-      const serviciosSnapshot = await getDocs(serviciosCollection);
-      if (!serviciosSnapshot.empty) {
-        const docData = serviciosSnapshot.docs[0].data();
-        setServiciosDisponibles(docData.Servicios || []);
-      }
-    } catch (error) {
-      console.error("Error al obtener servicios:", error);
-    }
-  };
-
-  const uploadImageToStorage = async (file, flotaId) => {
-    console.log("Usuario authenticado:", auth.currentUser);
-    if (!auth.currentUser) {
-      throw new Error ("Debes estar autenticado para subir imagenes")
-    }
-    try {
-      //crear referencia unica con timeStamp
-      const timeStamp = Date.now();
-      const fileName = `flotas/${flotaId}_${timeStamp}_${file.name}`;
-      const storageRef = ref(storage, fileName);
-
-      //subir archivo
-      const snapshot = await uploadBytes(storageRef, file);
-      console.log("Imagen subida", snapshot);
-
-      //obtener URL de descarga
-      const dowloadURL = await getDownloadURL(snapshot.ref);
-      console.log("URL obtenida:", dowloadURL);
-
-      return dowloadURL;
-    }catch (error) {
-      console.error("Error sunbiendo imagen:" , error);
-      throw error;
-    }
-  };
-
+  // Funciones de manejo de formulario
   const handleOpenDialog = (flota = null) => {
     if (flota) {
       setEditMode(true);
@@ -217,10 +111,7 @@ const GestionFlotas = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleImageChange = (e) => {
@@ -228,53 +119,52 @@ const GestionFlotas = () => {
     if (file) {
       setImageFile(file);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
+      reader.onloadend = () => setImagePreview(reader.result);
       reader.readAsDataURL(file);
     }
   };
 
+  const uploadImageToStorage = async (file, flotaId) => {
+    if (!auth.currentUser) {
+      throw new Error("Debes estar autenticado para subir imágenes");
+    }
+    const timeStamp = Date.now();
+    const fileName = `flotas/${flotaId}_${timeStamp}_${file.name}`;
+    const storageRef = ref(storage, fileName);
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    return downloadURL;
+  };
+
   const handleSave = async () => {
-    if (isSaving) return; // Evitar doble guardado
-    
+    if (isSaving) return;
     if (!formData.nombre.trim()) {
-      showAlert("El nombre de la flota es obligatorio", "error");
+      showSnackbar("El nombre de la flota es obligatorio", "error");
       return;
     }
-
     if (!formData.nit.trim()) {
-      showAlert("El NIT es obligatorio", "error");
+      showSnackbar("El NIT es obligatorio", "error");
       return;
     }
-
-    if (formData.uidPropietarios.length === 0) {
-      showAlert("Debes seleccionar al menos un administrador propietario", "error");
+    if (!formData.uidPropietarios || formData.uidPropietarios.length === 0) {
+      showSnackbar("Debe seleccionar al menos un administrador", "error");
       return;
     }
 
     setIsSaving(true);
-    
-    let imageUrl = formData.imageUrl || imagePreview || "";
-    
+
     try {
-      //Si hay un archivo nuevo, subirlo a Storage
+      let imageUrl = formData.imageUrl;
       if (imageFile) {
         const flotaId = editMode ? currentFlota.id : `temp_${Date.now()}`;
         imageUrl = await uploadImageToStorage(imageFile, flotaId);
-        console.log("Nueva imagen subida:", imageUrl);
       }
-    
-      // Obtener datos del primer administrador seleccionado
+
       const primerAdminUid = formData.uidPropietarios[0];
-      console.log('UID del primer admin:', primerAdminUid);
-      console.log('Lista de administradores:', administradores);
-      
-      const adminSeleccionado = administradores.find(a => a.uid === primerAdminUid);
-      console.log('Admin seleccionado:', adminSeleccionado);
-      
+      const adminSeleccionado = administradores.find((a) => a.uid === primerAdminUid);
+
       if (!adminSeleccionado) {
-        showAlert("No se encontró el administrador seleccionado", "error");
+        showSnackbar("No se encontró el administrador seleccionado", "error");
         setIsSaving(false);
         return;
       }
@@ -287,87 +177,50 @@ const GestionFlotas = () => {
         contrasena: adminSeleccionado.password || adminSeleccionado.contrasena || "",
       };
 
-      console.log('Perfil flota a guardar:', perfilFlota);
+      const flotaData = {
+        nombre: formData.nombre,
+        imageUrl: imageUrl || "",
+        perfilFlota: perfilFlota,
+        documentosFlota: {
+          nit: formData.nit,
+          fotoNit: formData.fotoNit,
+          otrosDocumentos: formData.otrosDocumentos || [],
+        },
+        uidPropietarios: formData.uidPropietarios,
+        servicios: formData.servicios,
+        habilitado: formData.habilitado,
+      };
 
       if (editMode && currentFlota) {
-        // Actualizar flota existente
-        const flotaRef = doc(db, "flotas", currentFlota.id);
-        await updateDoc(flotaRef, {
-          nombre: formData.nombre,
-          imageUrl: imageUrl || "",
-          perfilFlota: perfilFlota,
-          documentosFlota: {
-            nit: formData.nit,
-            fotoNit: formData.fotoNit,
-            otrosDocumentos: formData.otrosDocumentos || [],
-          },
-          uidPropietarios: formData.uidPropietarios,
-          servicios: formData.servicios,
-          habilitado: formData.habilitado,
-          updatedAt: serverTimestamp(),
-        });
-
-        // Actualizar flotaId en los usuarios seleccionados
+        await updateFlota(currentFlota.id, flotaData);
+        // Actualizar flotaId en usuarios
         for (const uid of formData.uidPropietarios) {
           const userRef = doc(db, "users", uid);
-          await updateDoc(userRef, {
-            flotaId: currentFlota.id,
-            updatedAt: serverTimestamp(),
-          });
+          await updateDoc(userRef, { flotaId: currentFlota.id, updatedAt: serverTimestamp() });
         }
-
-        showAlert("Flota actualizada exitosamente", "success");
+        showSnackbar("Flota actualizada exitosamente", "success");
       } else {
-        // Crear nueva flota
-        console.log('Creando nueva flota...');
-        const nuevaFlotaRef = await addDoc(collection(db, "flotas"), {
-          nombre: formData.nombre,
-          imageUrl: imageUrl || "",
-          perfilFlota: perfilFlota,
-          documentosFlota: {
-            nit: formData.nit,
-            fotoNit: formData.fotoNit,
-            otrosDocumentos: formData.otrosDocumentos || [],
-          },
-          uidPropietarios: formData.uidPropietarios,
-          servicios: formData.servicios,
-          habilitado: formData.habilitado,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-
-        console.log('Flota creada con ID:', nuevaFlotaRef.id);
-
-        // Actualizar flotaId en los usuarios seleccionados con el ID de la nueva flota
+        const nuevaFlotaId = await createFlota(flotaData);
+        // Actualizar flotaId en usuarios
         for (const uid of formData.uidPropietarios) {
-          console.log('Actualizando flotaId para usuario:', uid);
           const userRef = doc(db, "users", uid);
-          await updateDoc(userRef, {
-            flotaId: nuevaFlotaRef.id,
-            updatedAt: serverTimestamp(),
-          });
+          await updateDoc(userRef, { flotaId: nuevaFlotaId, updatedAt: serverTimestamp() });
         }
-
-        console.log('Proceso completado');
-        showAlert("Flota creada exitosamente", "success");
+        showSnackbar("Flota creada exitosamente", "success");
       }
-      
+
       await fetchFlotas();
       handleCloseDialog();
     } catch (error) {
       console.error("Error al guardar flota:", error);
-      showAlert("Error al guardar la flota: " + error.message, "error");
+      showSnackbar("Error al guardar la flota: " + error.message, "error");
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDelete = (flotaId, flotaNombre) => {
-    setConfirmDialog({
-      open: true,
-      flotaId,
-      flotaNombre,
-    });
+    setConfirmDialog({ open: true, flotaId, flotaNombre });
   };
 
   const handleConfirmDelete = async () => {
@@ -375,9 +228,8 @@ const GestionFlotas = () => {
     setConfirmDialog({ open: false, flotaId: null, flotaNombre: "" });
 
     try {
-      await deleteDoc(doc(db, "flotas", flotaId));
+      await deleteFlota(flotaId);
       showSnackbar("Flota eliminada exitosamente", "success");
-      fetchFlotas();
     } catch (error) {
       console.error("Error al eliminar flota:", error);
       showSnackbar("Error al eliminar la flota", "error");
@@ -388,815 +240,219 @@ const GestionFlotas = () => {
     setConfirmDialog({ open: false, flotaId: null, flotaNombre: "" });
   };
 
-  // Funciones para gestionar documentos
+  // Funciones de documentos
   const handleOpenDocModal = () => {
-    setDocFormData({ tipo: "", nombre: "", contenido: "", url: "" });
-    setDocFile(null);
+    resetDocForm();
     setOpenDocModal(true);
   };
 
   const handleCloseDocModal = () => {
     setOpenDocModal(false);
-    setDocFormData({ tipo: "", nombre: "", contenido: "", url: "" });
-    setDocFile(null);
-  };
-
-  const handleDocFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setDocFile(file);
-      setDocFormData({ ...docFormData, nombre: file.name });
-    }
+    resetDocForm();
   };
 
   const handleAddDocument = async () => {
+    if (openDocsManagerModal) {
+      return handleAddDocToFlota();
+    }
+
     try {
-      let urlDocumento = docFormData.url;
-      let contenidoTexto = docFormData.contenido;
-
-      // Si hay un archivo, subirlo a Storage
-      if (docFile) {
-        const docRef = ref(storage, `documentos-flotas/${Date.now()}_${docFile.name}`);
-        await uploadBytes(docRef, docFile);
-        urlDocumento = await getDownloadURL(docRef);
-      }
-
-      // Validar que tenga al menos un tipo de contenido
-      if (!docFormData.tipo) {
-        showAlert("Por favor selecciona el tipo de documento", "warning");
-        return;
-      }
-
-      if (!urlDocumento && !contenidoTexto) {
-        showAlert("Debes agregar información de texto, subir un archivo o proporcionar una URL", "warning");
-        return;
-      }
-
-      const nuevoDoc = {
-        tipo: docFormData.tipo,
-        nombre: docFormData.nombre || docFormData.tipo,
-        contenido: contenidoTexto || "",
-        url: urlDocumento || "",
-        fechaSubida: new Date().toISOString(),
-      };
-
-      setFormData({
-        ...formData,
-        otrosDocumentos: [...formData.otrosDocumentos, nuevoDoc],
-      });
-
-      showAlert("Documento agregado", "success");
+      const nuevoDoc = await uploadDocument();
+      setFormData({ ...formData, otrosDocumentos: [...formData.otrosDocumentos, nuevoDoc] });
+      showSnackbar("Documento agregado", "success");
       handleCloseDocModal();
     } catch (error) {
       console.error("Error al agregar documento:", error);
-      showAlert("Error al agregar documento: " + error.message, "error");
+      showSnackbar(error.message || "Error al agregar documento", "error");
     }
   };
 
   const handleDeleteDocument = (index) => {
+    const doc = formData.otrosDocumentos[index];
+    const confirmar = window.confirm(
+      `¿Estás seguro de que quieres eliminar el documento "${doc.nombre || doc.tipo}"?\n\nEsta acción no se puede deshacer.`
+    );
+    if (!confirmar) return;
     const nuevosDocumentos = formData.otrosDocumentos.filter((_, i) => i !== index);
     setFormData({ ...formData, otrosDocumentos: nuevosDocumentos });
-    showAlert("Documento eliminado", "info");
+    showSnackbar("Documento eliminado", "info");
   };
 
   const handleViewDocument = (url) => {
     window.open(url, "_blank");
   };
 
-  const handleToggleHabilitado = async (flotaId, currentState) => {
+  // Funciones para gestión de documentos por flota
+  const handleOpenDocsManager = (flota) => {
+    setSelectedFlotaForDocs(flota);
+    setOpenDocsManagerModal(true);
+  };
+
+  const handleCloseDocsManagerModal = () => {
+    setOpenDocsManagerModal(false);
+    setSelectedFlotaForDocs(null);
+  };
+
+  const handleSaveFlotaDocs = async () => {
+    if (!selectedFlotaForDocs) return;
+
     try {
-      const flotaRef = doc(db, "flotas", flotaId);
+      const flotaRef = doc(db, "flotas", selectedFlotaForDocs.id);
       await updateDoc(flotaRef, {
-        habilitado: !currentState,
+        "documentosFlota.otrosDocumentos": selectedFlotaForDocs.documentosFlota?.otrosDocumentos || [],
         updatedAt: serverTimestamp(),
       });
-      showAlert(
-        `Flota ${!currentState ? "habilitada" : "inhabilitada"} exitosamente`,
-        "success"
-      );
-      fetchFlotas();
+
+      showSnackbar("Documentos actualizados exitosamente", "success");
+      await fetchFlotas();
+      handleCloseDocsManagerModal();
     } catch (error) {
-      console.error("Error al cambiar estado de la flota:", error);
-      showAlert("Error al cambiar el estado de la flota", "error");
+      console.error("Error al actualizar documentos:", error);
+      showSnackbar("Error al actualizar documentos: " + error.message, "error");
     }
   };
 
-  const showAlert = (message, severity) => {
-    setAlert({ show: true, message, severity });
-    setTimeout(() => {
-      setAlert({ show: false, message: "", severity: "success" });
-    }, 4000);
+  const handleAddDocToFlota = async () => {
+    try {
+      const nuevoDoc = await uploadDocument();
+      const updatedDocs = [...(selectedFlotaForDocs.documentosFlota?.otrosDocumentos || []), nuevoDoc];
+
+      setSelectedFlotaForDocs({
+        ...selectedFlotaForDocs,
+        documentosFlota: {
+          ...selectedFlotaForDocs.documentosFlota,
+          otrosDocumentos: updatedDocs,
+        },
+      });
+
+      showSnackbar("Documento agregado", "success");
+      handleCloseDocModal();
+    } catch (error) {
+      console.error("Error al agregar documento:", error);
+      showSnackbar(error.message || "Error al agregar documento", "error");
+    }
+  };
+
+  const handleDeleteDocFromFlota = async (index, docNombre) => {
+    const confirmar = window.confirm(
+      `¿Estás seguro de que quieres eliminar el documento "${docNombre}"?\n\nEsta acción no se puede deshacer.`
+    );
+
+    if (!confirmar) return;
+
+    try {
+      const updatedDocs = selectedFlotaForDocs.documentosFlota?.otrosDocumentos?.filter((_, i) => i !== index) || [];
+      const flotaRef = doc(db, "flotas", selectedFlotaForDocs.id);
+      await updateDoc(flotaRef, {
+        "documentosFlota.otrosDocumentos": updatedDocs,
+        updatedAt: serverTimestamp(),
+      });
+
+      setSelectedFlotaForDocs({
+        ...selectedFlotaForDocs,
+        documentosFlota: {
+          ...selectedFlotaForDocs.documentosFlota,
+          otrosDocumentos: updatedDocs,
+        },
+      });
+
+      await fetchFlotas();
+      showSnackbar("Documento eliminado exitosamente", "success");
+    } catch (error) {
+      console.error("Error al eliminar documento:", error);
+      showSnackbar("Error al eliminar documento: " + error.message, "error");
+    }
   };
 
   return (
-    <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <DirectionsCarIcon sx={{ fontSize: 40, color: "#d7171a" }} />
-          <Typography variant="h4" sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 900 }}>
+    <Box sx={{ width: "100%", mt: 4, px: 3 }}>
+      <Paper elevation={3} sx={{ p: 3, borderRadius: 2, backgroundColor: "#fff" }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+          <Typography variant="h4" sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 900, color: "#000" }}>
             Gestión de Flotas
           </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-          sx={{
-            backgroundColor: "#d7171a",
-            fontFamily: "Mulish, sans-serif",
-            fontWeight: 700,
-            "&:hover": {
-              backgroundColor: "#a00000",
-            },
-          }}
-        >
-          Nueva Flota
-        </Button>
-      </Box>
-
-      {alert.show && (
-        <Alert severity={alert.severity} sx={{ mb: 3 }}>
-          {alert.message}
-        </Alert>
-      )}
-
-      <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
-        <Table>
-          <TableHead sx={{ backgroundColor: "#000000" }}>
-            <TableRow>
-              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                Logo
-              </TableCell>
-              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                Nombre de la Flota
-              </TableCell>
-              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                NIT
-              </TableCell>
-              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                Representante Legal
-              </TableCell>
-              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                Propietarios
-              </TableCell>
-              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                Estado
-              </TableCell>
-              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                Fecha de Creación
-              </TableCell>
-              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                Acciones
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {flotas.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} align="center">
-                  <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
-                    No hay flotas registradas
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ) : (
-              flotas.map((flota) => (
-                <TableRow key={flota.id} hover>
-                  <TableCell>
-                    <Avatar 
-                      src={flota.imageUrl} 
-                      alt={flota.nombre}
-                      sx={{ width: 50, height: 50, bgcolor: "#d7171a" }}
-                    >
-                      {!flota.imageUrl && <DirectionsCarIcon />}
-                    </Avatar>
-                  </TableCell>
-                  <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                    {flota.nombre}
-                  </TableCell>
-                  <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                    {flota.documentosFlota?.nit || "-"}
-                  </TableCell>
-                  <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                    {flota.perfilFlota?.representanteLegal || "-"}
-                  </TableCell>
-                  <TableCell>
-                    {flota.uidPropietarios && flota.uidPropietarios.length > 0 ? (
-                      <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-                        {flota.uidPropietarios.slice(0, 2).map((uid) => {
-                          const admin = administradores.find(a => a.uid === uid);
-                          return (
-                            <Chip
-                              key={uid}
-                              label={admin?.nombre || admin?.email?.split('@')[0] || "Admin"}
-                              size="small"
-                              sx={{
-                                bgcolor: "#d7171a",
-                                color: "white",
-                                fontWeight: 600,
-                                fontFamily: "Mulish, sans-serif",
-                                fontSize: "0.7rem",
-                              }}
-                            />
-                          );
-                        })}
-                        {flota.uidPropietarios.length > 2 && (
-                          <Chip
-                            label={`+${flota.uidPropietarios.length - 2}`}
-                            size="small"
-                            sx={{
-                              bgcolor: "#484848",
-                              color: "white",
-                              fontWeight: 600,
-                              fontFamily: "Mulish, sans-serif",
-                              fontSize: "0.7rem",
-                            }}
-                          />
-                        )}
-                      </Box>
-                    ) : (
-                      <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif", color: "#484848" }}>
-                        Sin propietarios
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Switch
-                        checked={flota.habilitado !== undefined ? flota.habilitado : true}
-                        onChange={() => handleToggleHabilitado(flota.id, flota.habilitado !== undefined ? flota.habilitado : true)}
-                        sx={{
-                          '& .MuiSwitch-switchBase.Mui-checked': {
-                            color: '#4caf50',
-                          },
-                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                            backgroundColor: '#4caf50',
-                          },
-                        }}
-                      />
-                      <Chip
-                        label={flota.habilitado !== undefined && !flota.habilitado ? "Inactiva" : "Activa"}
-                        size="small"
-                        sx={{
-                          bgcolor: flota.habilitado !== undefined && !flota.habilitado ? "#757575" : "#4caf50",
-                          color: "white",
-                          fontWeight: 600,
-                          fontFamily: "Mulish, sans-serif",
-                        }}
-                      />
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                    {flota.createdAt?.toDate?.().toLocaleDateString() || "N/A"}
-                  </TableCell>
-                  <TableCell>
-                    <IconButton
-                      onClick={() => handleOpenDialog(flota)}
-                      sx={{ color: "#d7171a" }}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      onClick={() => handleDelete(flota.id, flota.nombre)}
-                      sx={{ color: "#484848" }}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      {/* Dialog para crear/editar flota */}
-      <Dialog 
-        open={openDialog} 
-        onClose={handleCloseDialog} 
-        maxWidth="md" 
-        fullWidth
-        scroll="paper"
-        PaperProps={{
-          sx: {
-            maxHeight: '90vh',
-            height: '90vh',
-          }
-        }}
-      >
-        <DialogTitle sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 900, fontSize: "1.5rem", bgcolor: "#f5f5f5" }}>
-          {editMode ? "Editar Flota" : "Nueva Flota"}
-        </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
-          <Stack spacing={3}>
-            {/* Logo de la flota */}
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, bgcolor: "#fafafa", py: 3, borderRadius: 2 }}>
-              <Avatar
-                src={imagePreview}
-                sx={{ width: 100, height: 100, bgcolor: "#d7171a" }}
-              >
-                {!imagePreview && <DirectionsCarIcon sx={{ fontSize: 50 }} />}
-              </Avatar>
-              
-              <Button
-                variant="outlined"
-                component="label"
-                startIcon={<PhotoCamera />}
-                sx={{
-                  color: "#d7171a",
-                  borderColor: "#d7171a",
-                  fontFamily: "Mulish, sans-serif",
-                  fontWeight: 600,
-                  "&:hover": {
-                    borderColor: "#a00000",
-                    backgroundColor: "rgba(215, 23, 26, 0.08)",
-                  },
-                }}
-              >
-                Cargar Logo
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  sx={{ display: "none" }}
-                />
-              </Button>
-            </Box>
-
-            {/* Información del Perfil */}
-            <Box>
-              <Typography 
-                variant="subtitle1" 
-                sx={{ 
-                  fontFamily: "Mulish, sans-serif", 
-                  fontWeight: 800, 
-                  color: "#d7171a", 
-                  mb: 2,
-                  fontSize: "1.1rem",
-                  borderBottom: "2px solid #d7171a",
-                  pb: 1
-                }}
-              >
-                📋 Perfil de la Flota
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
-              <TextField
-                fullWidth
-                label="Nombre de la Flota"
-                name="nombre"
-                value={formData.nombre}
-                onChange={handleInputChange}
-                required
-                size="small"
-                sx={{ fontFamily: "Mulish, sans-serif" }}
-              />
-
-              <TextField
-                fullWidth
-                label="Representante Legal"
-                name="representanteLegal"
-                value={formData.representanteLegal}
-                onChange={handleInputChange}
-                size="small"
-                sx={{ fontFamily: "Mulish, sans-serif" }}
-              />
-
-              <TextField
-                fullWidth
-                label="Teléfono"
-                name="telefono"
-                value={formData.telefono}
-                onChange={handleInputChange}
-                size="small"
-                sx={{ fontFamily: "Mulish, sans-serif" }}
-              />
-            </Box>
-
-            {/* Documentos de la Flota */}
-            <Box sx={{ mt: 2 }}>
-              <Typography 
-                variant="subtitle1" 
-                sx={{ 
-                  fontFamily: "Mulish, sans-serif", 
-                  fontWeight: 800, 
-                  color: "#d7171a", 
-                  mb: 2,
-                  fontSize: "1.1rem",
-                  borderBottom: "2px solid #d7171a",
-                  pb: 1
-                }}
-              >
-                📄 Documentos
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
-              <TextField
-                fullWidth
-                label="NIT"
-                name="nit"
-                value={formData.nit}
-                onChange={handleInputChange}
-                required
-                size="small"
-                sx={{ fontFamily: "Mulish, sans-serif" }}
-                helperText="Número de identificación tributaria"
-              />
-
-              <TextField
-                fullWidth
-                label="URL Foto NIT"
-                name="fotoNit"
-                value={formData.fotoNit}
-                onChange={handleInputChange}
-                placeholder="https://..."
-                size="small"
-                sx={{ fontFamily: "Mulish, sans-serif" }}
-                helperText="URL de la imagen del documento NIT"
-              />
-            </Box>
-
-            {/* Otros Documentos */}
-            <Box sx={{ mt: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-                <Typography 
-                  variant="subtitle1" 
-                  sx={{ 
-                    fontFamily: "Mulish, sans-serif", 
-                    fontWeight: 800, 
-                    color: "#d7171a", 
-                    fontSize: "1.1rem"
-                  }}
-                >
-                  📎 Otros Documentos
-                </Typography>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<AddIcon />}
-                  onClick={handleOpenDocModal}
-                  sx={{ 
-                    borderColor: "#d7171a", 
-                    color: "#d7171a",
-                    fontFamily: "Mulish, sans-serif",
-                    fontWeight: 600,
-                    "&:hover": {
-                      borderColor: "#a00000",
-                      bgcolor: "rgba(215, 23, 26, 0.04)"
-                    }
-                  }}
-                >
-                  Agregar Documento
-                </Button>
-              </Box>
-
-              {formData.otrosDocumentos && formData.otrosDocumentos.length > 0 ? (
-                <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow sx={{ bgcolor: "#f5f5f5" }}>
-                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>Tipo</TableCell>
-                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>Nombre</TableCell>
-                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>Información</TableCell>
-                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>Fecha</TableCell>
-                        <TableCell align="center" sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>Acciones</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {formData.otrosDocumentos.map((doc, index) => (
-                        <TableRow key={index}>
-                          <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{doc.tipo}</TableCell>
-                          <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{doc.nombre}</TableCell>
-                          <TableCell sx={{ fontFamily: "Mulish, sans-serif", maxWidth: "200px" }}>
-                            {doc.contenido ? (
-                              <Typography variant="body2" sx={{ 
-                                overflow: "hidden", 
-                                textOverflow: "ellipsis", 
-                                whiteSpace: "nowrap",
-                                fontFamily: "Mulish, sans-serif"
-                              }}>
-                                {doc.contenido}
-                              </Typography>
-                            ) : doc.url ? (
-                              <Chip label="Archivo/URL" size="small" color="primary" />
-                            ) : (
-                              <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "Mulish, sans-serif" }}>Sin info</Typography>
-                            )}
-                          </TableCell>
-                          <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                            {doc.fechaSubida ? new Date(doc.fechaSubida).toLocaleDateString() : "N/A"}
-                          </TableCell>
-                          <TableCell align="center">
-                            {doc.url && (
-                              <IconButton
-                                size="small"
-                                color="primary"
-                                onClick={() => handleViewDocument(doc.url)}
-                                title="Ver documento"
-                              >
-                                👁️
-                              </IconButton>
-                            )}
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => handleDeleteDocument(index)}
-                              title="Eliminar"
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              ) : (
-                <Alert severity="info" sx={{ mt: 1, fontFamily: "Mulish, sans-serif" }}>
-                  No hay documentos adicionales. Haz clic en "Agregar Documento" para comenzar.
-                </Alert>
-              )}
-            </Box>
-
-            {/* UID Propietarios */}
-            <Box sx={{ mt: 2 }}>
-              <Typography 
-                variant="subtitle1" 
-                sx={{ 
-                  fontFamily: "Mulish, sans-serif", 
-                  fontWeight: 800, 
-                  color: "#d7171a", 
-                  mb: 2,
-                  fontSize: "1.1rem",
-                  borderBottom: "2px solid #d7171a",
-                  pb: 1
-                }}
-              >
-                👥 Propietarios (Administradores)
-              </Typography>
-            </Box>
-
-            <Box>
-              <FormControl fullWidth size="small">
-                <InputLabel>Seleccionar Administradores</InputLabel>
-                <Select
-                  multiple
-                  value={formData.uidPropietarios}
-                  onChange={(e) => setFormData({ ...formData, uidPropietarios: e.target.value })}
-                  input={<OutlinedInput label="Seleccionar Administradores" />}
-                  onClose={() => {}}
-                  MenuProps={{
-                    autoFocus: false,
-                  }}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {selected.map((uid) => {
-                        const admin = administradores.find(a => a.uid === uid);
-                        return (
-                          <Chip 
-                            key={uid} 
-                            label={admin?.nombre || admin?.email || uid}
-                            size="small"
-                            sx={{ 
-                              bgcolor: "#d7171a", 
-                              color: "white",
-                              fontFamily: "Mulish, sans-serif",
-                              fontWeight: 600
-                            }}
-                          />
-                        );
-                      })}
-                    </Box>
-                  )}
-                  sx={{ fontFamily: "Mulish, sans-serif" }}
-                >
-                  {administradores.length === 0 ? (
-                    <MenuItem disabled>
-                      <Typography sx={{ fontFamily: "Mulish, sans-serif", color: "#484848" }}>
-                        No hay administradores activos disponibles
-                      </Typography>
-                    </MenuItem>
-                  ) : (
-                    administradores.map((admin) => (
-                      <MenuItem key={admin.uid} value={admin.uid}>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
-                          <Avatar sx={{ width: 32, height: 32, bgcolor: "#d7171a", fontSize: "0.875rem" }}>
-                            {admin.nombre?.charAt(0) || admin.email?.charAt(0)}
-                          </Avatar>
-                          <Box sx={{ flex: 1 }}>
-                            <Typography sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600, fontSize: "0.9rem" }}>
-                              {admin.nombre || "Sin nombre"}
-                            </Typography>
-                            <Typography variant="caption" sx={{ fontFamily: "Mulish, sans-serif", color: "#484848" }}>
-                              {admin.email}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </MenuItem>
-                    ))
-                  )}
-                </Select>
-              </FormControl>
-              <Typography variant="caption" sx={{ fontFamily: "Mulish, sans-serif", color: "#666", mt: 1, display: "block" }}>
-                Selecciona los administradores que serán propietarios de esta flota
-              </Typography>
-            </Box>
-
-            {/* Servicios */}
-            <Box sx={{ mt: 2 }}>
-              <Typography 
-                variant="subtitle1" 
-                sx={{ 
-                  fontFamily: "Mulish, sans-serif", 
-                  fontWeight: 800, 
-                  color: "#d7171a", 
-                  mb: 2,
-                  fontSize: "1.1rem",
-                  borderBottom: "2px solid #d7171a",
-                  pb: 1
-                }}
-              >
-                🚕 Servicios Disponibles
-              </Typography>
-            </Box>
-
-            <Box>
-              <FormControl fullWidth size="small">
-                <InputLabel>Seleccionar Servicios</InputLabel>
-                <Select
-                  multiple
-                  value={formData.servicios}
-                  onChange={(e) => setFormData({ ...formData, servicios: e.target.value })}
-                  input={<OutlinedInput label="Seleccionar Servicios" />}
-                  onClose={() => {}}
-                  MenuProps={{
-                    autoFocus: false,
-                  }}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {selected.map((servicio) => (
-                        <Chip 
-                          key={servicio} 
-                          label={servicio}
-                          size="small"
-                          sx={{ 
-                            bgcolor: "#484848", 
-                            color: "white",
-                            fontFamily: "Mulish, sans-serif",
-                            fontWeight: 600
-                          }}
-                        />
-                      ))}
-                    </Box>
-                  )}
-                  sx={{ fontFamily: "Mulish, sans-serif" }}
-                >
-                  {serviciosDisponibles.length === 0 ? (
-                    <MenuItem disabled>
-                      <Typography sx={{ fontFamily: "Mulish, sans-serif", color: "#484848" }}>
-                        No hay servicios disponibles
-                      </Typography>
-                    </MenuItem>
-                  ) : (
-                    serviciosDisponibles.map((servicio) => (
-                      <MenuItem key={servicio} value={servicio}>
-                        <Typography sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                          {servicio}
-                        </Typography>
-                      </MenuItem>
-                    ))
-                  )}
-                </Select>
-              </FormControl>
-              <Typography variant="caption" sx={{ fontFamily: "Mulish, sans-serif", color: "#666", mt: 1, display: "block" }}>
-                Selecciona los servicios que ofrecerá esta flota
-              </Typography>
-            </Box>
-
-            {/* Estado Habilitado/Inhabilitado */}
-            <Box sx={{ mt: 2 }}>
-              <Typography 
-                variant="subtitle1" 
-                sx={{ 
-                  fontFamily: "Mulish, sans-serif", 
-                  fontWeight: 800, 
-                  color: "#d7171a", 
-                  mb: 2,
-                  fontSize: "1.1rem",
-                  borderBottom: "2px solid #d7171a",
-                  pb: 1
-                }}
-              >
-                ⚙️ Estado de la Flota
-              </Typography>
-            </Box>
-
-            <Box>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.habilitado}
-                    onChange={(e) => setFormData({ ...formData, habilitado: e.target.checked })}
-                    sx={{
-                      '& .MuiSwitch-switchBase.Mui-checked': {
-                        color: '#d7171a',
-                      },
-                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                        backgroundColor: '#d7171a',
-                      },
-                    }}
-                  />
-                }
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                      {formData.habilitado ? "Flota Habilitada" : "Flota Inhabilitada"}
-                    </Typography>
-                    <Chip
-                      label={formData.habilitado ? "Activa" : "Inactiva"}
-                      size="small"
-                      sx={{
-                        bgcolor: formData.habilitado ? "#4caf50" : "#757575",
-                        color: "white",
-                        fontWeight: 600,
-                        fontFamily: "Mulish, sans-serif",
-                      }}
-                    />
-                  </Box>
-                }
-                sx={{ fontFamily: "Mulish, sans-serif" }}
-              />
-              <Typography variant="caption" sx={{ fontFamily: "Mulish, sans-serif", color: "#666", mt: 1, display: "block", ml: 4 }}>
-                {formData.habilitado 
-                  ? "La flota puede recibir y procesar solicitudes de viaje" 
-                  : "La flota no recibirá nuevas solicitudes de viaje"}
-              </Typography>
-            </Box>
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ p: 2.5, bgcolor: "#f5f5f5" }}>
           <Button
-            onClick={handleCloseDialog}
-            sx={{ color: "#484848", fontFamily: "Mulish, sans-serif", fontWeight: 600 }}
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSave}
             variant="contained"
-            disabled={isSaving}
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenDialog()}
             sx={{
               backgroundColor: "#d7171a",
               fontFamily: "Mulish, sans-serif",
               fontWeight: 700,
-              px: 4,
-              "&:hover": {
-                backgroundColor: "#a00000",
-              },
-              "&:disabled": {
-                backgroundColor: "#ccc",
-              },
+              "&:hover": { backgroundColor: "#a00000" },
             }}
           >
-            {isSaving ? "Guardando..." : (editMode ? "Actualizar" : "Crear Flota")}
+            Nueva Flota
           </Button>
-        </DialogActions>
-      </Dialog>
+        </Box>
 
-      {/* Dialog de confirmación de eliminación */}
-      <Dialog
-        open={confirmDialog.open}
-        onClose={handleCancelDelete}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
-      >
-        <DialogTitle id="alert-dialog-title">
-          Confirmar Eliminación
-        </DialogTitle>
+        <FlotasTable
+          flotas={flotas}
+          administradores={administradores}
+          onEdit={handleOpenDialog}
+          onDelete={handleDelete}
+          onToggleHabilitado={toggleHabilitado}
+          onManageDocs={handleOpenDocsManager}
+        />
+      </Paper>
+
+      {/* Diálogo de crear/editar flota */}
+      <FlotaFormDialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        formData={formData}
+        onInputChange={handleInputChange}
+        onImageChange={handleImageChange}
+        imagePreview={imagePreview}
+        administradores={administradores}
+        serviciosDisponibles={serviciosDisponibles}
+        onSave={handleSave}
+        isSaving={isSaving}
+        editMode={editMode}
+        onFormDataChange={setFormData}
+        onOpenDocModal={handleOpenDocModal}
+        onDeleteDocument={handleDeleteDocument}
+        onViewDocument={handleViewDocument}
+      />
+
+      {/* Modal de agregar documento */}
+      <DocumentModal
+        open={openDocModal}
+        onClose={handleCloseDocModal}
+        docFormData={docFormData}
+        docFile={docFile}
+        onDocFormDataChange={setDocFormData}
+        onDocFileChange={handleDocFileChange}
+        onAdd={handleAddDocument}
+      />
+
+      {/* Modal de gestión de documentos por flota */}
+      <DocsManagerModal
+        open={openDocsManagerModal}
+        onClose={handleCloseDocsManagerModal}
+        flota={selectedFlotaForDocs}
+        onOpenDocModal={handleOpenDocModal}
+        onSave={handleSaveFlotaDocs}
+        onDeleteDoc={handleDeleteDocFromFlota}
+        onViewDoc={handleViewDocument}
+      />
+
+      {/* Diálogo de confirmación de eliminación */}
+      <Dialog open={confirmDialog.open} onClose={handleCancelDelete}>
+        <DialogTitle>Confirmar Eliminación</DialogTitle>
         <DialogContent>
-          <DialogContentText id="alert-dialog-description">
-            ¿Estás seguro de que quieres eliminar la flota <strong>{confirmDialog.flotaNombre}</strong>? 
-            Esta acción no se puede deshacer.
+          <DialogContentText>
+            ¿Estás seguro de que quieres eliminar la flota <strong>{confirmDialog.flotaNombre}</strong>? Esta acción no se puede deshacer.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button 
-            onClick={handleCancelDelete}
-            sx={{ color: "#484848" }}
-          >
+          <Button onClick={handleCancelDelete} sx={{ color: "#484848" }}>
             Cancelar
           </Button>
-          <Button 
+          <Button
             onClick={handleConfirmDelete}
             variant="contained"
-            sx={{
-              backgroundColor: "#D32F2F",
-              "&:hover": {
-                backgroundColor: "#B71C1C",
-              },
-            }}
+            sx={{ backgroundColor: "#D32F2F", "&:hover": { backgroundColor: "#B71C1C" } }}
             autoFocus
           >
             Eliminar
@@ -1204,146 +460,14 @@ const GestionFlotas = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Modal para agregar documentos */}
-      <Dialog open={openDocModal} onClose={handleCloseDocModal} maxWidth="sm" fullWidth>
-        <DialogTitle 
-          sx={{ 
-            bgcolor: "#d7171a", 
-            color: "white",
-            fontFamily: "Mulish, sans-serif",
-            fontWeight: 700
-          }}
-        >
-          📎 Agregar Documento
-        </DialogTitle>
-        <DialogContent sx={{ mt: 2 }}>
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel sx={{ fontFamily: "Mulish, sans-serif" }}>Tipo de Documento</InputLabel>
-            <Select
-              value={docFormData.tipo}
-              onChange={(e) => setDocFormData({ ...docFormData, tipo: e.target.value })}
-              label="Tipo de Documento"
-              sx={{ fontFamily: "Mulish, sans-serif" }}
-            >
-              <MenuItem value="Licencia de Operación" sx={{ fontFamily: "Mulish, sans-serif" }}>Licencia de Operación</MenuItem>
-              <MenuItem value="Certificado de Cámara de Comercio" sx={{ fontFamily: "Mulish, sans-serif" }}>Certificado de Cámara de Comercio</MenuItem>
-              <MenuItem value="RUT" sx={{ fontFamily: "Mulish, sans-serif" }}>RUT</MenuItem>
-              <MenuItem value="Póliza de Seguro" sx={{ fontFamily: "Mulish, sans-serif" }}>Póliza de Seguro</MenuItem>
-              <MenuItem value="Certificado Bancario" sx={{ fontFamily: "Mulish, sans-serif" }}>Certificado Bancario</MenuItem>
-              <MenuItem value="Contrato de Afiliación" sx={{ fontFamily: "Mulish, sans-serif" }}>Contrato de Afiliación</MenuItem>
-              <MenuItem value="Otro" sx={{ fontFamily: "Mulish, sans-serif" }}>Otro</MenuItem>
-            </Select>
-          </FormControl>
-
-          <TextField
-            fullWidth
-            label="Nombre del Documento"
-            value={docFormData.nombre}
-            onChange={(e) => setDocFormData({ ...docFormData, nombre: e.target.value })}
-            sx={{ mb: 2, fontFamily: "Mulish, sans-serif" }}
-            helperText="Opcional: Nombre descriptivo del documento"
-          />
-
-          <TextField
-            fullWidth
-            multiline
-            rows={4}
-            label="Información / Contenido"
-            value={docFormData.contenido}
-            onChange={(e) => setDocFormData({ ...docFormData, contenido: e.target.value })}
-            sx={{ mb: 2, fontFamily: "Mulish, sans-serif" }}
-            helperText="Escribe aquí los datos del documento (número, detalles, etc.)"
-            placeholder="Ej: Número de licencia: 123456789, Vigencia: 2025-12-31"
-          />
-
-          <Typography 
-            variant="body2" 
-            sx={{ 
-              textAlign: "center", 
-              mb: 1, 
-              color: "#666",
-              fontFamily: "Mulish, sans-serif",
-              fontWeight: 600 
-            }}
-          >
-            - O también puedes agregar -
-          </Typography>
-
-          <Box sx={{ mb: 2 }}>
-            <Button
-              variant="outlined"
-              component="label"
-              startIcon={<PhotoCamera />}
-              fullWidth
-              sx={{ 
-                borderColor: "#d7171a",
-                color: "#d7171a", 
-                fontFamily: "Mulish, sans-serif",
-                fontWeight: 600,
-                "&:hover": { 
-                  borderColor: "#b71c1c",
-                  bgcolor: "rgba(215, 23, 26, 0.04)" 
-                } 
-              }}
-            >
-              Subir Archivo (Opcional)
-              <input 
-                type="file" 
-                hidden 
-                onChange={handleDocFileChange} 
-                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" 
-              />
-            </Button>
-            {docFile && (
-              <Alert severity="success" sx={{ mt: 1, fontFamily: "Mulish, sans-serif" }}>
-                Archivo seleccionado: {docFile.name}
-              </Alert>
-            )}
-          </Box>
-
-          <TextField
-            fullWidth
-            label="URL del Documento (Opcional)"
-            value={docFormData.url}
-            onChange={(e) => setDocFormData({ ...docFormData, url: e.target.value })}
-            helperText="O pega una URL si el documento ya está en línea"
-            sx={{ fontFamily: "Mulish, sans-serif" }}
-            placeholder="https://..."
-          />
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button 
-            onClick={handleCloseDocModal}
-            sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600, color: "#484848" }}
-          >
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleAddDocument} 
-            variant="contained" 
-            sx={{ 
-              bgcolor: "#d7171a",
-              fontFamily: "Mulish, sans-serif",
-              fontWeight: 700,
-              "&:hover": { bgcolor: "#b71c1c" }
-            }}
-          >
-            Agregar
-          </Button>
-        </DialogActions>
-      </Dialog>
-
+      {/* Snackbar de notificaciones */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: "100%" }}
-        >
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: "100%" }}>
           {snackbar.message}
         </Alert>
       </Snackbar>
