@@ -76,7 +76,8 @@ const LandingPage = () => {
         justifyContent: 'center',
         textAlign: 'center',
         width: '100%',
-        pl: { xs: 6, sm: 8},
+        pl: { xs: 6, sm: 8, md: 4},
+        px: { md: 4 },
         }}>
         {/* Título Principal */}
 
@@ -94,10 +95,10 @@ const LandingPage = () => {
             src={taxiImage}
             alt="Taxi YAAPS"
             sx={{
-              width: { xs: '100%', sm: 600, md: 700, lg: 850 },
+              width: { xs: '100%', sm: 500, md: 450, lg: 600, xl: 750 },
               height: 'auto',
-              maxWidth: '850px',
-              mb: 3,
+              maxWidth: '750px',
+              mb: { xs: 3, md: 2 },
             }}
           />
         </Box>
@@ -108,8 +109,8 @@ const LandingPage = () => {
           sx={{
             fontFamily: "'Mulish', sans-serif",
             fontWeight: 900,
-            mb: 2,
-            fontSize: { xs: "3rem", sm: "4rem", md: "4.5rem"},
+            mb: { xs: 2, md: 1.5 },
+            fontSize: { xs: "2.5rem", sm: "3.5rem", md: "3rem", lg: "4rem", xl: "4.5rem"},
             lineHeight: 1.2,
             color: "#fff",
           }}
@@ -120,9 +121,9 @@ const LandingPage = () => {
         {/* Subtítulo / Descripción */}
         <Box
           sx={{
-           height: '60px', // Altura fija para evitar saltos
+           height: { xs: '60px', md: '50px', lg: '60px' }, // Altura fija para evitar saltos
             overflow: 'hidden',
-            mb: 4,
+            mb: { xs: 4, md: 3 },
           }}
         >
           <Typography
@@ -131,7 +132,7 @@ const LandingPage = () => {
             sx={{
               fontFamily: "'Mulish', sans-serif",
               fontWeight: 400,
-              fontSize: { xs: "2rem", md: "2.5rem"},
+              fontSize: { xs: "1.5rem", sm: "1.8rem", md: "1.6rem", lg: "2rem", xl: "2.5rem"},
               opacity: 0.9,
               lineHeight: 1.6,
               color: "#fff",
@@ -157,16 +158,16 @@ const LandingPage = () => {
           onClick={() => alert("¡Descarga la app de YAAPS para pedir tu taxi ahora!")} // Mensaje más específico
           variant="contained" // Usa el estilo "contained" de MUI
           sx={{
-            px: { xs: 4, md: 6 }, // Padding horizontal adaptable
-            py: { xs: 1.2, md: 1.8 }, // Padding vertical adaptable
-            fontSize: { xs: "1.1rem", md: "1.4rem" }, // Tamaño de fuente adaptable
+            px: { xs: 3, sm: 4, md: 5, lg: 6 }, // Padding horizontal adaptable
+            py: { xs: 1, sm: 1.2, md: 1.3, lg: 1.6 }, // Padding vertical adaptable
+            fontSize: { xs: "1rem", sm: "1.1rem", md: "1.2rem", lg: "1.3rem", xl: "1.4rem" }, // Tamaño de fuente adaptable
             fontWeight: "bold",
             borderRadius: "50px", // Bordes más redondeados para un look moderno
             backgroundColor: "#ffffff", // Botón blanco
             color: "#d7171a", // Texto en rojo corporativo
             boxShadow: "0 8px 24px rgba(255, 255, 255, 0.3)", // Sombra blanca prominente
             alignSelf: "center",
-            mr: { xs: 6, sm: 8, md: 10},
+            mr: { xs: 6, sm: 8, md: 6, lg: 8},
             transition: "all 0.3s ease-in-out", // Transición para hover y otras propiedades
             "&:hover": {
             backgroundColor: "#f5f5f5", // Ligero gris al pasar el cursor

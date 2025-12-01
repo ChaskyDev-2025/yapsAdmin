@@ -71,6 +71,7 @@ const GestionFlotas = () => {
     representanteLegal: "",
     telefono: "",
     fotoNit: "",
+    otrosDocumentos: [], //apartado para nuevos documentos
     uidPropietarios: [],
     servicios: [],
     habilitado: true,
@@ -85,6 +86,16 @@ const GestionFlotas = () => {
     fetchAdministradores();
     fetchServicios();
   }, []);
+
+  // Estados para gestión de documentos
+  const [openDocModal, setOpenDocModal] = useState(false);
+  const [docFile, setDocFile] = useState(null);
+  const [docFormData, setDocFormData] = useState({
+    tipo: "",
+    nombre: "",
+    contenido: "", // Para texto/información
+    url: "",
+  });
 
   const fetchFlotas = async () => {
     try {
@@ -168,6 +179,7 @@ const GestionFlotas = () => {
         representanteLegal: flota.perfilFlota?.representanteLegal || "",
         telefono: flota.perfilFlota?.telefono || "",
         fotoNit: flota.documentosFlota?.fotoNit || "",
+        otrosDocumentos: flota.documentosFlota?.otrosDocumentos || [],
         uidPropietarios: flota.uidPropietarios || [],
         servicios: flota.servicios || [],
         habilitado: flota.habilitado !== undefined ? flota.habilitado : true,
@@ -184,6 +196,7 @@ const GestionFlotas = () => {
         representanteLegal: "",
         telefono: "",
         fotoNit: "",
+        otrosDocumentos: [],
         uidPropietarios: [],
         servicios: [],
         habilitado: true,
@@ -286,6 +299,7 @@ const GestionFlotas = () => {
           documentosFlota: {
             nit: formData.nit,
             fotoNit: formData.fotoNit,
+            otrosDocumentos: formData.otrosDocumentos || [],
           },
           uidPropietarios: formData.uidPropietarios,
           servicios: formData.servicios,
@@ -313,6 +327,7 @@ const GestionFlotas = () => {
           documentosFlota: {
             nit: formData.nit,
             fotoNit: formData.fotoNit,
+            otrosDocumentos: formData.otrosDocumentos || [],
           },
           uidPropietarios: formData.uidPropietarios,
           servicios: formData.servicios,
@@ -371,6 +386,81 @@ const GestionFlotas = () => {
 
   const handleCancelDelete = () => {
     setConfirmDialog({ open: false, flotaId: null, flotaNombre: "" });
+  };
+
+  // Funciones para gestionar documentos
+  const handleOpenDocModal = () => {
+    setDocFormData({ tipo: "", nombre: "", contenido: "", url: "" });
+    setDocFile(null);
+    setOpenDocModal(true);
+  };
+
+  const handleCloseDocModal = () => {
+    setOpenDocModal(false);
+    setDocFormData({ tipo: "", nombre: "", contenido: "", url: "" });
+    setDocFile(null);
+  };
+
+  const handleDocFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setDocFile(file);
+      setDocFormData({ ...docFormData, nombre: file.name });
+    }
+  };
+
+  const handleAddDocument = async () => {
+    try {
+      let urlDocumento = docFormData.url;
+      let contenidoTexto = docFormData.contenido;
+
+      // Si hay un archivo, subirlo a Storage
+      if (docFile) {
+        const docRef = ref(storage, `documentos-flotas/${Date.now()}_${docFile.name}`);
+        await uploadBytes(docRef, docFile);
+        urlDocumento = await getDownloadURL(docRef);
+      }
+
+      // Validar que tenga al menos un tipo de contenido
+      if (!docFormData.tipo) {
+        showAlert("Por favor selecciona el tipo de documento", "warning");
+        return;
+      }
+
+      if (!urlDocumento && !contenidoTexto) {
+        showAlert("Debes agregar información de texto, subir un archivo o proporcionar una URL", "warning");
+        return;
+      }
+
+      const nuevoDoc = {
+        tipo: docFormData.tipo,
+        nombre: docFormData.nombre || docFormData.tipo,
+        contenido: contenidoTexto || "",
+        url: urlDocumento || "",
+        fechaSubida: new Date().toISOString(),
+      };
+
+      setFormData({
+        ...formData,
+        otrosDocumentos: [...formData.otrosDocumentos, nuevoDoc],
+      });
+
+      showAlert("Documento agregado", "success");
+      handleCloseDocModal();
+    } catch (error) {
+      console.error("Error al agregar documento:", error);
+      showAlert("Error al agregar documento: " + error.message, "error");
+    }
+  };
+
+  const handleDeleteDocument = (index) => {
+    const nuevosDocumentos = formData.otrosDocumentos.filter((_, i) => i !== index);
+    setFormData({ ...formData, otrosDocumentos: nuevosDocumentos });
+    showAlert("Documento eliminado", "info");
+  };
+
+  const handleViewDocument = (url) => {
+    window.open(url, "_blank");
   };
 
   const handleToggleHabilitado = async (flotaId, currentState) => {
@@ -728,6 +818,108 @@ const GestionFlotas = () => {
               />
             </Box>
 
+            {/* Otros Documentos */}
+            <Box sx={{ mt: 3 }}>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                <Typography 
+                  variant="subtitle1" 
+                  sx={{ 
+                    fontFamily: "Mulish, sans-serif", 
+                    fontWeight: 800, 
+                    color: "#d7171a", 
+                    fontSize: "1.1rem"
+                  }}
+                >
+                  📎 Otros Documentos
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={handleOpenDocModal}
+                  sx={{ 
+                    borderColor: "#d7171a", 
+                    color: "#d7171a",
+                    fontFamily: "Mulish, sans-serif",
+                    fontWeight: 600,
+                    "&:hover": {
+                      borderColor: "#a00000",
+                      bgcolor: "rgba(215, 23, 26, 0.04)"
+                    }
+                  }}
+                >
+                  Agregar Documento
+                </Button>
+              </Box>
+
+              {formData.otrosDocumentos && formData.otrosDocumentos.length > 0 ? (
+                <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: "#f5f5f5" }}>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>Tipo</TableCell>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>Nombre</TableCell>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>Información</TableCell>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>Fecha</TableCell>
+                        <TableCell align="center" sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>Acciones</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {formData.otrosDocumentos.map((doc, index) => (
+                        <TableRow key={index}>
+                          <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{doc.tipo}</TableCell>
+                          <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{doc.nombre}</TableCell>
+                          <TableCell sx={{ fontFamily: "Mulish, sans-serif", maxWidth: "200px" }}>
+                            {doc.contenido ? (
+                              <Typography variant="body2" sx={{ 
+                                overflow: "hidden", 
+                                textOverflow: "ellipsis", 
+                                whiteSpace: "nowrap",
+                                fontFamily: "Mulish, sans-serif"
+                              }}>
+                                {doc.contenido}
+                              </Typography>
+                            ) : doc.url ? (
+                              <Chip label="Archivo/URL" size="small" color="primary" />
+                            ) : (
+                              <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "Mulish, sans-serif" }}>Sin info</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                            {doc.fechaSubida ? new Date(doc.fechaSubida).toLocaleDateString() : "N/A"}
+                          </TableCell>
+                          <TableCell align="center">
+                            {doc.url && (
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => handleViewDocument(doc.url)}
+                                title="Ver documento"
+                              >
+                                👁️
+                              </IconButton>
+                            )}
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => handleDeleteDocument(index)}
+                              title="Eliminar"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Alert severity="info" sx={{ mt: 1, fontFamily: "Mulish, sans-serif" }}>
+                  No hay documentos adicionales. Haz clic en "Agregar Documento" para comenzar.
+                </Alert>
+              )}
+            </Box>
+
             {/* UID Propietarios */}
             <Box sx={{ mt: 2 }}>
               <Typography 
@@ -1008,6 +1200,135 @@ const GestionFlotas = () => {
             autoFocus
           >
             Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal para agregar documentos */}
+      <Dialog open={openDocModal} onClose={handleCloseDocModal} maxWidth="sm" fullWidth>
+        <DialogTitle 
+          sx={{ 
+            bgcolor: "#d7171a", 
+            color: "white",
+            fontFamily: "Mulish, sans-serif",
+            fontWeight: 700
+          }}
+        >
+          📎 Agregar Documento
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel sx={{ fontFamily: "Mulish, sans-serif" }}>Tipo de Documento</InputLabel>
+            <Select
+              value={docFormData.tipo}
+              onChange={(e) => setDocFormData({ ...docFormData, tipo: e.target.value })}
+              label="Tipo de Documento"
+              sx={{ fontFamily: "Mulish, sans-serif" }}
+            >
+              <MenuItem value="Licencia de Operación" sx={{ fontFamily: "Mulish, sans-serif" }}>Licencia de Operación</MenuItem>
+              <MenuItem value="Certificado de Cámara de Comercio" sx={{ fontFamily: "Mulish, sans-serif" }}>Certificado de Cámara de Comercio</MenuItem>
+              <MenuItem value="RUT" sx={{ fontFamily: "Mulish, sans-serif" }}>RUT</MenuItem>
+              <MenuItem value="Póliza de Seguro" sx={{ fontFamily: "Mulish, sans-serif" }}>Póliza de Seguro</MenuItem>
+              <MenuItem value="Certificado Bancario" sx={{ fontFamily: "Mulish, sans-serif" }}>Certificado Bancario</MenuItem>
+              <MenuItem value="Contrato de Afiliación" sx={{ fontFamily: "Mulish, sans-serif" }}>Contrato de Afiliación</MenuItem>
+              <MenuItem value="Otro" sx={{ fontFamily: "Mulish, sans-serif" }}>Otro</MenuItem>
+            </Select>
+          </FormControl>
+
+          <TextField
+            fullWidth
+            label="Nombre del Documento"
+            value={docFormData.nombre}
+            onChange={(e) => setDocFormData({ ...docFormData, nombre: e.target.value })}
+            sx={{ mb: 2, fontFamily: "Mulish, sans-serif" }}
+            helperText="Opcional: Nombre descriptivo del documento"
+          />
+
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            label="Información / Contenido"
+            value={docFormData.contenido}
+            onChange={(e) => setDocFormData({ ...docFormData, contenido: e.target.value })}
+            sx={{ mb: 2, fontFamily: "Mulish, sans-serif" }}
+            helperText="Escribe aquí los datos del documento (número, detalles, etc.)"
+            placeholder="Ej: Número de licencia: 123456789, Vigencia: 2025-12-31"
+          />
+
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              textAlign: "center", 
+              mb: 1, 
+              color: "#666",
+              fontFamily: "Mulish, sans-serif",
+              fontWeight: 600 
+            }}
+          >
+            - O también puedes agregar -
+          </Typography>
+
+          <Box sx={{ mb: 2 }}>
+            <Button
+              variant="outlined"
+              component="label"
+              startIcon={<PhotoCamera />}
+              fullWidth
+              sx={{ 
+                borderColor: "#d7171a",
+                color: "#d7171a", 
+                fontFamily: "Mulish, sans-serif",
+                fontWeight: 600,
+                "&:hover": { 
+                  borderColor: "#b71c1c",
+                  bgcolor: "rgba(215, 23, 26, 0.04)" 
+                } 
+              }}
+            >
+              Subir Archivo (Opcional)
+              <input 
+                type="file" 
+                hidden 
+                onChange={handleDocFileChange} 
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" 
+              />
+            </Button>
+            {docFile && (
+              <Alert severity="success" sx={{ mt: 1, fontFamily: "Mulish, sans-serif" }}>
+                Archivo seleccionado: {docFile.name}
+              </Alert>
+            )}
+          </Box>
+
+          <TextField
+            fullWidth
+            label="URL del Documento (Opcional)"
+            value={docFormData.url}
+            onChange={(e) => setDocFormData({ ...docFormData, url: e.target.value })}
+            helperText="O pega una URL si el documento ya está en línea"
+            sx={{ fontFamily: "Mulish, sans-serif" }}
+            placeholder="https://..."
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button 
+            onClick={handleCloseDocModal}
+            sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600, color: "#484848" }}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleAddDocument} 
+            variant="contained" 
+            sx={{ 
+              bgcolor: "#d7171a",
+              fontFamily: "Mulish, sans-serif",
+              fontWeight: 700,
+              "&:hover": { bgcolor: "#b71c1c" }
+            }}
+          >
+            Agregar
           </Button>
         </DialogActions>
       </Dialog>

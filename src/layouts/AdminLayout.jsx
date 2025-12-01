@@ -35,6 +35,7 @@ const AdminLayout = () => {
         { path: "/admin/gestion-usuarios", label: "Gestión Usuarios", icon: <SupervisorAccountIcon /> },
         { path: "/admin/flotas", label: "Flotas", icon: <DirectionsCarIcon /> },
         { path: "/admin/servicios", label: "Servicios", icon: <RoomServiceIcon /> },
+        { path: "/admin/documentos", label: "Documentos", icon: <ArticleIcon /> },
         { path: "/admin/banners", label: "Banners", icon: <PhotoLibraryIcon /> },
         { path: "/admin/referidos", label: "Referidos", icon: <CardGiftcardIcon /> },
         { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },
@@ -45,10 +46,8 @@ const AdminLayout = () => {
     return [
       { path: "/admin/dashboard", label: "Inicio", icon: <DashboardIcon /> },
       { path: "/admin/radiotaxis", label: "Radiotaxis", icon: <LocalTaxiIcon /> },
-      { path: "/admin/documentos", label: "Documentos", icon: <ArticleIcon /> },
       { path: "/admin/ajustes", label: "Ajustes", icon: <SettingsIcon /> },
       { path: "/admin/personalizar", label: "Personalizar", icon: <BuildIcon /> },
-      { path: "/admin/referidos", label: "Referidos", icon: <CardGiftcardIcon /> },
       { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },
     ];
   }, [userRole]);
