@@ -1,24 +1,17 @@
 // modalDerecho.jsx
 import { useState, useEffect } from "react";
 import {
-  Box, Stack, Button, Card, CardHeader, CardContent,
-  CardActions, Typography, Chip
+  Box,
+  Stack,
+  Button,
+  Card,
+  CardHeader,
+  CardContent,
+  Typography,
+  Chip,
 } from "@mui/material";
-import ArticleIcon from "@mui/icons-material/Article";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { db } from "../../../../data/firebase/firebase";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
-
-const getEstadoColor = (e = "") =>
-  ({
-    aprobado: "success",
-    pendiente: "warning",
-    rechazado: "error",
-    "sin imagen": "warning",   // color para el nuevo estado
-  }[String(e).toLowerCase()] || "default");
-
-const pickFirstFileUrl = (files = {}) =>
-  Object.values(files).find((v) => typeof v === "string" && /^https?:\/\//.test(v)) || null;
 
 function Preview({ src, alt }) {
   const [error, setError] = useState(false);
@@ -35,8 +28,6 @@ function Preview({ src, alt }) {
           alignItems: "center",
           justifyContent: "center",
           bgcolor: "#f5f5f5",
-          // opcional: un borde sutil para diferenciar el placeholder
-          // border: "1px dashed #ddd",
           fontSize: 24,
           fontWeight: "bold",
           color: "text.secondary",
@@ -59,7 +50,7 @@ function Preview({ src, alt }) {
         display: "block",
         width: "100%",
         height: "100%",
-        objectFit: "cover",       // llena el ancho y recorta arriba/abajo
+        objectFit: "cover",
         objectPosition: "center",
       }}
     />
@@ -78,145 +69,183 @@ export default function ModalDerecho({ userId, setDocActivo }) {
     }
 
     let cancel = false;
-    let unsubTpl = null;
-    let unsubUser = null;
 
-    // Escuchar plantillas
-    const tplRef = collection(db, "crear-documentos");
-    unsubTpl = onSnapshot(tplRef, (tplSnap) => {
-      const plantillas = tplSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const loadDocs = async () => {
+      try {
+        // 1. Obtener el trabajador para obtener su flotaId
+        const trabajadorRef = doc(db, "trabajadores", userId);
+        const trabajadorSnap = await getDoc(trabajadorRef);
 
-      // Escuchar docs del usuario
-      const userRef = collection(db, "users", userId, "docs");
-      unsubUser = onSnapshot(userRef, (userSnap) => {
-        const userDocsMap = userSnap.docs.reduce((acc, d) => {
-          acc[d.id] = { id: d.id, ...d.data() };
-          return acc;
-        }, {});
-
-        // Construir tarjetas
-        const items = plantillas.map((tpl) => {
-          const u = userDocsMap[tpl.id];
-          const files = (u?.files) || (u?.data?.files) || {};
-          const firstUrl =
-            (typeof files.boton1 === "string" && files.boton1) ||
-            pickFirstFileUrl(files) ||
-            null;
-
-          const estado = firstUrl
-            ? (u?.estado || tpl.estado || "pendiente")
-            : "sin imagen";
-
-          return {
-            id: tpl.id,
-            nombre: tpl.titulo || tpl.nombre || tpl.id,
-            estado,
-            url: firstUrl || "#",
-            preview: firstUrl || null,
-            data: u?.data || null,
-            files,
-            plantilla: tpl,
-            userDoc: u || null,
-          };
-        });
-
-        if (!cancel) {
-          setDocs(items);
-          setCargando(false);
+        if (!trabajadorSnap.exists()) {
+          if (!cancel) {
+            setDocs([]);
+            setCargando(false);
+          }
+          return;
         }
 
-// 👇 Estado de empresa según los docs del usuario
-const estados = items.map((d) => {
-  const e = String(d.estado || "").trim().toLowerCase();
-  return e === "aprovado" ? "aprobado" : e; // normaliza "aprovado"
-});
+        const trabajador = trabajadorSnap.data();
+        const flotaId = trabajador.flotaId;
 
-let nuevoEstadoEmpresa = null;
+        if (!flotaId) {
+          if (!cancel) {
+            setDocs([]);
+            setCargando(false);
+          }
+          return;
+        }
 
-const haySinImagen = estados.includes("sin imagen");
-const todosAprobados = items.length > 0 && estados.every((e) => e === "aprobado");
-const hayPendienteORechazado = estados.some((e) => e === "pendiente" || e === "rechazado");
+        // 2. Obtener plantillas asignadas a la flota
+        const flotaRef = doc(db, "flotas", flotaId);
+        const unsubscribFlota = onSnapshot(flotaRef, (flotaSnap) => {
+          if (!flotaSnap.exists()) {
+            if (!cancel) {
+              setDocs([]);
+              setCargando(false);
+            }
+            return;
+          }
 
-// ⚠️ Prioridad: sin imagen > aprobado (todos) > pendiente
-if (haySinImagen) {
-  nuevoEstadoEmpresa = "sin imagen";
-} else if (todosAprobados) {
-  nuevoEstadoEmpresa = "aprobado";
-} else if (hayPendienteORechazado) {
-  nuevoEstadoEmpresa = "pendiente";
-}
+          const flota = flotaSnap.data();
+          const plantillasAsignadas = flota.documentosFlota?.plantillasAsignadas || [];
+          console.log("Plantillas asignadas:", plantillasAsignadas);
 
-// 3) Escribe solo si corresponde
-if (nuevoEstadoEmpresa) {
-  const userDocRef = doc(db, "users", userId);
-  updateDoc(userDocRef, {
-    "empresa.estado": nuevoEstadoEmpresa,
-    "empresa.updatedAt": serverTimestamp(),
-  }).catch((err) => console.error("Error actualizando empresa.estado:", err));
-}
+          // 3. Obtener todas las plantillas disponibles
+          const plantillasRef = collection(db, "crear-documentos");
+          const unsubscribPlantillas = onSnapshot(plantillasRef, (plantillasSnapshot) => {
+            const todasLasPlantillas = plantillasSnapshot.docs.map((d) => ({
+              id: d.id,
+              ...d.data(),
+            }));
+            console.log("Todas las plantillas:", todasLasPlantillas);
 
+            if (!cancel) {
+              // Filtrar solo las plantillas asignadas a la flota
+              const items = plantillasAsignadas
+                .map((plantillaItem) => {
+                  // Extraer el ID si es un objeto o si es string
+                  let plantillaId = plantillaItem;
+                  if (typeof plantillaItem === "object" && plantillaItem.id) {
+                    plantillaId = plantillaItem.id;
+                  }
 
-      });
-    });
+                  const plantilla = todasLasPlantillas.find((p) => p.id === plantillaId);
+                  if (!plantilla) return null;
+
+                  return {
+                    id: plantilla.id,
+                    nombre: plantilla.titulo || plantilla.nombre || plantilla.id,
+                    estado: "asignada",
+                    url: "#",
+                    preview: null,
+                    plantilla,
+                  };
+                })
+                .filter(Boolean);
+
+              console.log("Items finales:", items);
+              setDocs(items);
+              setCargando(false);
+            }
+          });
+
+          return () => unsubscribPlantillas();
+        });
+
+        return () => unsubscribFlota();
+      } catch (error) {
+        console.error("Error al cargar documentos:", error);
+        if (!cancel) {
+          setDocs([]);
+          setCargando(false);
+        }
+      }
+    };
+
+    loadDocs();
 
     return () => {
       cancel = true;
-      if (unsubTpl) unsubTpl();
-      if (unsubUser) unsubUser();
     };
   }, [userId]);
 
   return (
-    <Box sx={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", p: 3 }}>
+    <Box
+      sx={{
+        flex: 1,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "flex-start",
+        p: 3,
+        overflowY: "auto",
+      }}
+    >
       <Stack spacing={2} sx={{ width: 340 }}>
-
         {cargando ? (
-          <Typography variant="body2" color="text.secondary">Cargando…</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Cargando…
+          </Typography>
         ) : docs.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
-            {userId ? "No hay documentos para este usuario" : "Selecciona un radiotaxi para ver sus documentos"}
+            {userId
+              ? "No hay documentos para este usuario"
+              : "Selecciona un radiotaxi para ver sus documentos"}
           </Typography>
         ) : (
           docs.map((doc) => (
-            <Card key={doc.id} variant="outlined" sx={{ width: 340, borderRadius: 2, boxShadow: 4 }}>
+            <Card
+              key={doc.id}
+              variant="outlined"
+              sx={{ width: 340, borderRadius: 2 }}
+            >
               <CardHeader
-                title={<Typography variant="subtitle2" noWrap>{doc.nombre}</Typography>}
-                action={<Chip label={doc.estado} size="small" color={getEstadoColor(doc.estado)} />}
+                title={
+                  <Typography variant="subtitle2" noWrap>
+                    {doc.nombre}
+                  </Typography>
+                }
+                action={
+                  <Chip
+                    label="sin imagen"
+                    size="small"
+                    color="warning"
+                  />
+                }
                 sx={{
                   borderBottom: "1px solid #00000033",
                   bgcolor: "#f5f5f5",
                   pb: 0.5,
-                  "& .MuiCardHeader-action": { m: 0 }
+                  "& .MuiCardHeader-action": { m: 0 },
                 }}
               />
-<CardContent
-  sx={{
-    height: 100,        // ajusta a tu gusto (140/160/180…)
-    p: 0,               // 👈 sin padding, la imagen toca los bordes
-    overflow: "hidden", // 👈 recorta la parte que sobresale
-    bgcolor: "#fff",
-  }}
->
-  <Preview src={doc.preview} alt={doc.nombre} />
-</CardContent>
-
-
-              <CardActions sx={{ borderTop: "1px solid #00000033", justifyContent: "center", py: 1 }}>
-                <Button size="small" variant="outlined" onClick={() => setDocActivo(doc)}>
+              <CardContent
+                sx={{
+                  height: 100,
+                  p: 0,
+                  overflow: "hidden",
+                  bgcolor: "#fff",
+                }}
+              >
+                <Preview src={doc.preview} alt={doc.nombre} />
+              </CardContent>
+              <Box sx={{ display: "flex", gap: 1, p: 1, justifyContent: "center" }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  onClick={() => setDocActivo(doc)}
+                >
                   Abrir
                 </Button>
                 <Button
                   size="small"
-                  variant="contained"
-                  sx={{ ml: 1 }}
-                  href={doc.url}
-                  disabled={!doc.url || doc.url === "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  variant="outlined"
+                  color="inherit"
+                  disabled
                 >
                   Descargar
                 </Button>
-              </CardActions>
+              </Box>
             </Card>
           ))
         )}

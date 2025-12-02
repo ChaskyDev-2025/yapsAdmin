@@ -10,20 +10,18 @@ import { db, auth, storage } from "../../../data/firebase/firebase";
 import { useFlotas } from "./hooks/useFlotas";
 import { useAdministradores } from "./hooks/useAdministradores";
 import { useServicios } from "./hooks/useServicios";
-import { useDocumentos } from "./hooks/useDocumentos";
 
 // Componentes modulares
 import { FlotasTable } from "./components/FlotasTable";
 import { FlotaFormDialog } from "./components/FlotaFormDialog";
-import { DocumentModal } from "./components/DocumentModal";
 import { DocsManagerModal } from "./components/DocsManagerModal";
 
 const GestionFlotas = () => {
   // Hooks personalizados
-  const { flotas, loading: flotasLoading, fetchFlotas, createFlota, updateFlota, deleteFlota, toggleHabilitado } = useFlotas();
+  const { flotas, fetchFlotas, createFlota, updateFlota, deleteFlota, toggleHabilitado } = useFlotas();
   const { administradores } = useAdministradores();
-  const { serviciosDisponibles } = useServicios();
-  const { docFile, docFormData, setDocFormData, handleDocFileChange, uploadDocument, resetDocForm } = useDocumentos();
+  const { serviciosDisponibles, serviciosPorCiudad } = useServicios();
+
 
   // Debug: Verificar datos cargados en el componente principal
   console.log('🏢 GestionFlotas - Administradores:', administradores);
@@ -37,7 +35,6 @@ const GestionFlotas = () => {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [openDocModal, setOpenDocModal] = useState(false);
   const [openDocsManagerModal, setOpenDocsManagerModal] = useState(false);
   const [selectedFlotaForDocs, setSelectedFlotaForDocs] = useState(null);
 
@@ -156,8 +153,8 @@ const GestionFlotas = () => {
     try {
       let imageUrl = formData.imageUrl;
       if (imageFile) {
-        const flotaId = editMode ? currentFlota.id : `temp_${Date.now()}`;
-        imageUrl = await uploadImageToStorage(imageFile, flotaId);
+        const idForImage = (editMode && currentFlota && currentFlota.id) ? currentFlota.id : Date.now();
+        imageUrl = await uploadImageToStorage(imageFile, idForImage);
       }
 
       const primerAdminUid = formData.uidPropietarios[0];
@@ -185,6 +182,9 @@ const GestionFlotas = () => {
           nit: formData.nit,
           fotoNit: formData.fotoNit,
           otrosDocumentos: formData.otrosDocumentos || [],
+          plantillasAsignadas: editMode && currentFlota?.documentosFlota?.plantillasAsignadas 
+            ? currentFlota.documentosFlota.plantillasAsignadas 
+            : [],
         },
         uidPropietarios: formData.uidPropietarios,
         servicios: formData.servicios,
@@ -240,48 +240,6 @@ const GestionFlotas = () => {
     setConfirmDialog({ open: false, flotaId: null, flotaNombre: "" });
   };
 
-  // Funciones de documentos
-  const handleOpenDocModal = () => {
-    resetDocForm();
-    setOpenDocModal(true);
-  };
-
-  const handleCloseDocModal = () => {
-    setOpenDocModal(false);
-    resetDocForm();
-  };
-
-  const handleAddDocument = async () => {
-    if (openDocsManagerModal) {
-      return handleAddDocToFlota();
-    }
-
-    try {
-      const nuevoDoc = await uploadDocument();
-      setFormData({ ...formData, otrosDocumentos: [...formData.otrosDocumentos, nuevoDoc] });
-      showSnackbar("Documento agregado", "success");
-      handleCloseDocModal();
-    } catch (error) {
-      console.error("Error al agregar documento:", error);
-      showSnackbar(error.message || "Error al agregar documento", "error");
-    }
-  };
-
-  const handleDeleteDocument = (index) => {
-    const doc = formData.otrosDocumentos[index];
-    const confirmar = window.confirm(
-      `¿Estás seguro de que quieres eliminar el documento "${doc.nombre || doc.tipo}"?\n\nEsta acción no se puede deshacer.`
-    );
-    if (!confirmar) return;
-    const nuevosDocumentos = formData.otrosDocumentos.filter((_, i) => i !== index);
-    setFormData({ ...formData, otrosDocumentos: nuevosDocumentos });
-    showSnackbar("Documento eliminado", "info");
-  };
-
-  const handleViewDocument = (url) => {
-    window.open(url, "_blank");
-  };
-
   // Funciones para gestión de documentos por flota
   const handleOpenDocsManager = (flota) => {
     setSelectedFlotaForDocs(flota);
@@ -293,58 +251,15 @@ const GestionFlotas = () => {
     setSelectedFlotaForDocs(null);
   };
 
-  const handleSaveFlotaDocs = async () => {
+  // Asignar plantillas globales (crear-documentos) a la flota seleccionada
+  const handleAssignTemplatesToFlota = async (templatesSelected) => {
     if (!selectedFlotaForDocs) return;
-
     try {
-      const flotaRef = doc(db, "flotas", selectedFlotaForDocs.id);
+      // templatesSelected: array of { id, titulo }
+      const plantillas = templatesSelected.map(t => ({ id: t.id, titulo: t.titulo || t.nombre || t.id }));
+      const flotaRef = doc(db, 'flotas', selectedFlotaForDocs.id);
       await updateDoc(flotaRef, {
-        "documentosFlota.otrosDocumentos": selectedFlotaForDocs.documentosFlota?.otrosDocumentos || [],
-        updatedAt: serverTimestamp(),
-      });
-
-      showSnackbar("Documentos actualizados exitosamente", "success");
-      await fetchFlotas();
-      handleCloseDocsManagerModal();
-    } catch (error) {
-      console.error("Error al actualizar documentos:", error);
-      showSnackbar("Error al actualizar documentos: " + error.message, "error");
-    }
-  };
-
-  const handleAddDocToFlota = async () => {
-    try {
-      const nuevoDoc = await uploadDocument();
-      const updatedDocs = [...(selectedFlotaForDocs.documentosFlota?.otrosDocumentos || []), nuevoDoc];
-
-      setSelectedFlotaForDocs({
-        ...selectedFlotaForDocs,
-        documentosFlota: {
-          ...selectedFlotaForDocs.documentosFlota,
-          otrosDocumentos: updatedDocs,
-        },
-      });
-
-      showSnackbar("Documento agregado", "success");
-      handleCloseDocModal();
-    } catch (error) {
-      console.error("Error al agregar documento:", error);
-      showSnackbar(error.message || "Error al agregar documento", "error");
-    }
-  };
-
-  const handleDeleteDocFromFlota = async (index, docNombre) => {
-    const confirmar = window.confirm(
-      `¿Estás seguro de que quieres eliminar el documento "${docNombre}"?\n\nEsta acción no se puede deshacer.`
-    );
-
-    if (!confirmar) return;
-
-    try {
-      const updatedDocs = selectedFlotaForDocs.documentosFlota?.otrosDocumentos?.filter((_, i) => i !== index) || [];
-      const flotaRef = doc(db, "flotas", selectedFlotaForDocs.id);
-      await updateDoc(flotaRef, {
-        "documentosFlota.otrosDocumentos": updatedDocs,
+        'documentosFlota.plantillasAsignadas': plantillas,
         updatedAt: serverTimestamp(),
       });
 
@@ -352,15 +267,14 @@ const GestionFlotas = () => {
         ...selectedFlotaForDocs,
         documentosFlota: {
           ...selectedFlotaForDocs.documentosFlota,
-          otrosDocumentos: updatedDocs,
-        },
+          plantillasAsignadas: plantillas,
+        }
       });
-
       await fetchFlotas();
-      showSnackbar("Documento eliminado exitosamente", "success");
+      showSnackbar('Plantillas asignadas correctamente', 'success');
     } catch (error) {
-      console.error("Error al eliminar documento:", error);
-      showSnackbar("Error al eliminar documento: " + error.message, "error");
+      console.error('Error asignando plantillas a la flota:', error);
+      showSnackbar('Error al asignar plantillas: ' + error.message, 'error');
     }
   };
 
@@ -406,24 +320,11 @@ const GestionFlotas = () => {
         imagePreview={imagePreview}
         administradores={administradores}
         serviciosDisponibles={serviciosDisponibles}
+        serviciosPorCiudad={serviciosPorCiudad}
         onSave={handleSave}
         isSaving={isSaving}
         editMode={editMode}
         onFormDataChange={setFormData}
-        onOpenDocModal={handleOpenDocModal}
-        onDeleteDocument={handleDeleteDocument}
-        onViewDocument={handleViewDocument}
-      />
-
-      {/* Modal de agregar documento */}
-      <DocumentModal
-        open={openDocModal}
-        onClose={handleCloseDocModal}
-        docFormData={docFormData}
-        docFile={docFile}
-        onDocFormDataChange={setDocFormData}
-        onDocFileChange={handleDocFileChange}
-        onAdd={handleAddDocument}
       />
 
       {/* Modal de gestión de documentos por flota */}
@@ -431,10 +332,7 @@ const GestionFlotas = () => {
         open={openDocsManagerModal}
         onClose={handleCloseDocsManagerModal}
         flota={selectedFlotaForDocs}
-        onOpenDocModal={handleOpenDocModal}
-        onSave={handleSaveFlotaDocs}
-        onDeleteDoc={handleDeleteDocFromFlota}
-        onViewDoc={handleViewDocument}
+        onAssignTemplates={handleAssignTemplatesToFlota}
       />
 
       {/* Diálogo de confirmación de eliminación */}

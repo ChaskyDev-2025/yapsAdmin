@@ -25,17 +25,19 @@ import {
   Tab,
   Avatar,
   Snackbar,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PeopleIcon from "@mui/icons-material/People";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+import LocalTaxiIcon from "@mui/icons-material/LocalTaxi";
 import { useAuth } from "../../../auth/AuthContext";
 import { getAllUsers, createAdminUser, updateUser, deleteUser, isSuperAdmin } from "../../../services/userService";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 
 const GestionUsuarios = () => {
@@ -43,6 +45,7 @@ const GestionUsuarios = () => {
   const [tabValue, setTabValue] = useState(0);
   const [usuarios, setUsuarios] = useState([]);
   const [pasajeros, setPasajeros] = useState([]);
+  const [trabajadores, setTrabajadores] = useState([]);
   const [flotas, setFlotas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -63,10 +66,11 @@ const GestionUsuarios = () => {
     flotaId: "",
   });
 
-  // Cargar usuarios, pasajeros y flotas
+  // Cargar usuarios, pasajeros, trabajadores y flotas
   useEffect(() => {
     loadUsers();
     loadPasajeros();
+    loadTrabajadores();
     loadFlotas();
   }, []);
 
@@ -107,13 +111,31 @@ const GestionUsuarios = () => {
     }
   };
 
+  const loadTrabajadores = async () => {
+    try {
+      // Cargar de la colección "trabajadores" donde están los conductores
+      const trabajadoresCollection = collection(db, "trabajadores");
+      const trabajadoresSnapshot = await getDocs(trabajadoresCollection);
+      const trabajadoresList = trabajadoresSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      
+      console.log("Conductores cargados:", trabajadoresList);
+      console.log("Total conductores:", trabajadoresList.length);
+      setTrabajadores(trabajadoresList);
+    } catch (error) {
+      console.error("Error al cargar conductores:", error);
+    }
+  };
+
   const handleOpenDialog = (usuario = null) => {
     if (usuario) {
       setEditingUser(usuario);
       setFormData({
-        email: usuario.email,
-        nombre: usuario.nombre || "",
-        role: usuario.role,
+        email: usuario.email || usuario.perfil?.email || "",
+        nombre: usuario.nombre || usuario.perfil?.name || "",
+        role: usuario.role || "driver",
         password: "",
         flotaId: usuario.flotaId || "",
       });
@@ -153,20 +175,44 @@ const GestionUsuarios = () => {
     }
 
     if (editingUser) {
-      // Actualizar usuario existente
-      const result = await updateUser(editingUser.id, {
-        email: formData.email,
-        nombre: formData.nombre,
-        role: "admin",
-        flotaId: formData.flotaId,
-      });
+      // Verificar si es un trabajador (conductor) o un admin
+      const isTrabajador = editingUser.perfil; // Los trabajadores tienen el campo perfil
 
-      if (result.success) {
-        setSuccess("Usuario actualizado correctamente");
-        loadUsers();
-        setTimeout(() => handleCloseDialog(), 1500);
+      if (isTrabajador) {
+        // Actualizar trabajador en colección "trabajadores"
+        try {
+          await updateDoc(doc(db, "trabajadores", editingUser.id), {
+            flotaId: formData.flotaId,
+            perfil: {
+              ...editingUser.perfil,
+              name: formData.nombre,
+              email: formData.email,
+            },
+            role: formData.role,
+          });
+          setSuccess("Conductor actualizado correctamente");
+          loadTrabajadores();
+          setTimeout(() => handleCloseDialog(), 1500);
+        } catch (error) {
+          console.error("Error al actualizar conductor:", error);
+          setError("Error al actualizar conductor: " + error.message);
+        }
       } else {
-        setError(result.error || "Error al actualizar usuario");
+        // Actualizar admin en colección "users"
+        const result = await updateUser(editingUser.id, {
+          email: formData.email,
+          nombre: formData.nombre,
+          role: "admin",
+          flotaId: formData.flotaId,
+        });
+
+        if (result.success) {
+          setSuccess("Usuario actualizado correctamente");
+          loadUsers();
+          setTimeout(() => handleCloseDialog(), 1500);
+        } else {
+          setError(result.error || "Error al actualizar usuario");
+        }
       }
     } else {
       // Crear nuevo usuario con Firebase Auth + Firestore
@@ -214,6 +260,34 @@ const GestionUsuarios = () => {
         setError(result.error || "Error al eliminar usuario");
         setTimeout(() => setError(""), 3000);
       }
+    }
+  };
+
+  const handleDeleteTrabajador = async (trabajadorId) => {
+    try {
+      await deleteDoc(doc(db, "trabajadores", trabajadorId));
+      setSuccess("Conductor eliminado correctamente");
+      loadTrabajadores();
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (error) {
+      console.error("Error al eliminar conductor:", error);
+      setError("Error al eliminar conductor");
+      setTimeout(() => setError(""), 3000);
+    }
+  };
+
+  const handleToggleActivo = async (userId, activo) => {
+    try {
+      await updateDoc(doc(db, "users", userId), {
+        active: activo,
+      });
+      setSuccess(`Usuario ${activo ? "activado" : "desactivado"} correctamente`);
+      loadUsers();
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (error) {
+      console.error("Error al actualizar estado del usuario:", error);
+      setError("Error al actualizar estado del usuario");
+      setTimeout(() => setError(""), 3000);
     }
   };
 
@@ -294,6 +368,11 @@ const GestionUsuarios = () => {
             iconPosition="start" 
             label="Pasajeros" 
           />
+          <Tab 
+            icon={<LocalTaxiIcon />} 
+            iconPosition="start" 
+            label="Conductores" 
+          />
         </Tabs>
 
         {tabValue === 0 && (
@@ -305,7 +384,7 @@ const GestionUsuarios = () => {
               <TableCell sx={{ fontWeight: "bold", color: "white" }}>Nombre</TableCell>
               <TableCell sx={{ fontWeight: "bold", color: "white" }}>Rol Sistema</TableCell>
               <TableCell sx={{ fontWeight: "bold", color: "white" }}>Flota</TableCell>
-              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Estado</TableCell>
+              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Activo/Inactivo</TableCell>
               <TableCell sx={{ fontWeight: "bold", color: "white" }}>Contraseña Temp</TableCell>
               <TableCell sx={{ fontWeight: "bold", color: "white" }}>Creado</TableCell>
               <TableCell sx={{ fontWeight: "bold", color: "white" }} align="right">
@@ -352,22 +431,35 @@ const GestionUsuarios = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      label={
-                        usuario.status === "pending" 
-                          ? "Pendiente" 
-                          : usuario.active !== false 
-                          ? "Activo" 
-                          : "Inactivo"
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={usuario.active !== false}
+                          onChange={(e) => handleToggleActivo(usuario.id, e.target.checked)}
+                          size="small"
+                          sx={{
+                            "& .MuiSwitch-switchBase.Mui-checked": {
+                              color: "#4caf50",
+                            },
+                            "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                              backgroundColor: "#4caf50",
+                            },
+                          }}
+                        />
                       }
-                      color={
-                        usuario.status === "pending"
-                          ? "warning"
-                          : usuario.active !== false
-                          ? "success"
-                          : "default"
-                      }
-                      size="small"
+                      label={usuario.active !== false ? "Activo" : "Inactivo"}
+                      sx={{
+                        m: 0,
+                        "& .MuiFormControlLabel-label": {
+                          fontSize: "0.875rem",
+                          fontWeight: 600,
+                          color: usuario.active !== false ? "#fff" : "#fff",
+                          backgroundColor: usuario.active !== false ? "#4caf50" : "#9e9e9e",
+                          padding: "4px 12px",
+                          borderRadius: "16px",
+                          display: "inline-block",
+                        },
+                      }}
                     />
                   </TableCell>
                   <TableCell>
@@ -524,6 +616,121 @@ const GestionUsuarios = () => {
                         {pasajero.createdAt?.toDate?.().toLocaleDateString() || 
                          pasajero.perfil?.createdAt?.toDate?.().toLocaleDateString() || 
                          "-"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+
+        {tabValue === 2 && (
+          <TableContainer component={Paper} sx={{ boxShadow: 0 }}>
+            <Table>
+              <TableHead sx={{ bgcolor: "#000000" }}>
+                <TableRow>
+                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                    Foto
+                  </TableCell>
+                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                    Nombre
+                  </TableCell>
+                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                    Email
+                  </TableCell>
+                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                    Rol
+                  </TableCell>
+                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                    Flota
+                  </TableCell>
+                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                    Fecha Registro
+                  </TableCell>
+                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                    Acciones
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
+                        Cargando trabajadores...
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : trabajadores.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
+                        No hay trabajadores registrados
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  trabajadores.map((trabajador) => (
+                    <TableRow key={trabajador.id} hover>
+                      <TableCell>
+                        <Avatar
+                          src={trabajador.photoURL || trabajador.perfil?.photoUrl}
+                          alt={trabajador.perfil?.name || trabajador.email}
+                          sx={{ width: 40, height: 40, bgcolor: "#d7171a" }}
+                        >
+                          {(trabajador.perfil?.name || trabajador.email || "?")?.charAt(0).toUpperCase()}
+                        </Avatar>
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                        {trabajador.perfil?.name || "Sin nombre"}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        {trabajador.perfil?.email || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={trabajador.role === "driver" ? "Conductor" : trabajador.role || "Trabajador"}
+                          size="small"
+                          sx={{
+                            bgcolor: "#1976d2",
+                            color: "white",
+                            fontWeight: 600,
+                            fontFamily: "Mulish, sans-serif",
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        {trabajador.flotaId 
+                          ? flotas.find(f => f.id === trabajador.flotaId)?.nombre || "Flota no encontrada"
+                          : "-"}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        {trabajador.perfil?.createdAt ? new Date(trabajador.perfil.createdAt).toLocaleDateString() : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip title="Editar">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenDialog(trabajador)}
+                            sx={{ color: "#444444ff", mr: 1 }}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Eliminar">
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              if (window.confirm("¿Estás seguro de que deseas eliminar este conductor?")) {
+                                handleDeleteTrabajador(trabajador.id);
+                              }
+                            }}
+                            sx={{ color: "#d7171a" }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
                       </TableCell>
                     </TableRow>
                   ))

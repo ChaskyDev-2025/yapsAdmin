@@ -1,20 +1,44 @@
 // src/pages/admin/radiotaxis/Radiotaxis.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Typography, Paper, Stack } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { Tabla2 } from "../../../shared/components/tablas/tabla";
 import DetalleModal from "./components/modalGenerico";
 import { getRadiotaxisColumns } from "./data/radiotaxisColumns";
 import IconActionButton from "../../../shared/components/botones/Botones";
+import { useAuth } from "../../../auth/AuthContext";
+import { doc, getDoc, deleteDoc } from "firebase/firestore";
+import { db } from "../../../data/firebase/firebase";
 // 👉 Datos desde el hook (Firebase)
-import { useRadiotaxisRows } from "./datos";
+import { useTrabajadoresPorFlota } from "./hooks/useTrabajadoresPorFlota";
 
 const Radiotaxis = () => {
   const [openModal, setOpenModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
+  const [flotaId, setFlotaId] = useState(null);
+  const { user } = useAuth();
   
-  // 👉 Datos desde el hook (Firebase)
-  const { rows, cargando, error } = useRadiotaxisRows();
+  // 👉 Datos desde el hook (Firebase) - filtra por flota del usuario
+  const { rows, cargando, error, refetch } = useTrabajadoresPorFlota(flotaId);
+
+  // Obtener flotaId del usuario actual
+  useEffect(() => {
+    const fetchFlotaId = async () => {
+      if (user?.uid) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists() && userDoc.data().flotaId) {
+            setFlotaId(userDoc.data().flotaId);
+          }
+        } catch (error) {
+          console.error("Error al obtener flotaId:", error);
+        }
+      }
+    };
+    fetchFlotaId();
+  }, [user]);
 
   const handleVer = (row) => {
     setSelectedRow(row);
@@ -58,7 +82,7 @@ const Radiotaxis = () => {
           rows={rows}
           columns={columns}
           height="51vh"
-          pageSize={3}
+          pageSize={10}
           loading={cargando}
           onRowClick={(params) => handleVer(params.row)}
         />

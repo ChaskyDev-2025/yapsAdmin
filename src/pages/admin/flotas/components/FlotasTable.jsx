@@ -56,7 +56,7 @@ export const FlotasTable = ({
               Fecha de Creación
             </TableCell>
             <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-              Documentos
+              Plantillas Asignadas
             </TableCell>
             <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
               Acciones
@@ -180,7 +180,7 @@ export const FlotasTable = ({
                       },
                     }}
                   >
-                    {flota.documentosFlota?.otrosDocumentos?.length || 0}
+                    Plantillas: {flota.documentosFlota?.plantillasAsignadas?.length || 0}
                   </Button>
                 </TableCell>
                 <TableCell>

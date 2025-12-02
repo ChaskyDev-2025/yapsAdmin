@@ -1,5 +1,5 @@
 // src/pages/admin/flotas/components/FlotaFormDialog.jsx
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -18,19 +18,10 @@ import {
   Chip,
   FormControlLabel,
   Switch,
-  Alert,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  IconButton,
+  Tabs,
+  Tab,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
-import DeleteIcon from "@mui/icons-material/Delete";
 
 export const FlotaFormDialog = ({
   open,
@@ -41,14 +32,14 @@ export const FlotaFormDialog = ({
   imagePreview,
   administradores,
   serviciosDisponibles,
+  serviciosPorCiudad,
   onSave,
   isSaving,
   editMode,
   onFormDataChange,
-  onOpenDocModal,
-  onDeleteDocument,
-  onViewDocument,
 }) => {
+  const [ciudadSeleccionada, setCiudadSeleccionada] = useState("");
+
   // Debug: Verificar que los datos lleguen al componente
   useEffect(() => {
     console.log('📋 FlotaFormDialog - Administradores recibidos:', administradores);
@@ -223,119 +214,6 @@ export const FlotaFormDialog = ({
             />
           </Box>
 
-          {/* Otros Documentos */}
-          <Box sx={{ mt: 3 }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-              <Typography
-                variant="subtitle1"
-                sx={{
-                  fontFamily: "Mulish, sans-serif",
-                  fontWeight: 800,
-                  color: "#d7171a",
-                  fontSize: "1.1rem",
-                }}
-              >
-                📎 Otros Documentos
-              </Typography>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<AddIcon />}
-                onClick={onOpenDocModal}
-                sx={{
-                  borderColor: "#d7171a",
-                  color: "#d7171a",
-                  fontFamily: "Mulish, sans-serif",
-                  fontWeight: 600,
-                  "&:hover": {
-                    borderColor: "#a00000",
-                    bgcolor: "rgba(215, 23, 26, 0.04)",
-                  },
-                }}
-              >
-                Agregar Documento
-              </Button>
-            </Box>
-
-            {formData.otrosDocumentos && formData.otrosDocumentos.length > 0 ? (
-              <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: "#f5f5f5" }}>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>Tipo</TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>Nombre</TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>Información</TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>Fecha</TableCell>
-                      <TableCell align="center" sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>
-                        Acciones
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {formData.otrosDocumentos.map((doc, index) => (
-                      <TableRow key={index}>
-                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{doc.tipo}</TableCell>
-                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{doc.nombre}</TableCell>
-                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", maxWidth: "200px" }}>
-                          {doc.contenido ? (
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                fontFamily: "Mulish, sans-serif",
-                              }}
-                            >
-                              {doc.contenido}
-                            </Typography>
-                          ) : doc.url ? (
-                            <Chip label="Archivo/URL" size="small" color="primary" />
-                          ) : (
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              sx={{ fontFamily: "Mulish, sans-serif" }}
-                            >
-                              Sin info
-                            </Typography>
-                          )}
-                        </TableCell>
-                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                          {doc.fechaSubida ? new Date(doc.fechaSubida).toLocaleDateString() : "N/A"}
-                        </TableCell>
-                        <TableCell align="center">
-                          {doc.url && (
-                            <IconButton
-                              size="small"
-                              color="primary"
-                              onClick={() => onViewDocument(doc.url)}
-                              title="Ver documento"
-                            >
-                              👁️
-                            </IconButton>
-                          )}
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => onDeleteDocument(index)}
-                            title="Eliminar"
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Alert severity="info" sx={{ mt: 1, fontFamily: "Mulish, sans-serif" }}>
-                No hay documentos adicionales. Haz clic en "Agregar Documento" para comenzar.
-              </Alert>
-            )}
-          </Box>
-
           {/* Propietarios */}
           <Box sx={{ mt: 2 }}>
             <Typography
@@ -403,7 +281,7 @@ export const FlotaFormDialog = ({
             </FormControl>
           </Box>
 
-          {/* Servicios */}
+          {/* Servicios por Ciudad */}
           <Box sx={{ mt: 2 }}>
             <Typography
               variant="subtitle1"
@@ -417,58 +295,78 @@ export const FlotaFormDialog = ({
                 pb: 1,
               }}
             >
-              🚗 Servicios Disponibles
+              🚗 Servicios Disponibles por Ciudad
             </Typography>
           </Box>
 
-          <Box>
-            <FormControl fullWidth size="small">
-              <InputLabel>Seleccionar Servicios</InputLabel>
-              <Select
-                multiple
-                value={formData.servicios}
-                onChange={(e) => onFormDataChange({ ...formData, servicios: e.target.value })}
-                input={<OutlinedInput label="Seleccionar Servicios" />}
-                renderValue={(selected) => (
-                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                    {selected.map((servicioNombre) => (
-                      <Chip
-                        key={servicioNombre}
-                        label={servicioNombre}
-                        size="small"
-                        sx={{
-                          bgcolor: "#000000",
-                          color: "white",
-                          fontFamily: "Mulish, sans-serif",
-                          fontWeight: 600,
-                        }}
-                      />
-                    ))}
-                  </Box>
-                )}
-                sx={{ fontFamily: "Mulish, sans-serif" }}
-              >
-                {serviciosDisponibles.length === 0 ? (
-                  <MenuItem disabled>
-                    <Typography sx={{ fontFamily: "Mulish, sans-serif", color: "#484848" }}>
-                      Cargando servicios...
-                    </Typography>
-                  </MenuItem>
-                ) : (
-                  serviciosDisponibles.map((servicio) => {
-                    const nombreServicio = servicio.nombre || servicio.name || servicio.title || servicio.tipo || servicio.id;
-                    return (
-                      <MenuItem key={servicio.id} value={nombreServicio}>
-                        <Typography sx={{ fontFamily: "Mulish, sans-serif" }}>
-                          {nombreServicio}
-                        </Typography>
-                      </MenuItem>
-                    );
-                  })
-                )}
-              </Select>
-            </FormControl>
-          </Box>
+          {/* Pestañas de Ciudades */}
+          {Object.keys(serviciosPorCiudad).length > 0 && (
+            <>
+              <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+                <Tabs 
+                  value={ciudadSeleccionada || (Object.keys(serviciosPorCiudad)[0] || "")}
+                  onChange={(e, newValue) => setCiudadSeleccionada(newValue)}
+                  variant="scrollable"
+                  scrollButtons="auto"
+                >
+                  {Object.keys(serviciosPorCiudad).map((ciudad) => (
+                    <Tab key={ciudad} label={`📍 ${ciudad}`} value={ciudad} />
+                  ))}
+                </Tabs>
+              </Box>
+
+              {/* Selector de Servicios para la ciudad seleccionada */}
+              {ciudadSeleccionada && serviciosPorCiudad[ciudadSeleccionada] && (
+                <Box>
+                  <Typography sx={{ mb: 1, fontFamily: "Mulish, sans-serif", fontSize: "0.9rem", color: "#666" }}>
+                    Selecciona los servicios de {ciudadSeleccionada}:
+                  </Typography>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Seleccionar Servicios de {ciudadSeleccionada}</InputLabel>
+                    <Select
+                      multiple
+                      value={formData.servicios}
+                      onChange={(e) => onFormDataChange({ ...formData, servicios: e.target.value })}
+                      input={<OutlinedInput label={`Seleccionar Servicios de ${ciudadSeleccionada}`} />}
+                      renderValue={(selected) => (
+                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                          {selected.map((servicioNombre) => (
+                            <Chip
+                              key={servicioNombre}
+                              label={servicioNombre}
+                              size="small"
+                              onDelete={() => {
+                                const nuevosServicios = formData.servicios.filter(s => s !== servicioNombre);
+                                onFormDataChange({ ...formData, servicios: nuevosServicios });
+                              }}
+                              sx={{
+                                bgcolor: "#000000",
+                                color: "white",
+                                fontFamily: "Mulish, sans-serif",
+                                fontWeight: 600,
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      )}
+                      sx={{ fontFamily: "Mulish, sans-serif" }}
+                    >
+                      {serviciosPorCiudad[ciudadSeleccionada].map((servicio) => {
+                        const nombreServicio = servicio.nombre || servicio.name || servicio.id;
+                        return (
+                          <MenuItem key={servicio.id} value={nombreServicio}>
+                            <Typography sx={{ fontFamily: "Mulish, sans-serif" }}>
+                              {nombreServicio}
+                            </Typography>
+                          </MenuItem>
+                        );
+                      })}
+                    </Select>
+                  </FormControl>
+                </Box>
+              )}
+            </>
+          )}
 
           {/* Estado */}
           <Box sx={{ mt: 2 }}>

@@ -1,31 +1,66 @@
 // src/pages/admin/ajustes/components/ModalUsuariosLista.jsx
-import { Box, Typography, List, ListItem, ListItemText, ListItemAvatar, Avatar, Chip, IconButton, Divider } from "@mui/material";
+import { Box, Typography, List, ListItem, ListItemText, ListItemAvatar, Avatar, Chip, IconButton, Divider, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from "@mui/material";
 import PersonIcon from "@mui/icons-material/Person";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
 import { useState, useEffect } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, query, where, deleteDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../../../data/firebase/firebase";
 
 export default function ModalUsuariosLista({ userId }) {
   const [usuarios, setUsuarios] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [usuarioAEliminar, setUsuarioAEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [usuarioEditando, setUsuarioEditando] = useState(null);
+  const [formData, setFormData] = useState({});
+  const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
     const fetchUsuarios = async () => {
       try {
         setCargando(true);
         
-        // Obtener la subcolección de usuarios de esta empresa
-        const usuariosRef = collection(db, "users", userId, "usuarios");
-        const snapshot = await getDocs(usuariosRef);
+        // 1. Obtener el admin para conseguir su flotaId
+        const adminRef = doc(db, "users", userId);
+        const adminSnap = await getDoc(adminRef);
 
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        if (!adminSnap.exists()) {
+          setUsuarios([]);
+          setCargando(false);
+          return;
+        }
+
+        const admin = adminSnap.data();
+        const flotaId = admin.flotaId;
+
+        if (!flotaId) {
+          setUsuarios([]);
+          setCargando(false);
+          return;
+        }
+
+        // 2. Obtener trabajadores de esa flota
+        const trabajadoresRef = collection(db, "trabajadores");
+        const q = query(trabajadoresRef, where("flotaId", "==", flotaId));
+        const snapshot = await getDocs(q);
+
+        const data = snapshot.docs.map((doc) => {
+          const trabajador = doc.data();
+          return {
+            id: doc.id,
+            nombre: trabajador.perfil?.name || "Sin nombre",
+            email: trabajador.perfil?.email || "Sin email",
+            telefono: trabajador.perfil?.phone || "Sin teléfono",
+            rol: "Trabajador",
+            cargo: "Conductor",
+            ...trabajador,
+          };
+        });
 
         setUsuarios(data);
       } catch (error) {
@@ -42,13 +77,60 @@ export default function ModalUsuariosLista({ userId }) {
   }, [userId]);
 
   const handleEditar = (usuario) => {
-    console.log("Editar usuario:", usuario);
-    // Aquí puedes agregar la lógica para editar
+    setUsuarioEditando(usuario);
+    setFormData({
+      nombre: usuario.nombre || "",
+      email: usuario.email || "",
+      telefono: usuario.telefono || "",
+    });
+    setOpenEditDialog(true);
   };
 
   const handleEliminar = (usuario) => {
-    console.log("Eliminar usuario:", usuario);
-    // Aquí puedes agregar la lógica para eliminar
+    setUsuarioAEliminar(usuario);
+    setOpenDeleteDialog(true);
+  };
+
+  const confirmGuardar = async () => {
+    if (!usuarioEditando) return;
+    
+    try {
+      setGuardando(true);
+      await updateDoc(doc(db, "trabajadores", usuarioEditando.id), formData);
+      
+      // Actualizar la lista
+      setUsuarios(usuarios.map(u => 
+        u.id === usuarioEditando.id 
+          ? { ...u, ...formData }
+          : u
+      ));
+      setOpenEditDialog(false);
+      setUsuarioEditando(null);
+    } catch (error) {
+      console.error("Error al actualizar trabajador:", error);
+      alert("Error al actualizar trabajador");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const confirmEliminar = async () => {
+    if (!usuarioAEliminar) return;
+    
+    try {
+      setEliminando(true);
+      await deleteDoc(doc(db, "trabajadores", usuarioAEliminar.id));
+      
+      // Actualizar la lista
+      setUsuarios(usuarios.filter(u => u.id !== usuarioAEliminar.id));
+      setOpenDeleteDialog(false);
+      setUsuarioAEliminar(null);
+    } catch (error) {
+      console.error("Error al eliminar trabajador:", error);
+      alert("Error al eliminar trabajador");
+    } finally {
+      setEliminando(false);
+    }
   };
 
   return (
@@ -151,6 +233,52 @@ export default function ModalUsuariosLista({ userId }) {
           ))}
         </List>
       )}
+
+      <Dialog open={openEditDialog} onClose={() => setOpenEditDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Editar Trabajador</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <TextField
+            fullWidth
+            label="Nombre"
+            value={formData.nombre || ""}
+            onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+            margin="normal"
+          />
+          <TextField
+            fullWidth
+            label="Email"
+            value={formData.email || ""}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            margin="normal"
+          />
+          <TextField
+            fullWidth
+            label="Teléfono"
+            value={formData.telefono || ""}
+            onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+            margin="normal"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenEditDialog(false)}>Cancelar</Button>
+          <Button onClick={confirmGuardar} variant="contained" disabled={guardando}>
+            {guardando ? "Guardando..." : "Guardar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
+        <DialogTitle>Confirmar eliminación</DialogTitle>
+        <DialogContent>
+          ¿Estás seguro de que deseas eliminar a {usuarioAEliminar?.nombre}?
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDeleteDialog(false)}>Cancelar</Button>
+          <Button onClick={confirmEliminar} color="error" variant="contained" disabled={eliminando}>
+            {eliminando ? "Eliminando..." : "Eliminar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

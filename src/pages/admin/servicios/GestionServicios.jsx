@@ -49,13 +49,13 @@ const DEPARTAMENTOS = [
 ];
 
 const SERVICE_CATALOG = {
-  "Viajes": ["Moto Taxi", "Económico", "Comodidad", "Vagoneta", "Empresarial o VIP", "El primero disponible"],
-  "Envíos": ["Moto", "Vagoneta", "Carga"],
-  "Carga local": ["Vagoneta", "Camioneta pequeña", "Camioneta mediana"],
-  "Carga nacional": ["Camioneta mediana", "Camión grande", "Camión extra grande", "Tracto camión"],
-  "Volqueta y construcción": ["Volqueta (4,8,12 cubos)", "Camión (ripio, arena y ladrillo)"],
-  "Mudanza": ["Camioneta pequeña", "Camioneta mediana", "Camión grande"],
-  "Maquinaria y grúas": ["Motoniveladora", "Retro excavadora", "Excavadora hidráulica", "Grúas pluma", "Grúas rampa"]
+  "Viajes": ["Moto Taxi", "Economico", "Comodidad", "Vagoneta", "Empresarial o VIP", "El primero disponible"],
+  "Envios": ["Moto", "Vagoneta", "Carga"],
+  "Carga local": ["Vagoneta", "Camioneta pequena", "Camioneta mediana"],
+  "Carga nacional": ["Camioneta mediana", "Camion grande", "Camion extra grande", "Tracto camion"],
+  "Volqueta y construccion": ["Volqueta (4,8,12 cubos)", "Camion (ripio, arena y ladrillo)"],
+  "Mudanza": ["Camioneta pequena", "Camioneta mediana", "Camion grande"],
+  "Maquinaria y gruas": ["Motoniveladora", "Retro excavadora", "Excavadora hidraulica", "Gruas pluma", "Gruas rampa"]
 };
 
 // --- Modal Component ---
@@ -84,14 +84,15 @@ const ServiceModal = ({ open, onClose, service, department, onSave }) => {
       setServiceName(service.servicio || '');
       setFormData({
         activo: service.activo !== undefined ? service.activo : true,
+        // Guardar como strings para que los inputs numéricos sean editables (evita que 0 se reemplace al escribir)
         tarifa_general: {
-          tarifaBase: service.tarifa_general?.tarifaBase || 0,
-          distanciaBase: service.tarifa_general?.distanciaBase || 0,
-          porKm: service.tarifa_general?.porKm || 0,
-          porMin: service.tarifa_general?.porMin || 0,
-          horaPicoExtra: service.tarifa_general?.horaPicoExtra || 0,
-          nocturno: service.tarifa_general?.nocturno || 0,
-          comision: service.tarifa_general?.comision || 0
+          tarifaBase: String(service.tarifa_general?.tarifaBase ?? ''),
+          distanciaBase: String(service.tarifa_general?.distanciaBase ?? ''),
+          porKm: String(service.tarifa_general?.porKm ?? ''),
+          porMin: String(service.tarifa_general?.porMin ?? ''),
+          horaPicoExtra: String(service.tarifa_general?.horaPicoExtra ?? ''),
+          nocturno: String(service.tarifa_general?.nocturno ?? ''),
+          comision: String(service.tarifa_general?.comision ?? '')
         },
         tarifasAeropuerto: service.tarifasAeropuerto?.tramos || [],
         horasPico: service.horasPico?.franjas || []
@@ -102,7 +103,8 @@ const ServiceModal = ({ open, onClose, service, department, onSave }) => {
       setServiceName('');
       setFormData({
         activo: true,
-        tarifa_general: { tarifaBase: 0, distanciaBase: 0, porKm: 0, porMin: 0, horaPicoExtra: 0, nocturno: 0, comision: 0 },
+        // Dejar campos vacíos para facilitar la edición (no forzar 0)
+        tarifa_general: { tarifaBase: '', distanciaBase: '', porKm: '', porMin: '', horaPicoExtra: '', nocturno: '', comision: '' },
         tarifasAeropuerto: [{ desdeKm: "10", precio: "40.00" }, { desdeKm: "20", precio: "60.00" }],
         horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }]
       });
@@ -110,9 +112,10 @@ const ServiceModal = ({ open, onClose, service, department, onSave }) => {
   }, [service, open]);
 
   const handleTarifaChange = (field, value) => {
+    // Mantener el valor como string mientras se edita (permite campo vacío)
     setFormData(prev => ({
       ...prev,
-      tarifa_general: { ...prev.tarifa_general, [field]: parseFloat(value) || 0 }
+      tarifa_general: { ...prev.tarifa_general, [field]: value }
     }));
   };
 
@@ -158,12 +161,19 @@ const ServiceModal = ({ open, onClose, service, department, onSave }) => {
     if (!category || !serviceName) return alert('Debe seleccionar una categoría y un servicio');
     setLoading(true);
     try {
+      // Convertir campos de tarifa a números antes de guardar
+      const tarifa_general_numerica = {};
+      Object.keys(formData.tarifa_general).forEach((k) => {
+        const val = formData.tarifa_general[k];
+        tarifa_general_numerica[k] = val === '' || val === null || val === undefined ? 0 : parseFloat(val) || 0;
+      });
+
       const dataToSave = {
         categoria: category,
         servicio: serviceName,
         nombre: `${category} - ${serviceName}`,
         activo: formData.activo,
-        tarifa_general: formData.tarifa_general,
+        tarifa_general: tarifa_general_numerica,
         Tarifas_Aeropuerto: {
           tramos: formData.tarifasAeropuerto.map(t => ({ desdeKm: t.desdeKm, precio: parseFloat(t.precio) || 0 }))
         },

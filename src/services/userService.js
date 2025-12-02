@@ -73,10 +73,8 @@ export async function getAllUsers() {
     const users = [];
     querySnapshot.forEach((doc) => {
       const userData = doc.data();
-      // Solo incluir usuarios activos (no eliminados)
-      if (userData.active !== false) {
-        users.push({ id: doc.id, ...userData });
-      }
+      // Incluir todos los usuarios (activos e inactivos)
+      users.push({ id: doc.id, ...userData });
     });
     return users;
   } catch (error) {
