@@ -159,15 +159,6 @@ const Documentos = () => {
             </Alert>
           )}
 
-          {!userFlotaId && userRole === "superadmin" && (
-            <Alert severity="warning" sx={{ mt: 2 }}>
-              <Typography variant="body2">
-                ⚠️ <strong>Modo SuperAdmin:</strong> Estás viendo la colección global de documentos. 
-                Los admins de flotas verán sus documentos en colecciones separadas.
-              </Typography>
-            </Alert>
-          )}
-
           <Typography color="text.secondary" mt={2}>
             Aquí puedes gestionar los documentos: ver, crear, editar o eliminar.
           </Typography>

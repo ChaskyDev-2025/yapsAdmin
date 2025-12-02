@@ -18,7 +18,7 @@ import CardGiftcardIcon from "@mui/icons-material/CardGiftcard";
 import Navbar          from "../components/Navbar";
 import Footer          from "../components/Footer";
 import Sidebar         from "../components/Sidebar";
-import LogoImg         from "../assets/logo.png";
+import LogoImg         from "../assets/YAAPS_LOGO.png";
 import ArticleIcon from "@mui/icons-material/Article";
 import { useAuth } from "../auth/AuthContext";
 import { isSuperAdmin } from "../services/userService";
@@ -56,41 +56,40 @@ const AdminLayout = () => {
     <Box
       sx={{
         display: "flex",
-        flexDirection: "column",
-        height: "100vh",      // altura total de la ventana
-        overflow: "hidden",    // no permitimos scroll aquí
+        height: "100vh",
+        overflow: "hidden",
       }}
     >
       <CssBaseline />
 
-      {/* Navbar fijo arriba */}
-      <Box sx={{ flexShrink: 0 }}>
-        <Navbar />
-      </Box>
-
-      {/* Contenedor central: sidebar + contenido */}
-      <Box
-        sx={{
-          display: "flex",
-          flexGrow: 1,
-          overflow: "hidden",    // controlamos scroll en hijos
-        }}
-      >
-        {/* Sidebar con scroll propio */}
-        <Sidebar
+      {/* Sidebar desde arriba */}
+      <Sidebar
         logo={
           <Link to="/admin">
             <img src={LogoImg} alt="Logo" />
           </Link>
         }
-          menuItems={menuItems}
-        />
+        menuItems={menuItems}
+      />
+
+      {/* Contenedor derecho: navbar + contenido */}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+          overflow: "hidden",
+          width: "100%",
+        }}
+      >
+        {/* Navbar */}
+        <Navbar />
 
         {/* Main con scroll propio */}
         <Box
           component="main"
           sx={{
-            flexGrow: 1,
+            flex: 1,
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
@@ -102,7 +101,7 @@ const AdminLayout = () => {
           {/* Aquí va el scroll de tu página */}
           <Box
             sx={{
-              flexGrow: 1,
+              flex: 1,
               overflowY: "auto",
               p: 3,
             }}

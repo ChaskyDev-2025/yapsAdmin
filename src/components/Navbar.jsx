@@ -43,7 +43,7 @@ const Navbar = ({ onMenuClick }) => {
   };
 
   return (
-    <AppBar position="fixed" sx={{ background: "linear-gradient(90deg, #D7171A 0%, #D7171A 40%, #000000 100%)", boxShadow: 3 }}>
+    <AppBar position="relative" sx={{ background: "linear-gradient(90deg, #D7171A 0%, #D7171A 40%, #000000 100%)", boxShadow: 3, borderRadius: 0 }}>
       <Toolbar>
       {/* Botón de menú para sidebar desplegable */}
       <IconButton
