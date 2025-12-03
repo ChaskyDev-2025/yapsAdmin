@@ -10,6 +10,7 @@ import { db, auth, storage } from "../../../data/firebase/firebase";
 import { useFlotas } from "./hooks/useFlotas";
 import { useAdministradores } from "./hooks/useAdministradores";
 import { useServicios } from "./hooks/useServicios";
+import { useDocumentosPorCiudad } from "./hooks/useDocumentosPorCiudad";
 
 // Componentes modulares
 import { FlotasTable } from "./components/FlotasTable";
@@ -21,6 +22,7 @@ const GestionFlotas = () => {
   const { flotas, fetchFlotas, createFlota, updateFlota, deleteFlota, toggleHabilitado } = useFlotas();
   const { administradores } = useAdministradores();
   const { serviciosDisponibles, serviciosPorCiudad } = useServicios();
+  const { documentosPorCiudad } = useDocumentosPorCiudad();
 
   // Estados locales
   const [openDialog, setOpenDialog] = useState(false);
@@ -42,6 +44,7 @@ const GestionFlotas = () => {
     otrosDocumentos: [],
     uidPropietarios: [],
     servicios: [],
+    documentos: [],
     habilitado: true,
   });
 
@@ -67,6 +70,7 @@ const GestionFlotas = () => {
         otrosDocumentos: flota.documentosFlota?.otrosDocumentos || [],
         uidPropietarios: flota.uidPropietarios || [],
         servicios: flota.servicios || [],
+        documentos: flota.documentos || [],
         habilitado: flota.habilitado !== undefined ? flota.habilitado : true,
       });
       setImagePreview(flota.imageUrl || null);
@@ -84,6 +88,7 @@ const GestionFlotas = () => {
         otrosDocumentos: [],
         uidPropietarios: [],
         servicios: [],
+        documentos: [],
         habilitado: true,
       });
       setImagePreview(null);
@@ -182,6 +187,7 @@ const GestionFlotas = () => {
         },
         uidPropietarios: formData.uidPropietarios,
         servicios: formData.servicios,
+        documentos: formData.documentos || [],
         habilitado: formData.habilitado,
       };
 
@@ -325,6 +331,7 @@ const GestionFlotas = () => {
         administradores={administradores}
         serviciosDisponibles={serviciosDisponibles}
         serviciosPorCiudad={serviciosPorCiudad}
+        documentosPorCiudad={documentosPorCiudad}
         onSave={handleSave}
         isSaving={isSaving}
         editMode={editMode}

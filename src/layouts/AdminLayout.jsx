@@ -15,11 +15,12 @@ import SupervisorAccountIcon from "@mui/icons-material/SupervisorAccount";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import RoomServiceIcon from "@mui/icons-material/RoomService";
 import CardGiftcardIcon from "@mui/icons-material/CardGiftcard";
+import ArticleIcon from "@mui/icons-material/Article";
+import DescriptionIcon from "@mui/icons-material/Description";
 import Navbar          from "../components/Navbar";
 import Footer          from "../components/Footer";
 import Sidebar         from "../components/Sidebar";
 import LogoImg         from "../assets/YAAPS_LOGO.png";
-import ArticleIcon from "@mui/icons-material/Article";
 import { useAuth } from "../auth/AuthContext";
 import { isSuperAdmin } from "../services/userService";
 
@@ -46,6 +47,7 @@ const AdminLayout = () => {
     return [
       { path: "/admin/dashboard", label: "Inicio", icon: <DashboardIcon /> },
       { path: "/admin/radiotaxis", label: "Radiotaxis", icon: <LocalTaxiIcon /> },
+      { path: "/admin/documentos-pendientes", label: "Docs Pendientes", icon: <DescriptionIcon /> },
       { path: "/admin/ajustes", label: "Ajustes", icon: <SettingsIcon /> },
       { path: "/admin/personalizar", label: "Personalizar", icon: <BuildIcon /> },
       { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },

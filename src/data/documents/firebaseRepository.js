@@ -35,27 +35,46 @@ export class FirebaseDocumentRepository extends DocumentRepository {
         titulo: data.screenTitle || "Sin título",
       }));
     } else {
-      // SuperAdmin: leer de la colección global
-      console.log("📖 FirebaseRepository.getAll() - Leyendo de: crear-documentos");
-      const snap = await getDocs(collection(db, "crear-documentos"));
-      console.log("📊 Documentos encontrados:", snap.size);
+      // SuperAdmin: leer de las subcollecciones por ciudad
+      console.log("📖 FirebaseRepository.getAll() - Leyendo de: crear-documentos por ciudad");
       
-      return snap.docs.map((d, i) => ({
-        id: d.id,
+      // Ciudades constantes
+      const CIUDADES = ["La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", "Oruro", "Potosí", "Tarija", "Pando", "Beni"];
+      const allDocs = [];
+      
+      for (const ciudad of CIUDADES) {
+        const docId = this._getCiudadDocId(ciudad);
+        const docRef = doc(db, "crear-documentos", docId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          const docsArray = docSnap.data().documentosPorCiudad || [];
+          allDocs.push(...docsArray);
+        }
+      }
+      
+      console.log("📊 Documentos encontrados:", allDocs.length);
+      
+      return allDocs.map((d, i) => ({
+        id: d.id || Math.random().toString(36).substring(2, 15),
         numero: i + 1,
         firebaseId: d.id,
-        ...d.data(),
-        titulo: d.data().screenTitle || "Sin título",
+        ...d,
+        titulo: d.screenTitle || d.titulo || "Sin título",
       }));
     }
   }
 
-  async create(data) {
-    const id = `doc_${Date.now().toString(36)}`;
-    const docData = { ...data, id, activo: true };
-    
+  _getCiudadDocId(ciudad) {
+    return ciudad.toLowerCase().replace(/\s+/g, '') + "_doc";
+  }
+
+  async create(data, customId = null) {
     if (this.flotaId) {
       // Admin de flota: guardar en el map documentos
+      const id = customId || `doc_${Date.now().toString(36)}`;
+      const docData = { ...data, id, activo: true };
+      
       console.log("💾 FirebaseRepository.create() - Guardando en: flotas/" + this.flotaId + "/documentos." + id);
       
       await updateDoc(doc(db, "flotas", this.flotaId), {
@@ -63,14 +82,45 @@ export class FirebaseDocumentRepository extends DocumentRepository {
       });
       
       console.log("✅ Documento guardado en map documentos");
+      return id;
     } else {
-      // SuperAdmin: guardar en colección global
-      console.log("💾 FirebaseRepository.create() - Guardando en: crear-documentos/" + id);
-      await setDoc(doc(db, "crear-documentos", id), docData);
-      console.log("✅ Documento guardado en colección global");
+      // SuperAdmin: guardar en subcampo documentosPorCiudad del documento ciudad
+      const ciudad = data.ciudad || "La Paz";
+      const docId = this._getCiudadDocId(ciudad);
+      
+      // Generar ID único para el documento dentro de la ciudad
+      const docDataId = `${docId}_${Math.random().toString(36).substring(2, 15)}`;
+      
+      const docData = { 
+        ...data, 
+        id: docDataId,
+        firebaseId: docDataId,
+        activo: true 
+      };
+      
+      console.log("💾 FirebaseRepository.create() - Guardando en: crear-documentos/" + docId + "/documentosPorCiudad");
+      
+      // Leer documento existente
+      const docRef = doc(db, "crear-documentos", docId);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        // Agregar al array existente
+        const documentosPorCiudad = docSnap.data().documentosPorCiudad || [];
+        await updateDoc(docRef, {
+          documentosPorCiudad: [...documentosPorCiudad, docData]
+        });
+      } else {
+        // Crear nuevo documento con el array
+        await setDoc(docRef, {
+          ciudad,
+          documentosPorCiudad: [docData]
+        });
+      }
+      
+      console.log("✅ Documento guardado en crear-documentos/" + docId);
+      return docDataId;
     }
-    
-    return id;
   }
 
   async update(id, data) {
@@ -83,8 +133,20 @@ export class FirebaseDocumentRepository extends DocumentRepository {
       
       return updateDoc(doc(db, "flotas", this.flotaId), updates);
     } else {
-      // Actualizar en colección global
-      return updateDoc(doc(db, "crear-documentos", id), data);
+      // Actualizar en el array documentosPorCiudad
+      const ciudad = data.ciudad || "La Paz";
+      const docId = this._getCiudadDocId(ciudad);
+      const docRef = doc(db, "crear-documentos", docId);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const documentosPorCiudad = docSnap.data().documentosPorCiudad || [];
+        const updated = documentosPorCiudad.map(d => 
+          d.id === id || d.firebaseId === id ? { ...d, ...data } : d
+        );
+        
+        return updateDoc(docRef, { documentosPorCiudad: updated });
+      }
     }
   }
   
@@ -95,8 +157,25 @@ export class FirebaseDocumentRepository extends DocumentRepository {
         [`documentos.${id}`]: deleteField()
       });
     } else {
-      // Eliminar de colección global
-      return deleteDoc(doc(db, "crear-documentos", id));
+      // Eliminar del array documentosPorCiudad
+      // Necesitamos buscar en todas las ciudades
+      const CIUDADES = ["La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", "Oruro", "Potosí", "Tarija", "Pando", "Beni"];
+      
+      for (const ciudad of CIUDADES) {
+        const docId = this._getCiudadDocId(ciudad);
+        const docRef = doc(db, "crear-documentos", docId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          const documentosPorCiudad = docSnap.data().documentosPorCiudad || [];
+          const filtered = documentosPorCiudad.filter(d => d.id !== id && d.firebaseId !== id);
+          
+          if (filtered.length < documentosPorCiudad.length) {
+            // El documento estaba en esta ciudad
+            return updateDoc(docRef, { documentosPorCiudad: filtered });
+          }
+        }
+      }
     }
   }
 }

@@ -17,6 +17,7 @@ import Documentos from "../pages/admin/docs/docs"; // Asegúrate de que esta rut
 import GestionFlotas from "../pages/admin/flotas/GestionFlotas";
 import GestionServicios from "../pages/admin/servicios/GestionServicios";
 import Referidos from "../pages/admin/referidos/Referidos";
+import DocumentosPendientes from "../pages/admin/documentosPendientes/DocumentosPendientes";
 
 const AdminRoutes = () => (
   <Routes>
@@ -35,6 +36,7 @@ const AdminRoutes = () => (
       <Route path="personalizar" element={<Personalizar />} />
       <Route path="perfil" element={<Perfil />} />
       <Route path="documentos" element={<Documentos />} />
+      <Route path="documentos-pendientes" element={<DocumentosPendientes />} />
       <Route path="flotas" element={<GestionFlotas />} />
       <Route path="referidos" element={<Referidos />} />
     </Route>

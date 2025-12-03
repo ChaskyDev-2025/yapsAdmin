@@ -180,7 +180,7 @@ export const FlotasTable = ({
                       },
                     }}
                   >
-                    Documentos: {flota.documentosFlota?.documentosAsignados?.length || 0}
+                    Documentos: {flota.documentos?.length || flota.documentosFlota?.documentosAsignados?.length || 0}
                   </Button>
                 </TableCell>
                 <TableCell>

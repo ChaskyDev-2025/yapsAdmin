@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import {
-  Typography, Paper, Stack, Alert, Box, Chip
+  Typography, Paper, Stack, Alert, Box, Chip, Tabs, Tab
 } from "@mui/material";
 import { Tabla2 }        from "../../../shared/components/tablas/tabla";
 import { Columns }       from "./data/Columns";
@@ -15,9 +15,15 @@ import { useAuth } from "../../../auth/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 
+const CIUDADES = [
+  "La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", 
+  "Oruro", "Potosí", "Tarija", "Pando", "Beni"
+];
+
 const Documentos = () => {
   const { userFlotaId, userRole } = useAuth();
   const [flotaInfo, setFlotaInfo] = useState(null);
+  const [ciudadSeleccionada, setCiudadSeleccionada] = useState("La Paz");
   
   /* ── estado del modal ───────────── */
   const { rows, loading, create, update, remove, toggleActivo } = useDocuments();
@@ -44,9 +50,18 @@ const Documentos = () => {
     loadFlotaInfo();
   }, [userFlotaId]);
 
+  // Filtrar documentos por ciudad seleccionada
+  const documentosPorCiudad = rows.filter(
+    (doc) => doc.ciudad === ciudadSeleccionada
+  );
+
   const handleSave = async (nuevoDoc) => {
     try {
-      await create({ ...nuevoDoc, titulo: nuevoDoc.screenTitle });
+      await create({ 
+        ...nuevoDoc, 
+        titulo: nuevoDoc.screenTitle,
+        ciudad: ciudadSeleccionada 
+      });
       handleClose();            // cierra el modal
     } catch (err) {
       console.error("❌ Error al guardar documento:", err);
@@ -127,7 +142,7 @@ const Documentos = () => {
       >
         <Box sx={{ mb: 3 }}>
           <Typography variant="h4" gutterBottom fontWeight="bold">
-            Documentos
+            Documentos por Ciudad
           </Typography>
           
           {userFlotaId && flotaInfo && (
@@ -160,12 +175,46 @@ const Documentos = () => {
           )}
 
           <Typography color="text.secondary" mt={2}>
-            Aquí puedes gestionar los documentos: ver, crear, editar o eliminar.
+            Selecciona una ciudad para gestionar los documentos específicos de esa región.
           </Typography>
         </Box>
 
+        {/* Pestañas por ciudad */}
+        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+          <Tabs 
+            value={ciudadSeleccionada}
+            onChange={(e, newCity) => setCiudadSeleccionada(newCity)}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              "& .MuiTab-root": {
+                fontFamily: "Mulish, sans-serif",
+                fontWeight: 600,
+                textTransform: "none",
+                fontSize: "0.95rem"
+              },
+              "& .MuiTab-root.Mui-selected": {
+                color: "#d7171a",
+                fontWeight: 700
+              },
+              "& .MuiTabs-indicator": {
+                backgroundColor: "#d7171a"
+              }
+            }}
+          >
+            {CIUDADES.map((ciudad) => (
+              <Tab 
+                key={ciudad}
+                label={ciudad} 
+                value={ciudad}
+              />
+            ))}
+          </Tabs>
+        </Box>
+
+        {/* Tabla con documentos de la ciudad seleccionada */}
         <Tabla2
-          rows={rows}
+          rows={documentosPorCiudad}
           columns={columns}
           height="51vh"
           pageSize={10}
@@ -182,6 +231,7 @@ const Documentos = () => {
         open={openCreate}
         onClose={handleClose}
         onSave={handleSave}
+        ciudadSeleccionada={ciudadSeleccionada}
       />
       <ModalEditDocs
         open={openEdit}

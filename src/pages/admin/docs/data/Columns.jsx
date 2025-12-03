@@ -10,6 +10,8 @@ export const Columns = (onToggle, renderAcciones) => [
   { field: "numero", headerName: "ID", width: 10 },
   { field: "titulo", headerName: "Título", flex: 1 },
 
+  { field: "ciudad", headerName: "Departamento", width: 150 },
+
   {
     field: "activo",
     headerName: "Activo",

@@ -33,20 +33,23 @@ export const FlotaFormDialog = ({
   administradores,
   serviciosDisponibles,
   serviciosPorCiudad,
+  documentosPorCiudad,
   onSave,
   isSaving,
   editMode,
   onFormDataChange,
   getAvailableAdministradores,
 }) => {
-  const [ciudadSeleccionada, setCiudadSeleccionada] = useState("");
+  const [ciudadSeleccionadaServicios, setCiudadSeleccionadaServicios] = useState("");
+  const [ciudadSeleccionadaDocumentos, setCiudadSeleccionadaDocumentos] = useState("");
 
   // Debug: Verificar que los datos lleguen al componente
   useEffect(() => {
     console.log('📋 FlotaFormDialog - Administradores recibidos:', administradores);
     console.log('📋 FlotaFormDialog - Servicios recibidos:', serviciosDisponibles);
+    console.log('📋 FlotaFormDialog - Documentos recibidos:', documentosPorCiudad);
     console.log('📋 FlotaFormDialog - FormData:', formData);
-  }, [administradores, serviciosDisponibles, formData]);
+  }, [administradores, serviciosDisponibles, documentosPorCiudad, formData]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
@@ -305,8 +308,8 @@ export const FlotaFormDialog = ({
             <>
               <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
                 <Tabs 
-                  value={ciudadSeleccionada || (Object.keys(serviciosPorCiudad)[0] || "")}
-                  onChange={(e, newValue) => setCiudadSeleccionada(newValue)}
+                  value={ciudadSeleccionadaServicios || (Object.keys(serviciosPorCiudad)[0] || "")}
+                  onChange={(e, newValue) => setCiudadSeleccionadaServicios(newValue)}
                   variant="scrollable"
                   scrollButtons="auto"
                 >
@@ -317,18 +320,18 @@ export const FlotaFormDialog = ({
               </Box>
 
               {/* Selector de Servicios para la ciudad seleccionada */}
-              {ciudadSeleccionada && serviciosPorCiudad[ciudadSeleccionada] && (
+              {ciudadSeleccionadaServicios && serviciosPorCiudad[ciudadSeleccionadaServicios] && (
                 <Box>
                   <Typography sx={{ mb: 1, fontFamily: "Mulish, sans-serif", fontSize: "0.9rem", color: "#666" }}>
-                    Selecciona los servicios de {ciudadSeleccionada}:
+                    Selecciona los servicios de {ciudadSeleccionadaServicios}:
                   </Typography>
                   <FormControl fullWidth size="small">
-                    <InputLabel>Seleccionar Servicios de {ciudadSeleccionada}</InputLabel>
+                    <InputLabel>Seleccionar Servicios de {ciudadSeleccionadaServicios}</InputLabel>
                     <Select
                       multiple
                       value={formData.servicios}
                       onChange={(e) => onFormDataChange({ ...formData, servicios: e.target.value })}
-                      input={<OutlinedInput label={`Seleccionar Servicios de ${ciudadSeleccionada}`} />}
+                      input={<OutlinedInput label={`Seleccionar Servicios de ${ciudadSeleccionadaServicios}`} />}
                       renderValue={(selected) => (
                         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                           {selected.map((servicioNombre) => (
@@ -352,12 +355,99 @@ export const FlotaFormDialog = ({
                       )}
                       sx={{ fontFamily: "Mulish, sans-serif" }}
                     >
-                      {serviciosPorCiudad[ciudadSeleccionada].map((servicio) => {
+                      {serviciosPorCiudad[ciudadSeleccionadaServicios].map((servicio) => {
                         const nombreServicio = servicio.nombre || servicio.name || servicio.id;
                         return (
                           <MenuItem key={servicio.id} value={nombreServicio}>
                             <Typography sx={{ fontFamily: "Mulish, sans-serif" }}>
                               {nombreServicio}
+                            </Typography>
+                          </MenuItem>
+                        );
+                      })}
+                    </Select>
+                  </FormControl>
+                </Box>
+              )}
+            </>
+          )}
+
+          {/* Documentos por Ciudad */}
+          <Box sx={{ mt: 2 }}>
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontFamily: "Mulish, sans-serif",
+                fontWeight: 800,
+                color: "#d7171a",
+                mb: 2,
+                fontSize: "1.1rem",
+                borderBottom: "2px solid #d7171a",
+                pb: 1,
+              }}
+            >
+              📄 Documentos Disponibles por Ciudad
+            </Typography>
+          </Box>
+
+          {/* Pestañas de Ciudades para Documentos */}
+          {documentosPorCiudad && Object.keys(documentosPorCiudad).length > 0 && (
+            <>
+              <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+                <Tabs 
+                  value={ciudadSeleccionadaDocumentos || (Object.keys(documentosPorCiudad)[0] || "")}
+                  onChange={(e, newValue) => setCiudadSeleccionadaDocumentos(newValue)}
+                  variant="scrollable"
+                  scrollButtons="auto"
+                >
+                  {Object.keys(documentosPorCiudad).map((ciudad) => (
+                    <Tab key={ciudad} label={`📍 ${ciudad}`} value={ciudad} />
+                  ))}
+                </Tabs>
+              </Box>
+
+              {/* Selector de Documentos para la ciudad seleccionada */}
+              {ciudadSeleccionadaDocumentos && documentosPorCiudad[ciudadSeleccionadaDocumentos] && (
+                <Box>
+                  <Typography sx={{ mb: 1, fontFamily: "Mulish, sans-serif", fontSize: "0.9rem", color: "#666" }}>
+                    Selecciona los documentos de {ciudadSeleccionadaDocumentos}:
+                  </Typography>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Seleccionar Documentos de {ciudadSeleccionadaDocumentos}</InputLabel>
+                    <Select
+                      multiple
+                      value={formData.documentos || []}
+                      onChange={(e) => onFormDataChange({ ...formData, documentos: e.target.value })}
+                      input={<OutlinedInput label={`Seleccionar Documentos de ${ciudadSeleccionadaDocumentos}`} />}
+                      renderValue={(selected) => (
+                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                          {selected.map((docNombre) => (
+                            <Chip
+                              key={docNombre}
+                              label={docNombre}
+                              size="small"
+                              onDelete={() => {
+                                const nuevosDocs = (formData.documentos || []).filter(d => d !== docNombre);
+                                onFormDataChange({ ...formData, documentos: nuevosDocs });
+                              }}
+                              sx={{
+                                bgcolor: "#d7171a",
+                                color: "white",
+                                fontFamily: "Mulish, sans-serif",
+                                fontWeight: 600,
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      )}
+                      sx={{ fontFamily: "Mulish, sans-serif" }}
+                    >
+                      {documentosPorCiudad[ciudadSeleccionadaDocumentos].map((doc) => {
+                        const nombreDoc = doc.titulo || doc.screenTitle || doc.id;
+                        return (
+                          <MenuItem key={doc.id} value={nombreDoc}>
+                            <Typography sx={{ fontFamily: "Mulish, sans-serif" }}>
+                              {nombreDoc}
                             </Typography>
                           </MenuItem>
                         );
