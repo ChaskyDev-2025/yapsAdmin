@@ -37,6 +37,7 @@ export const FlotaFormDialog = ({
   isSaving,
   editMode,
   onFormDataChange,
+  getAvailableAdministradores,
 }) => {
   const [ciudadSeleccionada, setCiudadSeleccionada] = useState("");
 
@@ -247,7 +248,7 @@ export const FlotaFormDialog = ({
                       return (
                         <Chip
                           key={uid}
-                          label={admin?.nombre || admin?.name || admin?.displayName || admin?.email?.split('@')[0] || uid}
+                          label={admin?.nombre || admin?.email?.split('@')[0] || uid}
                           size="small"
                           sx={{
                             bgcolor: "#d7171a",
@@ -269,10 +270,10 @@ export const FlotaFormDialog = ({
                     </Typography>
                   </MenuItem>
                 ) : (
-                  administradores.map((admin) => (
+                  getAvailableAdministradores(formData.id).map((admin) => (
                     <MenuItem key={admin.uid} value={admin.uid}>
                       <Typography sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        {admin.nombre || admin.name || admin.displayName || admin.email?.split("@")[0] || admin.uid}
+                        {admin.nombre} ({admin.email})
                       </Typography>
                     </MenuItem>
                   ))

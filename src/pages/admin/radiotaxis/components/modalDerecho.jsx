@@ -107,8 +107,8 @@ export default function ModalDerecho({ userId, setDocActivo }) {
           }
 
           const flota = flotaSnap.data();
-          const plantillasAsignadas = flota.documentosFlota?.plantillasAsignadas || [];
-          console.log("Plantillas asignadas:", plantillasAsignadas);
+          const documentosAsignados = flota.documentosFlota?.documentosAsignados || [];
+          console.log("Documentos asignados:", documentosAsignados);
 
           // 3. Obtener todas las plantillas disponibles
           const plantillasRef = collection(db, "crear-documentos");
@@ -120,8 +120,8 @@ export default function ModalDerecho({ userId, setDocActivo }) {
             console.log("Todas las plantillas:", todasLasPlantillas);
 
             if (!cancel) {
-              // Filtrar solo las plantillas asignadas a la flota
-              const items = plantillasAsignadas
+              // Filtrar solo los documentos asignados a la flota
+              const items = documentosAsignados
                 .map((plantillaItem) => {
                   // Extraer el ID si es un objeto o si es string
                   let plantillaId = plantillaItem;

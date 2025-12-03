@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Box, Paper, Typography, Button, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import { updateDoc, doc, serverTimestamp } from "firebase/firestore";
+import { updateDoc, doc, serverTimestamp, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, auth, storage } from "../../../data/firebase/firebase";
 
@@ -21,12 +21,6 @@ const GestionFlotas = () => {
   const { flotas, fetchFlotas, createFlota, updateFlota, deleteFlota, toggleHabilitado } = useFlotas();
   const { administradores } = useAdministradores();
   const { serviciosDisponibles, serviciosPorCiudad } = useServicios();
-
-
-  // Debug: Verificar datos cargados en el componente principal
-  console.log('🏢 GestionFlotas - Administradores:', administradores);
-  console.log('🏢 GestionFlotas - Servicios:', serviciosDisponibles);
-  console.log('🏢 GestionFlotas - Flotas:', flotas);
 
   // Estados locales
   const [openDialog, setOpenDialog] = useState(false);
@@ -182,8 +176,8 @@ const GestionFlotas = () => {
           nit: formData.nit,
           fotoNit: formData.fotoNit,
           otrosDocumentos: formData.otrosDocumentos || [],
-          plantillasAsignadas: editMode && currentFlota?.documentosFlota?.plantillasAsignadas 
-            ? currentFlota.documentosFlota.plantillasAsignadas 
+          documentosAsignados: editMode && currentFlota?.documentosFlota?.documentosAsignados 
+            ? currentFlota.documentosFlota.documentosAsignados 
             : [],
         },
         uidPropietarios: formData.uidPropietarios,
@@ -258,8 +252,18 @@ const GestionFlotas = () => {
       // templatesSelected: array of { id, titulo }
       const plantillas = templatesSelected.map(t => ({ id: t.id, titulo: t.titulo || t.nombre || t.id }));
       const flotaRef = doc(db, 'flotas', selectedFlotaForDocs.id);
+      
+      // Obtener el documento actual para preservar otros campos de documentosFlota
+      const flotaSnap = await getDoc(flotaRef);
+      const currentFlotaData = flotaSnap.data() || {};
+      const currentDocumentosFlota = currentFlotaData.documentosFlota || {};
+      
+      // Actualizar con los documentos asignados
       await updateDoc(flotaRef, {
-        'documentosFlota.plantillasAsignadas': plantillas,
+        documentosFlota: {
+          ...currentDocumentosFlota,
+          documentosAsignados: plantillas,
+        },
         updatedAt: serverTimestamp(),
       });
 
@@ -267,11 +271,11 @@ const GestionFlotas = () => {
         ...selectedFlotaForDocs,
         documentosFlota: {
           ...selectedFlotaForDocs.documentosFlota,
-          plantillasAsignadas: plantillas,
+          documentosAsignados: plantillas,
         }
       });
       await fetchFlotas();
-      showSnackbar('Plantillas asignadas correctamente', 'success');
+      showSnackbar('Documentos asignados correctamente', 'success');
     } catch (error) {
       console.error('Error asignando plantillas a la flota:', error);
       showSnackbar('Error al asignar plantillas: ' + error.message, 'error');
@@ -325,6 +329,16 @@ const GestionFlotas = () => {
         isSaving={isSaving}
         editMode={editMode}
         onFormDataChange={setFormData}
+        getAvailableAdministradores={(currentFlotaId) => 
+          administradores.filter((admin) => {
+            // Si el admin no tiene flota, está disponible
+            if (!admin.flotaId) return true;
+            // Si la flota actual está siendo editada, permite cambios
+            if (currentFlotaId && admin.flotaId === currentFlotaId) return true;
+            // Si el admin ya está en otra flota, no lo muestra
+            return false;
+          })
+        }
       />
 
       {/* Modal de gestión de documentos por flota */}

@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { CardGiftcard } from "@mui/icons-material/CardGiftcard";
 
 const drawerWidthExpanded = 280;
-const drawerWidthCollapsed = 60;
+const drawerWidthCollapsed = 70;
 
 const Sidebar = ({ logo, menuItems }) => {
   const location = useLocation();
@@ -42,15 +42,15 @@ const Sidebar = ({ logo, menuItems }) => {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          p: expanded ? 1.5 : 1,
+          p: expanded ? 1 : 0.8,
           transition: "padding 0.3s",
-          minHeight: "80px",
+          minHeight: "60px",
         }}
       >
         {logo && (
           <Box
             sx={{
-              width: expanded ? "140px" : "40px",
+              width: expanded ? "140px" : "35px",
               height: "auto",
               transition: "width 0.3s ease-in-out",
               overflow: "hidden",
@@ -73,7 +73,7 @@ const Sidebar = ({ logo, menuItems }) => {
       {/* Sección de opciones activas */}
 
       {/* Lista del menú */}
-      <List sx={{ p: 0, flex: 1, bgcolor: "#000000" }}>
+      <List sx={{ p: 0, flex: 1, bgcolor: "#000000", overflow: "hidden", px: 1 }}>
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
@@ -84,25 +84,25 @@ const Sidebar = ({ logo, menuItems }) => {
               to={item.path}
               selected={isActive}
               sx={{
-                mb: 1,
-                mx: 1.2,
-                px: 0.5,
-                borderRadius: 1.5,
+                mb: 0.8,
+                mx: 0,
+                px: 1,
+                borderRadius: 1,
                 color: "#fff",
                 backgroundColor: "transparent",
                 "&:hover": {
-                  backgroundColor: "#d7171a",
-                  mx: 0.5,
-                  px: 0.8,
+                  background: "linear-gradient(90deg, #D61319 0%, #A30E13 50%, #700A09 100%)",
+                  mx: 0.1,
+                  px: 0.1,
                 },
                 transition: "background 0.3s, margin 0.3s, padding 0.3s",
                 justifyContent: expanded ? "flex-start" : "center",
                 fontWeight: isActive ? "600" : "400",
-                py: 1.5,
+                py: 1.2,
                 "&.Mui-selected": {
                   backgroundColor: "transparent",
                   mx: 0.5,
-                  px: 0.8,
+                  px: 0.5,
                 },
               }}
             >

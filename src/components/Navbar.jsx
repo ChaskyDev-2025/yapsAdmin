@@ -5,6 +5,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
 import PersonIcon from "@mui/icons-material/Person";
 import SettingsIcon from "@mui/icons-material/Settings";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useAuth } from "../auth/AuthContext";
 import { logout } from "../services/authService";
 import { isSuperAdmin } from "../services/userService";
@@ -56,33 +57,21 @@ const Navbar = ({ onMenuClick }) => {
         <MenuIcon />
       </IconButton>
       {/* Logo de marca */}
-      <Avatar src="/imagen1.jpg" alt="Logo" sx={{ mr: 2 }} />
+      
       {/* Nombre de la marca */}
-      <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 900, letterSpacing: 2, fontFamily: "'Mulish', sans-serif" }}>
-        YAAPS
-      </Typography>
+      
+      {/* Spacer para empujar el contenido a la derecha */}
+      <Box sx={{ flex: 1 }} />
+      
       {/* Usuario o acciones */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        {userRole && (
-          <Chip 
-            label={userRole === "superadmin" ? "SuperAdmin" : "Admin"} 
-            size="small"
-            sx={{ 
-              bgcolor: userRole === "superadmin" ? "#484848" : "rgba(255,255,255,0.2)",
-              color: userRole === "superadmin" ? "#ffffff" : "#fff",
-              fontWeight: 700,
-              fontSize: "0.7rem"
-            }}
-          />
-        )}
-        
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
         <Box 
           sx={{ 
             display: 'flex', 
             alignItems: 'center', 
             gap: 1,
             cursor: 'pointer',
-            padding: '4px 8px',
+            padding: '4px 12px',
             borderRadius: 1,
             transition: 'background-color 0.3s',
             '&:hover': {
@@ -95,9 +84,21 @@ const Navbar = ({ onMenuClick }) => {
           aria-expanded={open ? 'true' : undefined}
         >
           <Avatar src="/usuario.jpg" alt="Usuario" sx={{ width: 32, height: 32 }} />
-          <Typography variant="body2">
-            {user?.email?.split('@')[0] || "Admin"}
-          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+              {user?.email?.split('@')[0] || "Admin"}
+            </Typography>
+            <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'rgba(255, 255, 255, 0.8)', lineHeight: 1 }}>
+              {userRole === "superadmin" ? "SuperAdmin" : userRole === "admin" ? "Administrador" : "Usuario"}
+            </Typography>
+          </Box>
+          <ExpandMoreIcon 
+            sx={{ 
+              fontSize: 20, 
+              transition: 'transform 0.3s',
+              transform: open ? 'rotate(180deg)' : 'rotate(0deg)'
+            }} 
+          />
         </Box>
 
         <Menu

@@ -1,6 +1,6 @@
 // src/services/userService.js
 import { db, auth } from "../data/firebase/firebase";
-import { collection, getDocs, doc, updateDoc, setDoc, query, where } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, setDoc, query, where, arrayUnion, arrayRemove } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 
 /**
@@ -37,7 +37,21 @@ export async function createAdminUser(userData) {
     
     console.log("✅ Documento creado en Firestore:", `users/${uid}`);
     
-    // 3. Cerrar sesión del usuario recién creado
+    // 3. Agregar el usuario a la flota si se especificó
+    if (userData.flotaId) {
+      try {
+        const flotaRef = doc(db, "flotas", userData.flotaId);
+        await updateDoc(flotaRef, {
+          uidPropietarios: arrayUnion(uid),
+        });
+        console.log("✅ Usuario agregado a uidPropietarios de la flota");
+      } catch (error) {
+        console.warn("⚠️ No se pudo agregar usuario a la flota:", error);
+        // No lanzar error, continuar aunque falle esta operación
+      }
+    }
+    
+    // 4. Cerrar sesión del usuario recién creado
     // Nota: Esto cerrará la sesión actual, por lo que el SuperAdmin debe volver a iniciar sesión
     await auth.signOut();
     
@@ -106,11 +120,48 @@ export async function getUsersByRole(role) {
  */
 export async function updateUser(userId, userData) {
   try {
+    // Obtener datos anteriores del usuario para comparar flota
     const userRef = doc(db, "users", userId);
+    const userSnapshot = await getDocs(query(collection(db, "users"), where("__name__", "==", userId)));
+    let previousFlotaId = null;
+    
+    userSnapshot.forEach((doc) => {
+      previousFlotaId = doc.data().flotaId;
+    });
+    
+    // Actualizar usuario
     await updateDoc(userRef, {
       ...userData,
       updatedAt: new Date().toISOString(),
     });
+    
+    // Manejar cambios de flota
+    if (userData.flotaId && userData.flotaId !== previousFlotaId) {
+      // Remover de flota anterior si existe
+      if (previousFlotaId) {
+        try {
+          const oldFlotaRef = doc(db, "flotas", previousFlotaId);
+          await updateDoc(oldFlotaRef, {
+            uidPropietarios: arrayRemove(userId),
+          });
+          console.log("✅ Usuario removido de flota anterior");
+        } catch (error) {
+          console.warn("⚠️ No se pudo remover usuario de flota anterior:", error);
+        }
+      }
+      
+      // Agregar a nueva flota
+      try {
+        const newFlotaRef = doc(db, "flotas", userData.flotaId);
+        await updateDoc(newFlotaRef, {
+          uidPropietarios: arrayUnion(userId),
+        });
+        console.log("✅ Usuario agregado a nueva flota");
+      } catch (error) {
+        console.warn("⚠️ No se pudo agregar usuario a nueva flota:", error);
+      }
+    }
+    
     return { success: true };
   } catch (error) {
     console.error("Error actualizando usuario:", error);
@@ -149,4 +200,45 @@ export function isSuperAdmin(userRole) {
  */
 export function isAdmin(userRole) {
   return userRole === "admin" || userRole === "superadmin";
+}
+
+/**
+ * Sincronizar administrador a flota
+ * Agrega o remueve un admin de la lista de propietarios de una flota
+ */
+export async function syncAdminToFlota(userId, newFlotaId, oldFlotaId = null) {
+  try {
+    // Remover de flota anterior si existe
+    if (oldFlotaId) {
+      try {
+        const oldFlotaRef = doc(db, "flotas", oldFlotaId);
+        await updateDoc(oldFlotaRef, {
+          uidPropietarios: arrayRemove(userId),
+        });
+        console.log("✅ Usuario removido de flota anterior:", oldFlotaId);
+      } catch (error) {
+        console.warn("⚠️ Error removiendo usuario de flota anterior:", error);
+      }
+    }
+    
+    // Agregar a nueva flota
+    if (newFlotaId) {
+      try {
+        const newFlotaRef = doc(db, "flotas", newFlotaId);
+        await updateDoc(newFlotaRef, {
+          uidPropietarios: arrayUnion(userId),
+        });
+        console.log("✅ Usuario agregado a flota:", newFlotaId);
+        return { success: true };
+      } catch (error) {
+        console.error("❌ Error agregando usuario a flota:", error);
+        return { success: false, error: error.message };
+      }
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error sincronizando admin a flota:", error);
+    return { success: false, error: error.message };
+  }
 }

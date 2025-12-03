@@ -44,7 +44,7 @@ export const DocsManagerModal = ({
 
   useEffect(() => {
     // precargar selección si la flota ya tiene plantillas asignadas
-    const assigned = flota?.documentosFlota?.plantillasAsignadas || [];
+    const assigned = flota?.documentosFlota?.documentosAsignados || [];
     setSelectedTemplates(assigned.map(a => ({ id: a.id, titulo: a.titulo || a.nombre || a.title || a.name })));
   }, [flota, open]);
   return (
@@ -82,15 +82,15 @@ export const DocsManagerModal = ({
           </Button>
         </Box>
 
-        {(flota && flota.documentosFlota && Array.isArray(flota.documentosFlota.plantillasAsignadas) && flota.documentosFlota.plantillasAsignadas.length > 0) ? (
+        {(flota && flota.documentosFlota && Array.isArray(flota.documentosFlota.documentosAsignados) && flota.documentosFlota.documentosAsignados.length > 0) ? (
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {flota.documentosFlota.plantillasAsignadas.map((tpl, i) => (
+            {flota.documentosFlota.documentosAsignados.map((tpl, i) => (
               <Chip 
                 key={tpl.id || i} 
                 label={tpl.titulo || tpl.nombre || tpl.name || tpl.id} 
                 color="primary"
                 onDelete={() => {
-                  const updated = flota.documentosFlota.plantillasAsignadas.filter(p => p.id !== tpl.id);
+                  const updated = flota.documentosFlota.documentosAsignados.filter(p => p.id !== tpl.id);
                   if (onAssignTemplates) onAssignTemplates(updated);
                 }}
               />
@@ -98,7 +98,7 @@ export const DocsManagerModal = ({
           </Box>
         ) : (
           <Alert severity="info" sx={{ fontFamily: "Mulish, sans-serif" }}>
-            No hay plantillas asignadas. Haz clic en "Asignar Plantilla" para comenzar.
+            No hay documentos asignados. Haz clic en "Asignar Documento" para comenzar.
           </Alert>
         )}
       </DialogContent>

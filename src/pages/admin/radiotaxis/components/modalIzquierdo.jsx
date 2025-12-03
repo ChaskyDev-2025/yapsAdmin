@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Box, Avatar, Typography, Stack, Divider, Chip, Button, FormControlLabel, Switch } from "@mui/material";
+import { Box, Avatar, Typography, Stack, Divider, Chip, Button } from "@mui/material";
 import RecargaSaldoModal from "./RecargaSaldoModal";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { actualizarSaldoSeguro } from "./saldoSeguro";
 import { db } from "../../../../data/firebase/firebase";
 import { agregarHistorialRecarga } from "./save_nube";
@@ -13,8 +13,6 @@ export default function ModalIzquierdo({ rowData }) {
   const [openRecarga, setOpenRecarga] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [saldoActual, setSaldoActual] = useState(rowData.saldo);
-  const [habilitado, setHabilitado] = useState(rowData.activo !== false);
-  const [actualizando, setActualizando] = useState(false);
 
   // Escucha el saldo actualizado en Firestore
   useEffect(() => {
@@ -28,24 +26,6 @@ export default function ModalIzquierdo({ rowData }) {
     });
     return () => unsubscribe();
   }, [rowData?.firebaseId]);
-
-  const handleToggleHabilitado = async (event) => {
-    try {
-      setActualizando(true);
-      const nuevoEstado = event.target.checked;
-      setHabilitado(nuevoEstado);
-
-      const ref = doc(db, "trabajadores", rowData.firebaseId);
-      await updateDoc(ref, {
-        activo: nuevoEstado,
-      });
-    } catch (e) {
-      console.error("Error al actualizar estado:", e);
-      setHabilitado(!habilitado);
-    } finally {
-      setActualizando(false);
-    }
-  };
 
   if (!rowData) return null;
   return (
@@ -98,25 +78,6 @@ export default function ModalIzquierdo({ rowData }) {
           <Typography>
             <b>Fecha registro:</b> {rowData.fecha}
           </Typography>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={habilitado}
-                onChange={handleToggleHabilitado}
-                disabled={actualizando}
-                size="small"
-              />
-            }
-            label={habilitado ? "Habilitado" : "Inhabilitado"}
-            sx={{
-              mt: 1,
-              "& .MuiFormControlLabel-label": {
-                fontSize: "0.9rem",
-                fontWeight: 500,
-                color: habilitado ? "#4caf50" : "#9e9e9e",
-              },
-            }}
-          />
         </Stack>
         <Divider sx={{ my: 1.5 }} />
         <Typography variant="subtitle2" fontWeight={600}>

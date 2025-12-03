@@ -5,7 +5,7 @@ const Footer = () => (
   <Box
     component="footer"
     sx={{
-      backgroundColor: "#484848",
+      backgroundColor: "#000000",
       borderTop: "3px solid #D7171A",
       color: "#fff",
       py: 1,
@@ -19,11 +19,7 @@ const Footer = () => (
   >
     {/* Imagen de marca */}
     <Box sx={{ display: "flex", alignItems: "center", minWidth: 120 }}>
-      <Avatar
-        src="/imagen1.jpg"
-        alt="Logo"
-        sx={{ width: 40, height: 40, mr: 2 }}
-      />
+     
     </Box>
     {/* Texto centrado */}
     <Box sx={{ flex: 1, textAlign: "center" }}>

@@ -9,7 +9,7 @@ import DetalleModal from "./components/modalGenerico";
 import { getRadiotaxisColumns } from "./data/radiotaxisColumns";
 import IconActionButton from "../../../shared/components/botones/Botones";
 import { useAuth } from "../../../auth/AuthContext";
-import { doc, getDoc, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, deleteDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 // 👉 Datos desde el hook (Firebase)
 import { useTrabajadoresPorFlota } from "./hooks/useTrabajadoresPorFlota";
@@ -45,6 +45,19 @@ const Radiotaxis = () => {
     setOpenModal(true);
   };
 
+  const handleToggleHabilitado = async (firebaseId, nuevoEstado) => {
+    try {
+      const ref = doc(db, "trabajadores", firebaseId);
+      await updateDoc(ref, {
+        activo: nuevoEstado,
+      });
+      // Refrescar la tabla
+      refetch();
+    } catch (e) {
+      console.error("Error al actualizar estado:", e);
+    }
+  };
+
   const columns = getRadiotaxisColumns((params) => (
     <Stack direction="row" spacing={1}>
       <IconActionButton
@@ -56,7 +69,7 @@ const Radiotaxis = () => {
         }}
       />
     </Stack>
-  ));
+  ), handleToggleHabilitado);
 
   return (
     <>

@@ -66,6 +66,22 @@ const GestionUsuarios = () => {
     flotaId: "",
   });
 
+  // Función para formatear fechas de Firestore
+  const formatearFecha = (timestamp) => {
+    if (!timestamp) return "-";
+    let fecha;
+    if (timestamp?.toDate) {
+      fecha = timestamp.toDate();
+    } else if (timestamp?.seconds) {
+      fecha = new Date(timestamp.seconds * 1000);
+    } else if (timestamp instanceof Date) {
+      fecha = timestamp;
+    } else {
+      fecha = new Date(timestamp);
+    }
+    return isNaN(fecha) ? "-" : fecha.toLocaleDateString("es-ES");
+  };
+
   // Cargar usuarios, pasajeros, trabajadores y flotas
   useEffect(() => {
     loadUsers();
@@ -649,6 +665,9 @@ const GestionUsuarios = () => {
                     Fecha Registro
                   </TableCell>
                   <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                    Estado
+                  </TableCell>
+                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
                     Acciones
                   </TableCell>
                 </TableRow>
@@ -706,7 +725,55 @@ const GestionUsuarios = () => {
                           : "-"}
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        {trabajador.perfil?.createdAt ? new Date(trabajador.perfil.createdAt).toLocaleDateString() : "-"}
+                        {formatearFecha(trabajador.perfil?.createdAt)}
+                      </TableCell>
+                      <TableCell>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={trabajador.activo !== false}
+                              onChange={async (e) => {
+                                try {
+                                  const ref = doc(db, "trabajadores", trabajador.id);
+                                  await updateDoc(ref, {
+                                    activo: e.target.checked,
+                                  });
+                                  // Refrescar trabajadores
+                                  loadTrabajadores();
+                                } catch (err) {
+                                  console.error("Error al actualizar estado:", err);
+                                  setSnackbar({
+                                    open: true,
+                                    message: "Error al actualizar estado",
+                                    severity: "error"
+                                  });
+                                }
+                              }}
+                              size="small"
+                              sx={{
+                                "& .MuiSwitch-switchBase.Mui-checked": {
+                                  color: "#4caf50",
+                                },
+                                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                                  backgroundColor: "#4caf50",
+                                },
+                              }}
+                            />
+                          }
+                          label={trabajador.activo !== false ? "Activo" : "Inactivo"}
+                          sx={{
+                            m: 0,
+                            "& .MuiFormControlLabel-label": {
+                              fontSize: "0.875rem",
+                              fontWeight: 600,
+                              color: "#fff",
+                              backgroundColor: trabajador.activo !== false ? "#4caf50" : "#9e9e9e",
+                              padding: "4px 12px",
+                              borderRadius: "16px",
+                              display: "inline-block",
+                            },
+                          }}
+                        />
                       </TableCell>
                       <TableCell>
                         <Tooltip title="Editar">

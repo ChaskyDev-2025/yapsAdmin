@@ -1,7 +1,7 @@
 // src/pages/admin/radiotaxis/hooks/useTrabajadoresPorFlota.js
 import { useEffect, useState, useCallback } from "react";
 import { db } from "../../../../data/firebase/firebase";
-import { collection, getDocs, doc, getDoc, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, query, where, onSnapshot } from "firebase/firestore";
 
 const formatearFecha = (ts) => {
   let d = null;
@@ -36,45 +36,59 @@ export function useTrabajadoresPorFlota(flotaId) {
       // Obtener trabajadores de la colección "trabajadores" que pertenecen a la flota
       const trabajadoresRef = collection(db, "trabajadores");
       const q = query(trabajadoresRef, where("flotaId", "==", flotaId));
-      const snapshot = await getDocs(q);
+      
+      // Usar onSnapshot para escuchar cambios en tiempo real
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs
+          .map((doc, idx) => {
+            const trabajador = doc.data();
+            const nombreUsuario = trabajador.perfil?.name || "Trabajador sin nombre";
+            const telefono = trabajador.telefono || "Sin teléfono";
+            const email = trabajador.perfil?.email || trabajador.email || "Sin email";
+            const fecha = formatearFecha(trabajador.perfil?.createdAt);
+            const fotoUrl = trabajador.perfil?.photoUrl || "";
 
-      const data = snapshot.docs
-        .map((doc, idx) => {
-          const trabajador = doc.data();
-          const nombreUsuario = trabajador.perfil?.name || "Trabajador sin nombre";
-          const telefono = trabajador.telefono || "Sin teléfono";
-          const email = trabajador.perfil?.email || trabajador.email || "Sin email";
-          const fecha = formatearFecha(trabajador.perfil?.createdAt);
-          const fotoUrl = trabajador.perfil?.photoUrl || "";
+            return {
+              id: doc.id,
+              nro: idx + 1,
+              firebaseId: doc.id,
+              nombreEmpresa: nombreUsuario,
+              telefono,
+              email,
+              fecha,
+              representante: email,
+              logoUrl: fotoUrl,
+              logo: fotoUrl,
+              saldo: "Bs. 0.00",
+              estado: "Trabajador",
+              activo: trabajador.activo !== false,
+            };
+          })
+          .filter(Boolean);
 
-          return {
-            id: doc.id,
-            nro: idx + 1,
-            firebaseId: doc.id,
-            nombreEmpresa: nombreUsuario, // Usar el nombre del trabajador en esta columna
-            telefono,
-            email,
-            fecha,
-            representante: email,
-            logoUrl: fotoUrl,
-            logo: fotoUrl,
-            saldo: "Bs. 0.00",
-            estado: "Trabajador",
-          };
-        })
-        .filter(Boolean);
+        setRows(data);
+        setCargando(false);
+      }, (err) => {
+        console.error("Error al obtener trabajadores:", err);
+        setError(err?.message || "Error cargando trabajadores");
+        setCargando(false);
+      });
 
-      setRows(data);
+      return unsubscribe;
     } catch (err) {
       console.error("Error al obtener trabajadores:", err);
       setError(err?.message || "Error cargando trabajadores");
-    } finally {
       setCargando(false);
     }
   }, [flotaId]);
 
   useEffect(() => {
-    fetchTrabajadores();
+    const unsubscribe = fetchTrabajadores();
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }, [fetchTrabajadores]);
 
   return { rows, cargando, error, refetch: fetchTrabajadores };
