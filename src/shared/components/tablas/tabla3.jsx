@@ -233,7 +233,7 @@ import { Typography, Paper, Stack, Box } from "@mui/material";
     {
       label: "Exportar",
       icon: <Icons.Download />,
-      onClick: () => console.log("Exportar"),
+      onClick: () => {},
     },
   ]}
 />

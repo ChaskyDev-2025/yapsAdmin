@@ -13,7 +13,6 @@ const renderAcciones = (params, handleEdit, handleDelete, handleView) => {
 
   const handleClick = (e, accion) => {
     e.stopPropagation();
-    console.log(`${accion} → ID: ${row.id}`);
   };
 
   return (

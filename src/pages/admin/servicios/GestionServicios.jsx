@@ -58,11 +58,23 @@ const SERVICE_CATALOG = {
   "Maquinaria y gruas": ["Motoniveladora", "Retro excavadora", "Excavadora hidraulica", "Gruas pluma", "Gruas rampa"]
 };
 
+// Configuración de campos personalizables por categoría
+const CAMPOS_POR_CATEGORIA = {
+  "Viajes": ["tarifa_base", "distancia_base", "costo_por_km", "costo_por_min", "tarifa_minima", "recargo_nocturno"],
+  "Envios": ["tarifa_base", "costo_por_km", "peso_minimo", "costo_por_kg"],
+  "Carga local": ["tarifa_base", "volumen_minimo", "costo_por_m3", "costo_por_hora"],
+  "Carga nacional": ["tarifa_base", "precio_por_km", "seguro", "costo_descarga"],
+  "Volqueta y construccion": ["tarifa_base", "hora_minima", "costo_por_hora", "costo_por_viaje"],
+  "Mudanza": ["tarifa_base", "m3_incluido", "costo_por_m3_extra", "costo_por_hora"],
+  "Maquinaria y gruas": ["tarifa_base", "hora_minima", "costo_por_hora", "costo_traslado"]
+};
+
 // --- Modal Component ---
-const ServiceModal = ({ open, onClose, service, department, onSave }) => {
+const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }) => {
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState('');
   const [serviceName, setServiceName] = useState('');
+  const [camposDinamicos, setCamposDinamicos] = useState([]);
   const [formData, setFormData] = useState({
     activo: true,
     tarifa_general: {
@@ -74,50 +86,105 @@ const ServiceModal = ({ open, onClose, service, department, onSave }) => {
       nocturno: 0,
       comision: 0
     },
+    nombre_visible: '',
+    categoria: 'transporte_pasajeros',
+    tipo_calculo: 'distancia_tiempo',
+    reglas_tarifa: {},
     tarifasAeropuerto: [],
     horasPico: []
   });
 
   useEffect(() => {
+    // Actualizar campos dinámicos cuando la categoría cambia EN MODO PRUEBA
+    if (category && modoPrueba && CAMPOS_POR_CATEGORIA[category]) {
+      const campos = CAMPOS_POR_CATEGORIA[category];
+      setCamposDinamicos(campos);
+      
+      // Inicializar reglas_tarifa con los campos de la categoría
+      const nuevasReglas = {};
+      campos.forEach(campo => {
+        nuevasReglas[campo] = '';
+      });
+      setFormData(prev => ({
+        ...prev,
+        reglas_tarifa: nuevasReglas
+      }));
+    }
+  }, [category, modoPrueba]);
+
+  useEffect(() => {
     if (service) {
       setCategory(service.categoria || '');
       setServiceName(service.servicio || '');
-      setFormData({
-        activo: service.activo !== undefined ? service.activo : true,
-        // Guardar como strings para que los inputs numéricos sean editables (evita que 0 se reemplace al escribir)
-        tarifa_general: {
-          tarifaBase: String(service.tarifa_general?.tarifaBase ?? ''),
-          distanciaBase: String(service.tarifa_general?.distanciaBase ?? ''),
-          porKm: String(service.tarifa_general?.porKm ?? ''),
-          porMin: String(service.tarifa_general?.porMin ?? ''),
-          horaPicoExtra: String(service.tarifa_general?.horaPicoExtra ?? ''),
-          nocturno: String(service.tarifa_general?.nocturno ?? ''),
-          comision: String(service.tarifa_general?.comision ?? '')
-        },
-        tarifasAeropuerto: service.tarifasAeropuerto?.tramos || [],
-        horasPico: service.horasPico?.franjas || []
-      });
+      
+      if (modoPrueba) {
+        const campos = CAMPOS_POR_CATEGORIA[service.categoria] || [];
+        setCamposDinamicos(campos);
+        
+        const reglasTarifa = {};
+        campos.forEach(campo => {
+          reglasTarifa[campo] = String(service.reglas_tarifa?.[campo] ?? '');
+        });
+        
+        setFormData({
+          activo: service.activo !== undefined ? service.activo : true,
+          nombre_visible: service.nombre_visible || service.servicio || '',
+          categoria: service.categoria || 'transporte_pasajeros',
+          tipo_calculo: service.tipo_calculo || 'distancia_tiempo',
+          reglas_tarifa: reglasTarifa,
+          tarifasAeropuerto: service.tarifasAeropuerto?.tramos || [],
+          horasPico: service.horasPico?.franjas || []
+        });
+      } else {
+        setFormData({
+          activo: service.activo !== undefined ? service.activo : true,
+          tarifa_general: {
+            tarifaBase: String(service.tarifa_general?.tarifaBase ?? ''),
+            distanciaBase: String(service.tarifa_general?.distanciaBase ?? ''),
+            porKm: String(service.tarifa_general?.porKm ?? ''),
+            porMin: String(service.tarifa_general?.porMin ?? ''),
+            horaPicoExtra: String(service.tarifa_general?.horaPicoExtra ?? ''),
+            nocturno: String(service.tarifa_general?.nocturno ?? ''),
+            comision: String(service.tarifa_general?.comision ?? '')
+          },
+          tarifasAeropuerto: service.tarifasAeropuerto?.tramos || [],
+          horasPico: service.horasPico?.franjas || []
+        });
+      }
     } else {
       // Reset for new service
       setCategory('');
       setServiceName('');
-      setFormData({
-        activo: true,
-        // Dejar campos vacíos para facilitar la edición (no forzar 0)
-        tarifa_general: { tarifaBase: '', distanciaBase: '', porKm: '', porMin: '', horaPicoExtra: '', nocturno: '', comision: '' },
-        tarifasAeropuerto: [{ desdeKm: "10", precio: "40.00" }, { desdeKm: "20", precio: "60.00" }],
-        horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }]
-      });
+      
+      if (modoPrueba) {
+        const campos = [];
+        setCamposDinamicos(campos);
+        
+        const reglasTarifa = {};
+        campos.forEach(campo => {
+          reglasTarifa[campo] = '';
+        });
+        
+        setFormData({
+          activo: true,
+          nombre_visible: '',
+          categoria: 'transporte_pasajeros',
+          tipo_calculo: 'distancia_tiempo',
+          reglas_tarifa: reglasTarifa,
+          tarifasAeropuerto: [{ desdeKm: "10", precio: "40.00" }, { desdeKm: "20", precio: "60.00" }],
+          horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }]
+        });
+      } else {
+        setFormData({
+          activo: true,
+          tarifa_general: { tarifaBase: '', distanciaBase: '', porKm: '', porMin: '', horaPicoExtra: '', nocturno: '', comision: '' },
+          tarifasAeropuerto: [{ desdeKm: "10", precio: "40.00" }, { desdeKm: "20", precio: "60.00" }],
+          horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }]
+        });
+      }
     }
-  }, [service, open]);
+  }, [service, open, modoPrueba]);
 
-  const handleTarifaChange = (field, value) => {
-    // Mantener el valor como string mientras se edita (permite campo vacío)
-    setFormData(prev => ({
-      ...prev,
-      tarifa_general: { ...prev.tarifa_general, [field]: value }
-    }));
-  };
 
   // Aeropuerto handlers
   const addAeropuerto = () => {
@@ -161,29 +228,55 @@ const ServiceModal = ({ open, onClose, service, department, onSave }) => {
     if (!category || !serviceName) return alert('Debe seleccionar una categoría y un servicio');
     setLoading(true);
     try {
-      // Convertir campos de tarifa a números antes de guardar
-      const tarifa_general_numerica = {};
-      Object.keys(formData.tarifa_general).forEach((k) => {
-        const val = formData.tarifa_general[k];
-        tarifa_general_numerica[k] = val === '' || val === null || val === undefined ? 0 : parseFloat(val) || 0;
-      });
+      let dataToSave;
+      let key;
 
-      const dataToSave = {
-        categoria: category,
-        servicio: serviceName,
-        nombre: `${category} - ${serviceName}`,
-        activo: formData.activo,
-        tarifa_general: tarifa_general_numerica,
-        Tarifas_Aeropuerto: {
-          tramos: formData.tarifasAeropuerto.map(t => ({ desdeKm: t.desdeKm, precio: parseFloat(t.precio) || 0 }))
-        },
-        Horas_pico: {
-          franjas: formData.horasPico
-        }
-      };
+      if (modoPrueba) {
+        // Estructura simplificada para tarifas prueba
+        const reglas_tarifa_numerica = {};
+        Object.keys(formData.reglas_tarifa).forEach((k) => {
+          const val = formData.reglas_tarifa[k];
+          reglas_tarifa_numerica[k] = val === '' || val === null || val === undefined ? 0 : parseFloat(val) || 0;
+        });
 
-      // Create a unique key for the map
-      const key = `${category}_${serviceName}`.replace(/[^a-zA-Z0-9]/g, '_');
+        dataToSave = {
+          activo: formData.activo,
+          nombre_visible: serviceName,
+          categoria: category,
+          tipo_calculo: formData.tipo_calculo,
+          reglas_tarifa: reglas_tarifa_numerica,
+          tarifasAeropuerto: {
+            tramos: formData.tarifasAeropuerto.map(t => ({ desdeKm: t.desdeKm, precio: parseFloat(t.precio) || 0 }))
+          },
+          horasPico: {
+            franjas: formData.horasPico
+          }
+        };
+        key = `${category}_${serviceName}`.replace(/[^a-zA-Z0-9]/g, '_') + '_prueba';
+      } else {
+        // Estructura original para tarifas normales
+        const tarifa_general_numerica = {};
+        Object.keys(formData.tarifa_general).forEach((k) => {
+          const val = formData.tarifa_general[k];
+          tarifa_general_numerica[k] = val === '' || val === null || val === undefined ? 0 : parseFloat(val) || 0;
+        });
+
+        dataToSave = {
+          categoria: category,
+          servicio: serviceName,
+          nombre: `${category} - ${serviceName}`,
+          activo: formData.activo,
+          tarifa_general: tarifa_general_numerica,
+          Tarifas_Aeropuerto: {
+            tramos: formData.tarifasAeropuerto.map(t => ({ desdeKm: t.desdeKm, precio: parseFloat(t.precio) || 0 }))
+          },
+          Horas_pico: {
+            franjas: formData.horasPico
+          }
+        };
+        key = `${category}_${serviceName}`.replace(/[^a-zA-Z0-9]/g, '_');
+      }
+
       await onSave(key, dataToSave);
       onClose();
     } catch (error) {
@@ -196,7 +289,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave }) => {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>{service ? 'Editar Tarifa' : 'Asignar Tarifa'}</DialogTitle>
+      <DialogTitle>{service ? `Editar Tarifa${modoPrueba ? ' Prueba' : ''}` : `Asignar Tarifa${modoPrueba ? ' Prueba' : ''}`}</DialogTitle>
       <DialogContent dividers>
         <Grid container spacing={3}>
           {/* Category & Service Selection */}
@@ -241,20 +334,55 @@ const ServiceModal = ({ open, onClose, service, department, onSave }) => {
 
           {/* Tarifas Base */}
           <Grid item xs={12}>
-            <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Tarifas Base</Typography>
+            <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
+              {modoPrueba ? 'Reglas de Tarifa (Modo Prueba)' : 'Tarifas Base'}
+            </Typography>
             <Grid container spacing={2}>
-              {Object.keys(formData.tarifa_general).map((key) => (
-                <Grid item xs={6} md={3} key={key}>
-                  <TextField
-                    label={key.replace(/([A-Z])/g, ' $1').trim()} // CamelCase to Space
-                    type="number"
-                    fullWidth
-                    size="small"
-                    value={formData.tarifa_general[key]}
-                    onChange={(e) => handleTarifaChange(key, e.target.value)}
-                  />
-                </Grid>
-              ))}
+              {modoPrueba ? (
+                camposDinamicos && camposDinamicos.length > 0 ? (
+                  camposDinamicos.map((key) => (
+                    <Grid item xs={6} md={3} key={key}>
+                      <TextField
+                        label={key.replace(/_/g, ' ').toUpperCase()}
+                        type="number"
+                        fullWidth
+                        size="small"
+                        value={formData.reglas_tarifa?.[key] ?? ''}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          reglas_tarifa: { ...prev.reglas_tarifa, [key]: e.target.value }
+                        }))}
+                        step="0.01"
+                      />
+                    </Grid>
+                  ))
+                ) : (
+                  <Grid item xs={12}>
+                    <Typography variant="body2" color="textSecondary">
+                      Selecciona una categoría para ver los campos disponibles
+                    </Typography>
+                  </Grid>
+                )
+              ) : (
+                formData.tarifa_general && Object.keys(formData.tarifa_general).map((key) => (
+                  <Grid item xs={6} md={3} key={key}>
+                    <TextField
+                      label={key.replace(/([A-Z])/g, ' $1').trim()}
+                      type="number"
+                      fullWidth
+                      size="small"
+                      value={formData.tarifa_general[key]}
+                      onChange={(e) => {
+                        const tarifa_general_numerica = {};
+                        Object.keys(formData.tarifa_general).forEach((k) => {
+                          tarifa_general_numerica[k] = k === key ? e.target.value : formData.tarifa_general[k];
+                        });
+                        setFormData(prev => ({ ...prev, tarifa_general: tarifa_general_numerica }));
+                      }}
+                    />
+                  </Grid>
+                ))
+              )}
             </Grid>
           </Grid>
 
@@ -308,6 +436,7 @@ const GestionServicios = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [currentService, setCurrentService] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [modoPrueba, setModoPrueba] = useState(false);
 
   // Load Department Statuses
   useEffect(() => {
@@ -335,7 +464,16 @@ const GestionServicios = () => {
           const loadedServices = [];
           Object.keys(data).forEach(key => {
             if (key !== 'enabled' && typeof data[key] === 'object') {
-              loadedServices.push({ id: key, ...data[key] });
+              // Filtrar según la tab seleccionada
+              const isPrueba = key.endsWith('_prueba');
+              
+              // Tab 1: Solo tarifas normales (no terminan en _prueba)
+              // Tab 2: Solo tarifas prueba (terminan en _prueba)
+              if (tabValue === 1 && !isPrueba) {
+                loadedServices.push({ id: key, ...data[key] });
+              } else if (tabValue === 2 && isPrueba) {
+                loadedServices.push({ id: key, ...data[key] });
+              }
             }
           });
           setServices(loadedServices);
@@ -346,7 +484,7 @@ const GestionServicios = () => {
       });
       return () => unsub();
     }
-  }, [selectedDept]);
+  }, [selectedDept, tabValue]);
 
   const handleToggleDept = async (dept, currentStatus) => {
     try {
@@ -384,11 +522,13 @@ const GestionServicios = () => {
 
   const handleEditService = (service) => {
     setCurrentService(service);
+    setModoPrueba(tabValue === 2);
     setModalOpen(true);
   };
 
   const handleAddService = () => {
     setCurrentService(null);
+    setModoPrueba(tabValue === 2);
     setModalOpen(true);
   };
 
@@ -402,6 +542,7 @@ const GestionServicios = () => {
         <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)} sx={{ mb: 3 }}>
           <Tab label="Departamentos" />
           <Tab label="Tarifas" />
+          <Tab label="Tarifas Prueba" />
         </Tabs>
 
         {/* Tab 0: Departamentos */}
@@ -495,6 +636,91 @@ const GestionServicios = () => {
             )}
           </Box>
         )}
+
+        {/* Tab 2: Tarifas Prueba */}
+        {tabValue === 2 && (
+          <Box>
+            <FormControl fullWidth sx={{ mb: 3 }}>
+              <InputLabel>Seleccionar Departamento</InputLabel>
+              <Select
+                value={selectedDept}
+                label="Seleccionar Departamento"
+                onChange={(e) => setSelectedDept(e.target.value)}
+              >
+                {DEPARTAMENTOS.map(dept => (
+                  <MenuItem key={dept} value={dept}>
+                    {dept} {deptStatus[dept] ? '(Habilitado)' : '(Deshabilitado)'}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {selectedDept && (
+              <>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                  <Button variant="contained" startIcon={<AddIcon />} onClick={handleAddService} sx={{ backgroundColor: '#d7171a' }}>
+                    Asignar Tarifa Prueba
+                  </Button>
+                </Box>
+
+                <TableContainer component={Paper} variant="outlined">
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                        <TableCell>Categoría</TableCell>
+                        <TableCell>Servicio</TableCell>
+                        <TableCell>Estado</TableCell>
+                        <TableCell>Tarifa Base</TableCell>
+                        <TableCell align="right">Acciones</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {services.map((srv) => (
+                        <TableRow key={srv.id}>
+                          <TableCell>{srv.categoria || '-'}</TableCell>
+                          <TableCell>{srv.nombre_visible || srv.servicio || srv.nombre || '-'}</TableCell>
+                          <TableCell>
+                            <Typography color={srv.activo ? 'green' : 'text.secondary'}>
+                              {srv.activo ? 'Activo' : 'Inactivo'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            {srv.reglas_tarifa?.tarifa_base ? `Bs. ${srv.reglas_tarifa.tarifa_base}` : 
+                             srv.tarifa_general?.tarifaBase ? `Bs. ${srv.tarifa_general.tarifaBase}` :
+                             '-'}
+                          </TableCell>
+                          <TableCell align="right">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleEditService(srv)}
+                              sx={{ color: '#d7171a' }}
+                            >
+                              <EditIcon />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDeleteService(srv.id)}
+                              sx={{ color: '#d7171a' }}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {services.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={5} align="center">
+                            <Typography color="text.secondary">No hay servicios configurados para este departamento</Typography>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
+            )}
+          </Box>
+        )}
       </Paper>
 
       <ServiceModal
@@ -503,6 +729,7 @@ const GestionServicios = () => {
         service={currentService}
         department={selectedDept}
         onSave={handleSaveService}
+        modoPrueba={modoPrueba}
       />
     </Container>
   );

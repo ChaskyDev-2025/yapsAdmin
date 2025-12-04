@@ -29,10 +29,6 @@ const Perfil = () => {
 
   const handleGuardar = () => {
     // Aquí iría la lógica real para guardar la información
-    console.log("Nombre:", nombre);
-    console.log("Correo:", correo);
-    console.log("Contraseña:", contrasena);
-    console.log("Foto:", foto);
     setGuardado(true);
     setTimeout(() => setGuardado(false), 2000);
   };

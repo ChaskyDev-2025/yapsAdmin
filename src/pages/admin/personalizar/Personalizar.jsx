@@ -7,20 +7,19 @@ import TerminosUso from "./components/TerminosUso";
 
 const Personalizar = () => {
   const handleSaveLogo = (logoFile) => {
-    console.log("Logo seleccionado:", logoFile);
     alert("Logo guardado exitosamente (simulado)");
   };
 
   const handleSaveNombre = (nombre) => {
-    console.log("Nombre de empresa guardado:", nombre);
+    // Guardado simulado
   };
 
   const handleSaveColor = (color) => {
-    console.log("Color representativo guardado:", color);
+    // Guardado simulado
   };
 
   const handleSaveTerminos = (texto) => {
-    console.log("Términos de uso guardados:", texto);
+    // Guardado simulado
   };
 
   return (

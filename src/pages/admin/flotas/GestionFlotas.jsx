@@ -254,32 +254,34 @@ const GestionFlotas = () => {
   // Asignar plantillas globales (crear-documentos) a la flota seleccionada
   const handleAssignTemplatesToFlota = async (templatesSelected) => {
     if (!selectedFlotaForDocs) return;
+    
     try {
-      // templatesSelected: array of { id, titulo }
-      const plantillas = templatesSelected.map(t => ({ id: t.id, titulo: t.titulo || t.nombre || t.id }));
+      // templatesSelected es un array de IDs (strings)
+      const documentIds = Array.isArray(templatesSelected) 
+        ? templatesSelected 
+        : [];
+
+      // Validar que no estén duplicados
+      const uniqueIds = [...new Set(documentIds)];
+      
+      if (uniqueIds.length === 0) {
+        showSnackbar('Por favor selecciona al menos un documento', 'warning');
+        return;
+      }
+
       const flotaRef = doc(db, 'flotas', selectedFlotaForDocs.id);
-      
-      // Obtener el documento actual para preservar otros campos de documentosFlota
-      const flotaSnap = await getDoc(flotaRef);
-      const currentFlotaData = flotaSnap.data() || {};
-      const currentDocumentosFlota = currentFlotaData.documentosFlota || {};
-      
-      // Actualizar con los documentos asignados
+
+      // Actualizar con los nuevos documentos (estructura nueva: flota.documentos)
       await updateDoc(flotaRef, {
-        documentosFlota: {
-          ...currentDocumentosFlota,
-          documentosAsignados: plantillas,
-        },
+        documentos: uniqueIds,
         updatedAt: serverTimestamp(),
       });
 
       setSelectedFlotaForDocs({
         ...selectedFlotaForDocs,
-        documentosFlota: {
-          ...selectedFlotaForDocs.documentosFlota,
-          documentosAsignados: plantillas,
-        }
+        documentos: uniqueIds,
       });
+      
       await fetchFlotas();
       showSnackbar('Documentos asignados correctamente', 'success');
     } catch (error) {

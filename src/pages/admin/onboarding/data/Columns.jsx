@@ -45,7 +45,7 @@ const renderAcciones = useCallback(
   (params) => {
     const row = params.row;
 
-    const handleEdit   = () => console.log("Editar",   row.id);
+    const handleEdit   = () => {};
 
     return (
       <Stack direction="row" spacing={1}>

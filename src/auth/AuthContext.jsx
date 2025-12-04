@@ -19,23 +19,13 @@ export function AuthProvider({ children }) {
       
       if (u) {
         // Obtener el rol y flotaId del usuario desde Firestore
-        console.log("🔍 AuthContext - Buscando datos del usuario:", u.uid);
         try {
           const userDoc = await getDoc(doc(db, "users", u.uid));
-          console.log("📄 AuthContext - userDoc.exists():", userDoc.exists());
           
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            console.log("📊 AuthContext - userData completa:", userData);
             setUserRole(userData.role || "admin");
             setUserFlotaId(userData.flotaId || null);
-            console.log("🔑 AuthContext - Usuario cargado:", {
-              uid: u.uid,
-              email: u.email,
-              role: userData.role,
-              flotaId: userData.flotaId,
-              flotaIdType: typeof userData.flotaId
-            });
           } else {
             console.warn("⚠️ AuthContext - Documento de usuario NO existe");
             setUserRole("admin"); // Rol por defecto

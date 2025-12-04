@@ -43,13 +43,7 @@ export const FlotaFormDialog = ({
   const [ciudadSeleccionadaServicios, setCiudadSeleccionadaServicios] = useState("");
   const [ciudadSeleccionadaDocumentos, setCiudadSeleccionadaDocumentos] = useState("");
 
-  // Debug: Verificar que los datos lleguen al componente
-  useEffect(() => {
-    console.log('📋 FlotaFormDialog - Administradores recibidos:', administradores);
-    console.log('📋 FlotaFormDialog - Servicios recibidos:', serviciosDisponibles);
-    console.log('📋 FlotaFormDialog - Documentos recibidos:', documentosPorCiudad);
-    console.log('📋 FlotaFormDialog - FormData:', formData);
-  }, [administradores, serviciosDisponibles, documentosPorCiudad, formData]);
+
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
@@ -325,6 +319,64 @@ export const FlotaFormDialog = ({
                   <Typography sx={{ mb: 1, fontFamily: "Mulish, sans-serif", fontSize: "0.9rem", color: "#666" }}>
                     Selecciona los servicios de {ciudadSeleccionadaServicios}:
                   </Typography>
+                  
+                  {/* Mostrar servicios seleccionados agrupados por ciudad ARRIBA del Select */}
+                  {formData.servicios && formData.servicios.length > 0 && (
+                    <Box sx={{ mb: 2, p: 2, bgcolor: "#f5f5f5", borderRadius: 1 }}>
+                      <Typography variant="caption" sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600, color: "#666", mb: 1, display: 'block' }}>
+                        Servicios seleccionados (haz clic en X para eliminar):
+                      </Typography>
+                      
+                      {/* Agrupar servicios por ciudad */}
+                      {["La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", "Oruro", "Potosí", "Tarija", "Pando", "Beni"].map(ciudad => {
+                        // Filtrar servicios de esta ciudad
+                        const serviciosEnCiudad = formData.servicios.filter(servicioNombre => {
+                          // Buscar el servicio en esta ciudad
+                          const servicioEncontrado = serviciosPorCiudad[ciudad]?.find(s => (s.nombre || s.name || s.id) === servicioNombre);
+                          return servicioEncontrado ? true : false;
+                        });
+                        
+                        if (serviciosEnCiudad.length === 0) return null;
+                        
+                        return (
+                          <Box key={ciudad} sx={{ mb: 1.5 }}>
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                fontFamily: "Mulish, sans-serif", 
+                                fontWeight: 700, 
+                                color: "#d7171a",
+                                display: 'block',
+                                mb: 0.5
+                              }}
+                            >
+                              📍 {ciudad}
+                            </Typography>
+                            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, pl: 1 }}>
+                              {serviciosEnCiudad.map((servicioNombre) => (
+                                <Chip
+                                  key={servicioNombre}
+                                  label={servicioNombre}
+                                  size="small"
+                                  onDelete={() => {
+                                    const nuevosServicios = formData.servicios.filter(s => s !== servicioNombre);
+                                    onFormDataChange({ ...formData, servicios: nuevosServicios });
+                                  }}
+                                  sx={{
+                                    bgcolor: "#000000",
+                                    color: "white",
+                                    fontFamily: "Mulish, sans-serif",
+                                    fontWeight: 600,
+                                  }}
+                                />
+                              ))}
+                            </Box>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  )}
+                  
                   <FormControl fullWidth size="small">
                     <InputLabel>Seleccionar Servicios de {ciudadSeleccionadaServicios}</InputLabel>
                     <Select
@@ -332,27 +384,7 @@ export const FlotaFormDialog = ({
                       value={formData.servicios}
                       onChange={(e) => onFormDataChange({ ...formData, servicios: e.target.value })}
                       input={<OutlinedInput label={`Seleccionar Servicios de ${ciudadSeleccionadaServicios}`} />}
-                      renderValue={(selected) => (
-                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                          {selected.map((servicioNombre) => (
-                            <Chip
-                              key={servicioNombre}
-                              label={servicioNombre}
-                              size="small"
-                              onDelete={() => {
-                                const nuevosServicios = formData.servicios.filter(s => s !== servicioNombre);
-                                onFormDataChange({ ...formData, servicios: nuevosServicios });
-                              }}
-                              sx={{
-                                bgcolor: "#000000",
-                                color: "white",
-                                fontFamily: "Mulish, sans-serif",
-                                fontWeight: 600,
-                              }}
-                            />
-                          ))}
-                        </Box>
-                      )}
+                      renderValue={(selected) => `${selected.length} servicio(s) seleccionado(s)`}
                       sx={{ fontFamily: "Mulish, sans-serif" }}
                     >
                       {serviciosPorCiudad[ciudadSeleccionadaServicios].map((servicio) => {
@@ -410,8 +442,83 @@ export const FlotaFormDialog = ({
               {ciudadSeleccionadaDocumentos && documentosPorCiudad[ciudadSeleccionadaDocumentos] && (
                 <Box>
                   <Typography sx={{ mb: 1, fontFamily: "Mulish, sans-serif", fontSize: "0.9rem", color: "#666" }}>
-                    Selecciona los documentos de {ciudadSeleccionadaDocumentos}:
+                    Selecciona los documentos de {ciudadSeleccionadaDocumentos}: ({documentosPorCiudad[ciudadSeleccionadaDocumentos]?.length || 0} disponibles)
                   </Typography>
+                  
+                  {/* Mostrar documentos asignados como chips independientes FUERA del Select */}
+                  {formData.documentos && formData.documentos.length > 0 && (
+                    <Box sx={{ mb: 2, p: 2, bgcolor: "#f5f5f5", borderRadius: 1 }}>
+                      <Typography variant="caption" sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600, color: "#666", mb: 1, display: 'block' }}>
+                        Documentos asignados (haz clic en X para eliminar):
+                      </Typography>
+                      
+                      {/* Agrupar documentos por ciudad */}
+                      {["La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", "Oruro", "Potosí", "Tarija", "Pando", "Beni"].map(ciudad => {
+                        // Filtrar documentos de esta ciudad
+                        const docsEnCiudad = formData.documentos.filter(docId => {
+                          // Buscar el documento para saber su ciudad
+                          for (const c in documentosPorCiudad) {
+                            const found = documentosPorCiudad[c]?.find(d => d.id === docId);
+                            if (found && c === ciudad) {
+                              return true;
+                            }
+                          }
+                          return false;
+                        });
+                        
+                        if (docsEnCiudad.length === 0) return null;
+                        
+                        return (
+                          <Box key={ciudad} sx={{ mb: 1.5 }}>
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                fontFamily: "Mulish, sans-serif", 
+                                fontWeight: 700, 
+                                color: "#d7171a",
+                                display: 'block',
+                                mb: 0.5
+                              }}
+                            >
+                              📍 {ciudad}
+                            </Typography>
+                            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, pl: 1 }}>
+                              {docsEnCiudad.map((docId) => {
+                                // Buscar el documento en TODAS las ciudades
+                                let doc = null;
+                                for (const c in documentosPorCiudad) {
+                                  const found = documentosPorCiudad[c]?.find(d => d.id === docId);
+                                  if (found) {
+                                    doc = found;
+                                    break;
+                                  }
+                                }
+                                const label = doc?.titulo || doc?.screenTitle || docId;
+                                return (
+                                  <Chip
+                                    key={docId}
+                                    label={label}
+                                    size="small"
+                                    onDelete={() => {
+                                      const nuevosDocs = formData.documentos.filter(d => d !== docId);
+                                      onFormDataChange({ ...formData, documentos: nuevosDocs });
+                                    }}
+                                    sx={{
+                                      bgcolor: "#d7171a",
+                                      color: "white",
+                                      fontFamily: "Mulish, sans-serif",
+                                      fontWeight: 600,
+                                    }}
+                                  />
+                                );
+                              })}
+                            </Box>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  )}
+                  
                   <FormControl fullWidth size="small">
                     <InputLabel>Seleccionar Documentos de {ciudadSeleccionadaDocumentos}</InputLabel>
                     <Select
@@ -419,33 +526,18 @@ export const FlotaFormDialog = ({
                       value={formData.documentos || []}
                       onChange={(e) => onFormDataChange({ ...formData, documentos: e.target.value })}
                       input={<OutlinedInput label={`Seleccionar Documentos de ${ciudadSeleccionadaDocumentos}`} />}
-                      renderValue={(selected) => (
-                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                          {selected.map((docNombre) => (
-                            <Chip
-                              key={docNombre}
-                              label={docNombre}
-                              size="small"
-                              onDelete={() => {
-                                const nuevosDocs = (formData.documentos || []).filter(d => d !== docNombre);
-                                onFormDataChange({ ...formData, documentos: nuevosDocs });
-                              }}
-                              sx={{
-                                bgcolor: "#d7171a",
-                                color: "white",
-                                fontFamily: "Mulish, sans-serif",
-                                fontWeight: 600,
-                              }}
-                            />
-                          ))}
-                        </Box>
-                      )}
+                      renderValue={(selected) => `${selected.length} documento(s) seleccionado(s)`}
                       sx={{ fontFamily: "Mulish, sans-serif" }}
                     >
-                      {documentosPorCiudad[ciudadSeleccionadaDocumentos].map((doc) => {
+                      {documentosPorCiudad[ciudadSeleccionadaDocumentos]?.filter(doc => {
+                        // No mostrar documentos que ya están asignados EN CUALQUIER CIUDAD
+                        const yaAsignado = formData.documentos?.includes(doc.id);
+                        return !yaAsignado;
+                      }).map((doc) => {
                         const nombreDoc = doc.titulo || doc.screenTitle || doc.id;
+                        
                         return (
-                          <MenuItem key={doc.id} value={nombreDoc}>
+                          <MenuItem key={doc.id} value={doc.id}>
                             <Typography sx={{ fontFamily: "Mulish, sans-serif" }}>
                               {nombreDoc}
                             </Typography>

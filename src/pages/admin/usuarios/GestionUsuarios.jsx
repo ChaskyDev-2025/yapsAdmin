@@ -119,8 +119,6 @@ const GestionUsuarios = () => {
         id: doc.id,
         ...doc.data(),
       }));
-      console.log("Pasajeros cargados:", pasajerosList);
-      console.log("Total pasajeros:", pasajerosList.length);
       setPasajeros(pasajerosList);
     } catch (error) {
       console.error("Error al cargar pasajeros:", error);
@@ -137,8 +135,6 @@ const GestionUsuarios = () => {
         ...doc.data(),
       }));
       
-      console.log("Conductores cargados:", trabajadoresList);
-      console.log("Total conductores:", trabajadoresList.length);
       setTrabajadores(trabajadoresList);
     } catch (error) {
       console.error("Error al cargar conductores:", error);
@@ -264,10 +260,8 @@ const GestionUsuarios = () => {
   };
 
   const handleDeleteUser = async (userId) => {
-    console.log("Intentando eliminar usuario con ID:", userId); // Debug
     if (window.confirm("¿Estás seguro de eliminar este usuario?")) {
       const result = await deleteUser(userId);
-      console.log("Resultado de eliminación:", result); // Debug
       if (result.success) {
         setSuccess("Usuario eliminado correctamente");
         loadUsers();

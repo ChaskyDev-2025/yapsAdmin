@@ -10,7 +10,7 @@ import {
   Typography,
   Chip,
 } from "@mui/material";
-import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "../../../../data/firebase/firebase";
 
 function Preview({ src, alt }) {
@@ -69,6 +69,7 @@ export default function ModalDerecho({ userId, setDocActivo }) {
     }
 
     let cancel = false;
+    const CIUDADES = ["La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", "Oruro", "Potosí", "Tarija", "Pando", "Beni"];
 
     const loadDocs = async () => {
       try {
@@ -95,7 +96,26 @@ export default function ModalDerecho({ userId, setDocActivo }) {
           return;
         }
 
-        // 2. Obtener plantillas asignadas a la flota
+        // Pre-cargar documentos de todas las ciudades EN PARALELO
+        const documentosPorCiudadCache = {};
+        const promesasCiudades = CIUDADES.map(async (ciudad) => {
+          const ciudadDocId = ciudad.toLowerCase().replace(/\s+/g, '') + "_doc";
+          const docRef = doc(db, "crear-documentos", ciudadDocId);
+          
+          try {
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists() && docSnap.data().documentosPorCiudad) {
+              documentosPorCiudadCache[ciudad] = docSnap.data().documentosPorCiudad;
+            }
+          } catch (e) {
+            console.warn(`Error cargando documentos de ${ciudad}:`, e);
+          }
+        });
+
+        // Esperar a que todas las peticiones de ciudades se completen en paralelo
+        await Promise.all(promesasCiudades);
+
+        // 2. Ahora escuchar cambios en la flota con los documentos ya en caché
         const flotaRef = doc(db, "flotas", flotaId);
         const unsubscribFlota = onSnapshot(flotaRef, (flotaSnap) => {
           if (!flotaSnap.exists()) {
@@ -107,34 +127,41 @@ export default function ModalDerecho({ userId, setDocActivo }) {
           }
 
           const flota = flotaSnap.data();
-          const documentosAsignados = flota.documentosFlota?.documentosAsignados || [];
-          console.log("Documentos asignados:", documentosAsignados);
+          // Soportar ambos sistemas: nuevo (flota.documentos) y antiguo (flota.documentosFlota.documentosAsignados)
+          const documentosAsignados = flota.documentos || flota.documentosFlota?.documentosAsignados || [];
 
-          // 3. Obtener todas las plantillas disponibles
-          const plantillasRef = collection(db, "crear-documentos");
-          const unsubscribPlantillas = onSnapshot(plantillasRef, (plantillasSnapshot) => {
-            const todasLasPlantillas = plantillasSnapshot.docs.map((d) => ({
-              id: d.id,
-              ...d.data(),
-            }));
-            console.log("Todas las plantillas:", todasLasPlantillas);
+          if (!documentosAsignados || documentosAsignados.length === 0) {
+            if (!cancel) {
+              setDocs([]);
+              setCargando(false);
+            }
+            return;
+          }
+
+          try {
+            // Combinar todos los documentos del caché (ya cargados)
+            const todasLasPlantillas = [];
+            Object.values(documentosPorCiudadCache).forEach(docs => {
+              todasLasPlantillas.push(...docs);
+            });
 
             if (!cancel) {
               // Filtrar solo los documentos asignados a la flota
               const items = documentosAsignados
-                .map((plantillaItem) => {
-                  // Extraer el ID si es un objeto o si es string
-                  let plantillaId = plantillaItem;
-                  if (typeof plantillaItem === "object" && plantillaItem.id) {
-                    plantillaId = plantillaItem.id;
+                .map((documentoId) => {
+                  // Buscar en todas las plantillas del caché
+                  const plantilla = todasLasPlantillas.find((p) => 
+                    p.id === documentoId || p.firebaseId === documentoId
+                  );
+                  
+                  if (!plantilla) {
+                    console.warn(`❌ Plantilla no encontrada para ID: ${documentoId}`);
+                    return null;
                   }
-
-                  const plantilla = todasLasPlantillas.find((p) => p.id === plantillaId);
-                  if (!plantilla) return null;
-
+                  
                   return {
-                    id: plantilla.id,
-                    nombre: plantilla.titulo || plantilla.nombre || plantilla.id,
+                    id: plantilla.id || plantilla.firebaseId,
+                    nombre: plantilla.titulo || plantilla.screenTitle || plantilla.nombre || plantilla.id,
                     estado: "asignada",
                     url: "#",
                     preview: null,
@@ -143,13 +170,16 @@ export default function ModalDerecho({ userId, setDocActivo }) {
                 })
                 .filter(Boolean);
 
-              console.log("Items finales:", items);
               setDocs(items);
               setCargando(false);
             }
-          });
-
-          return () => unsubscribPlantillas();
+          } catch (error) {
+            console.error("Error procesando documentos:", error);
+            if (!cancel) {
+              setDocs([]);
+              setCargando(false);
+            }
+          }
         });
 
         return () => unsubscribFlota();

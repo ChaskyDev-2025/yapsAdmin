@@ -100,7 +100,6 @@ const Documentos = () => {
         icon={<EditIcon fontSize="small" />}
         color="primary"
         onClick={(e) => {
-          console.log("✏️ Editando:", row); // Asegurate que ves todos los datos
           e.stopPropagation(); 
           setDocSeleccionado(row);
           setOpenEdit(true);

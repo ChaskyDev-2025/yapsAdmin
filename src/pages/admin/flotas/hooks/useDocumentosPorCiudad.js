@@ -23,8 +23,8 @@ export const useDocumentosPorCiudad = () => {
       setLoading(true);
       const documentosPorDept = {};
 
-      // Iterar sobre cada ciudad
-      for (const ciudad of CIUDADES) {
+      // Cargar todas las ciudades EN PARALELO con Promise.all()
+      const promesasCiudades = CIUDADES.map(async (ciudad) => {
         try {
           const docId = getCiudadDocId(ciudad);
           const docRef = doc(db, "crear-documentos", docId);
@@ -33,20 +33,36 @@ export const useDocumentosPorCiudad = () => {
           if (docSnap.exists()) {
             const data = docSnap.data();
             // Obtener el array de documentosPorCiudad
-            const documentos = data.documentosPorCiudad || [];
-            documentosPorDept[ciudad] = documentos;
-            console.log(`📄 Documentos en ${ciudad}:`, documentos);
+            return {
+              ciudad,
+              documentos: data.documentosPorCiudad || []
+            };
           } else {
-            documentosPorDept[ciudad] = [];
+            return {
+              ciudad,
+              documentos: []
+            };
           }
         } catch (err) {
           console.error(`Error obteniendo documentos de ${ciudad}:`, err);
-          documentosPorDept[ciudad] = [];
+          return {
+            ciudad,
+            documentos: []
+          };
         }
-      }
+      });
+
+      // Esperar a que todas las promesas se resuelvan en paralelo
+      const resultados = await Promise.all(promesasCiudades);
+
+      // Construir el objeto documentosPorDept desde los resultados
+      resultados.forEach(({ ciudad, documentos }) => {
+        documentosPorDept[ciudad] = documentos;
+        console.log(`📄 Documentos en ${ciudad}:`, documentos.length);
+      });
 
       setDocumentosPorCiudad(documentosPorDept);
-      console.log('📄 Documentos por ciudad cargados:', documentosPorDept);
+      console.log('📄 Documentos por ciudad cargados (paralelo):', Object.keys(documentosPorDept).length, 'ciudades');
     } catch (error) {
       console.error("Error al obtener documentos por ciudad:", error);
     } finally {

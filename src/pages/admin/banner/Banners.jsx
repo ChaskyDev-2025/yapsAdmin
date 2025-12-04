@@ -55,7 +55,6 @@ const Banners = () => {
   }, []);
 
   const handleEdit = React.useCallback((row) => {
-    console.log("Editar banner:", row);
     // Aquí puedes agregar la lógica para editar
     alert("Funcion editar proximamente");
   }, []);

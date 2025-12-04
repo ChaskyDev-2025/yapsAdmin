@@ -40,18 +40,29 @@ export class FirebaseDocumentRepository extends DocumentRepository {
       
       // Ciudades constantes
       const CIUDADES = ["La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", "Oruro", "Potosí", "Tarija", "Pando", "Beni"];
-      const allDocs = [];
       
-      for (const ciudad of CIUDADES) {
+      // Cargar todas las ciudades EN PARALELO con Promise.all()
+      const promesasCiudades = CIUDADES.map(async (ciudad) => {
         const docId = this._getCiudadDocId(ciudad);
         const docRef = doc(db, "crear-documentos", docId);
-        const docSnap = await getDoc(docRef);
         
-        if (docSnap.exists()) {
-          const docsArray = docSnap.data().documentosPorCiudad || [];
-          allDocs.push(...docsArray);
+        try {
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            return docSnap.data().documentosPorCiudad || [];
+          }
+        } catch (error) {
+          console.warn(`⚠️ Error cargando documentos de ${ciudad}:`, error);
         }
-      }
+        
+        return [];
+      });
+      
+      // Esperar a que todas las promesas se resuelvan en paralelo
+      const resultadosCiudades = await Promise.all(promesasCiudades);
+      
+      // Combinar todos los documentos
+      const allDocs = resultadosCiudades.flat();
       
       console.log("📊 Documentos encontrados:", allDocs.length);
       

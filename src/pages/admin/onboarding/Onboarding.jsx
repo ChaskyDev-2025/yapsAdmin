@@ -13,8 +13,8 @@ const Onboarding = () => {
     (params) => {
       const row = params.row;
 
-      const handleEdit   = () => console.log("Editar",   row.id);
-      const handleDelete = () => console.log("Eliminar", row.id);
+      const handleEdit   = () => {};
+      const handleDelete = () => {};
 
       return (
         <Stack direction="row" spacing={1}>
@@ -63,8 +63,8 @@ const Onboarding = () => {
         pageSize={3}
         showButton
         buttonLabel="Agregar Onboarding"
-        onButtonClick={() => console.log("Crear banner")}
-        onRowClick={() => console.log("Row Clickeado")}
+        onButtonClick={() => {}}
+        onRowClick={() => {}}
       />
     </Paper>
   );

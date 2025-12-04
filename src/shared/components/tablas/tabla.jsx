@@ -96,8 +96,8 @@ export default Tabla1;
   pageSize={3}
   showButton
   buttonLabel="Agregar Onboarding"
-  onButtonClick={() => console.log("Crear banner")}
-  onRowClick={() => console.log("Row Clickeado")}
+  onButtonClick={() => {}}
+  onRowClick={() => {}}
 />
 */
 

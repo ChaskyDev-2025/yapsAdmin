@@ -10,12 +10,18 @@ import {
   Typography,
   Chip,
   Alert,
+  CircularProgress,
 } from "@mui/material";
 import ArticleIcon from "@mui/icons-material/Article";
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
-import { collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../../data/firebase/firebase';
+
+const CIUDADES = [
+  "La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", 
+  "Oruro", "Potosí", "Tarija", "Pando", "Beni"
+];
 
 export const DocsManagerModal = ({
   open,
@@ -26,27 +32,110 @@ export const DocsManagerModal = ({
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [selectedTemplates, setSelectedTemplates] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
 
+  // Función para cargar templates
+  const fetchTemplates = async () => {
+    try {
+      const templatesPorCiudad = {};
+      
+      // Cargar documentos de todas las ciudades EN PARALELO
+      const promesasCiudades = CIUDADES.map(async (ciudad) => {
+        const ciudadDocId = ciudad.toLowerCase().replace(/\s+/g, '') + "_doc";
+        const docRef = doc(db, "crear-documentos", ciudadDocId);
+        
+        try {
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists() && docSnap.data().documentosPorCiudad) {
+            return { ciudad, documentos: docSnap.data().documentosPorCiudad || [] };
+          }
+        } catch (e) {
+          console.warn(`Error cargando documentos de ${ciudad}:`, e);
+        }
+        return { ciudad, documentos: [] };
+      });
+      
+      // Esperar a que todas las promesas se resuelvan
+      const resultados = await Promise.all(promesasCiudades);
+      resultados.forEach(({ ciudad, documentos }) => {
+        templatesPorCiudad[ciudad] = documentos;
+      });
+      
+      setTemplates(templatesPorCiudad);
+    } catch (err) {
+      console.error('Error cargando plantillas:', err);
+    }
+  };
+
+  // Cargar templates cuando el componente monta (una sola vez)
   useEffect(() => {
-    if (!assignDialogOpen) return;
-    const fetchTemplates = async () => {
-      try {
-        const tplRef = collection(db, 'crear-documentos');
-        const snap = await getDocs(tplRef);
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        setTemplates(items);
-      } catch (err) {
-        console.error('Error cargando plantillas:', err);
-      }
-    };
     fetchTemplates();
-  }, [assignDialogOpen]);
+  }, []);
+
+  // Verificar si todos los documentos están asignados
+  useEffect(() => {
+    if (open && templates && typeof templates === 'object') {
+      const assignedCount = flota?.documentos?.length || 0;
+      // Contar total de documentos en todas las ciudades
+      let totalCount = 0;
+      for (const ciudad in templates) {
+        const docs = templates[ciudad];
+        if (Array.isArray(docs)) {
+          totalCount += docs.length;
+        }
+      }
+      
+      if (totalCount > 0) {
+        if (assignedCount === totalCount) {
+          setMessage({
+            type: 'success',
+            text: `✓ Todos los ${assignedCount} documentos disponibles están asignados`
+          });
+        } else if (assignedCount > 0) {
+          setMessage({
+            type: 'info',
+            text: `${assignedCount} de ${totalCount} documentos asignados`
+          });
+        } else {
+          setMessage(null);
+        }
+      }
+    }
+  }, [open, flota?.documentos, templates]);
 
   useEffect(() => {
-    // precargar selección si la flota ya tiene plantillas asignadas
-    const assigned = flota?.documentosFlota?.documentosAsignados || [];
-    setSelectedTemplates(assigned.map(a => ({ id: a.id, titulo: a.titulo || a.nombre || a.title || a.name })));
+    // Precargar selección si la flota ya tiene documentos asignados
+    const assigned = flota?.documentos || [];
+    setSelectedTemplates(assigned);
   }, [flota, open]);
+
+  // Función para buscar el nombre y ciudad de un documento por su ID
+  const getDocInfo = (docId) => {
+    if (!templates || typeof templates !== 'object') return { name: docId, ciudad: null };
+    
+    // Buscar en todas las ciudades
+    for (const ciudad in templates) {
+      const docs = templates[ciudad];
+      if (Array.isArray(docs)) {
+        const found = docs.find(t => t.id === docId);
+        if (found) {
+          return {
+            name: found.titulo || found.screenTitle || found.nombre || docId,
+            ciudad
+          };
+        }
+      }
+    }
+    return { name: docId, ciudad: null };
+  };
+
+  // Función para buscar el nombre de un documento por su ID
+  const getDocName = (docId) => {
+    const info = getDocInfo(docId);
+    return info.name;
+  };
+
   return (
     <>
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -61,6 +150,14 @@ export const DocsManagerModal = ({
         📂 Gestión de Documentos - {flota?.nombre}
       </DialogTitle>
       <DialogContent sx={{ mt: 2 }}>
+        {message && (
+          <Alert 
+            severity={message.type === 'success' ? 'success' : 'info'}
+            sx={{ mb: 2, fontFamily: "Mulish, sans-serif" }}
+          >
+            {message.text}
+          </Alert>
+        )}
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
           <Typography variant="h6" sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
             Plantillas de Documentos
@@ -78,27 +175,57 @@ export const DocsManagerModal = ({
               "&:hover": { borderColor: "#115293", bgcolor: "rgba(25,118,210,0.04)" },
             }}
           >
-            Asignar Plantilla
+            {(flota?.documentos?.length || 0) > 0 ? 'Agregar más documentos' : 'Asignar Plantilla'}
           </Button>
         </Box>
 
-        {(flota && flota.documentosFlota && Array.isArray(flota.documentosFlota.documentosAsignados) && flota.documentosFlota.documentosAsignados.length > 0) ? (
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {flota.documentosFlota.documentosAsignados.map((tpl, i) => (
-              <Chip 
-                key={tpl.id || i} 
-                label={tpl.titulo || tpl.nombre || tpl.name || tpl.id} 
-                color="primary"
-                onDelete={() => {
-                  const updated = flota.documentosFlota.documentosAsignados.filter(p => p.id !== tpl.id);
-                  if (onAssignTemplates) onAssignTemplates(updated);
-                }}
-              />
-            ))}
+        {(flota?.documentos && Array.isArray(flota.documentos) && flota.documentos.length > 0) ? (
+          <Box>
+            {CIUDADES.map(ciudad => {
+              const docsEnCiudad = flota.documentos.filter(docId => {
+                const info = getDocInfo(docId);
+                return info.ciudad === ciudad;
+              });
+              
+              if (docsEnCiudad.length === 0) return null;
+              
+              return (
+                <Box key={ciudad} sx={{ mb: 2 }}>
+                  <Typography 
+                    variant="subtitle2"
+                    sx={{
+                      fontFamily: "Mulish, sans-serif",
+                      fontWeight: 700,
+                      color: '#d7171a',
+                      mb: 1,
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    📍 {ciudad}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', pl: 1 }}>
+                    {docsEnCiudad.map((docId, i) => {
+                      const docName = getDocName(docId);
+                      return (
+                        <Chip 
+                          key={docId || i} 
+                          label={docName} 
+                          color="primary"
+                          onDelete={() => {
+                            const updated = flota.documentos.filter(d => d !== docId);
+                            if (onAssignTemplates) onAssignTemplates(updated);
+                          }}
+                        />
+                      );
+                    })}
+                  </Box>
+                </Box>
+              );
+            })}
           </Box>
         ) : (
           <Alert severity="info" sx={{ fontFamily: "Mulish, sans-serif" }}>
-            No hay documentos asignados. Haz clic en "Asignar Documento" para comenzar.
+            No hay documentos asignados. Haz clic en "Agregar documentos" para comenzar.
           </Alert>
         )}
       </DialogContent>
@@ -109,23 +236,76 @@ export const DocsManagerModal = ({
       </DialogActions>
     </Dialog>
 
-    {/* Dialogo para asignar plantillas globales */}
+    {/* Dialogo para asignar plantillas */}
     <Dialog open={assignDialogOpen} onClose={() => setAssignDialogOpen(false)} maxWidth="sm" fullWidth>
-      <DialogTitle>Asignar Plantillas a {flota?.nombre}</DialogTitle>
+      <DialogTitle>Asignar Documentos a {flota?.nombre}</DialogTitle>
       <DialogContent>
         <Box sx={{ mt: 1 }}>
-          {templates.length === 0 ? (
-            <Typography sx={{ fontFamily: 'Mulish, sans-serif' }}>No hay plantillas disponibles</Typography>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+              <CircularProgress />
+            </Box>
+          ) : !templates || typeof templates !== 'object' || Object.keys(templates).length === 0 ? (
+            <Typography sx={{ fontFamily: 'Mulish, sans-serif' }}>No hay documentos disponibles</Typography>
           ) : (
-            templates.map((tpl) => {
-              const isSelected = selectedTemplates.some(s => s.id === tpl.id);
+            CIUDADES.map((ciudad) => {
+              const docsEnCiudad = templates[ciudad] || [];
+              if (docsEnCiudad.length === 0) return null;
+              
               return (
-                <Box key={tpl.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0.5 }}>
-                  <Typography sx={{ fontFamily: 'Mulish, sans-serif' }}>{tpl.titulo || tpl.nombre || tpl.nombrePlantilla || tpl.id}</Typography>
-                  <Button size="small" variant={isSelected ? 'contained' : 'outlined'} onClick={() => {
-                    if (isSelected) setSelectedTemplates(prev => prev.filter(p => p.id !== tpl.id));
-                    else setSelectedTemplates(prev => [...prev, { id: tpl.id, titulo: tpl.titulo || tpl.nombre || tpl.id }]);
-                  }}>{isSelected ? <><CheckIcon fontSize="small" sx={{ mr: .5 }} />Seleccionado</> : 'Seleccionar'}</Button>
+                <Box key={ciudad} sx={{ mb: 3 }}>
+                  <Typography 
+                    variant="subtitle1" 
+                    sx={{ 
+                      fontFamily: 'Mulish, sans-serif', 
+                      fontWeight: 700,
+                      color: '#d7171a',
+                      mb: 1,
+                      borderBottom: '1px solid #ddd',
+                      pb: 1
+                    }}
+                  >
+                    📍 {ciudad}
+                  </Typography>
+                  {docsEnCiudad.map((tpl) => {
+                    const isSelected = selectedTemplates.includes(tpl.id);
+                    const docName = tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id;
+                    return (
+                      <Box 
+                        key={tpl.id} 
+                        sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between', 
+                          py: 0.8,
+                          pl: 1,
+                          borderRadius: '4px',
+                          '&:hover': { bgcolor: 'rgba(215, 23, 26, 0.05)' }
+                        }}
+                      >
+                        <Typography sx={{ fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>{docName}</Typography>
+                        <Button 
+                          size="small" 
+                          variant={isSelected ? 'contained' : 'outlined'} 
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedTemplates(prev => prev.filter(id => id !== tpl.id));
+                            } else {
+                              setSelectedTemplates(prev => [...prev, tpl.id]);
+                            }
+                          }}
+                          sx={{
+                            ...(isSelected && {
+                              bgcolor: '#d7171a',
+                              '&:hover': { bgcolor: '#b01117' }
+                            })
+                          }}
+                        >
+                          {isSelected ? <><CheckIcon fontSize="small" sx={{ mr: .5 }} />Seleccionado</> : 'Seleccionar'}
+                        </Button>
+                      </Box>
+                    );
+                  })}
                 </Box>
               );
             })
@@ -134,13 +314,20 @@ export const DocsManagerModal = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={() => setAssignDialogOpen(false)} startIcon={<CloseIcon />}>Cancelar</Button>
-        <Button onClick={() => {
-          // Pasar las plantillas seleccionadas al padre
-          if (onAssignTemplates) onAssignTemplates(selectedTemplates);
-          setAssignDialogOpen(false);
-        }} variant="contained">Asignar</Button>
+        <Button 
+          onClick={() => {
+            // Pasar los IDs de documentos seleccionados al padre
+            if (onAssignTemplates) onAssignTemplates(selectedTemplates);
+            setAssignDialogOpen(false);
+          }} 
+          variant="contained"
+        >
+          Asignar
+        </Button>
       </DialogActions>
     </Dialog>
     </>
   );
 };
+
+export default DocsManagerModal;
