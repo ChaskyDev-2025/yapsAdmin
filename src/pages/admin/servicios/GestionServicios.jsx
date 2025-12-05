@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -436,55 +436,66 @@ const GestionServicios = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [currentService, setCurrentService] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [modoPrueba, setModoPrueba] = useState(false);
 
-  // Load Department Statuses
+  // Load Department Statuses - Solo cargar cuando sea necesario
   useEffect(() => {
-    const unsubscribes = [];
-    DEPARTAMENTOS.forEach(dept => {
-      const unsub = onSnapshot(doc(db, 'Tarifas', dept), (docSnap) => {
-        if (docSnap.exists()) {
-          setDeptStatus(prev => ({ ...prev, [dept]: docSnap.data().enabled }));
-        } else {
-          setDeptStatus(prev => ({ ...prev, [dept]: false }));
-        }
+    if (tabValue === 0) {
+      const unsubscribes = [];
+      DEPARTAMENTOS.forEach(dept => {
+        const unsub = onSnapshot(doc(db, 'Tarifas', dept), (docSnap) => {
+          if (docSnap.exists()) {
+            setDeptStatus(prev => ({ ...prev, [dept]: docSnap.data().enabled }));
+          } else {
+            setDeptStatus(prev => ({ ...prev, [dept]: false }));
+          }
+        });
+        unsubscribes.push(unsub);
       });
-      unsubscribes.push(unsub);
-    });
-    return () => unsubscribes.forEach(u => u());
-  }, []);
-
-  // Load Services for Selected Dept
-  useEffect(() => {
-    if (selectedDept) {
-      setLoading(true);
-      const unsub = onSnapshot(doc(db, 'Tarifas', selectedDept), (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const loadedServices = [];
-          Object.keys(data).forEach(key => {
-            if (key !== 'enabled' && typeof data[key] === 'object') {
-              // Filtrar según la tab seleccionada
-              const isPrueba = key.endsWith('_prueba');
-              
-              // Tab 1: Solo tarifas normales (no terminan en _prueba)
-              // Tab 2: Solo tarifas prueba (terminan en _prueba)
-              if (tabValue === 1 && !isPrueba) {
-                loadedServices.push({ id: key, ...data[key] });
-              } else if (tabValue === 2 && isPrueba) {
-                loadedServices.push({ id: key, ...data[key] });
-              }
-            }
-          });
-          setServices(loadedServices);
-        } else {
-          setServices([]);
-        }
-        setLoading(false);
-      });
-      return () => unsub();
+      return () => unsubscribes.forEach(u => u());
     }
-  }, [selectedDept, tabValue]);
+  }, [tabValue]);
+
+  // Load Services for Selected Dept - Con filtrado optimizado
+  useEffect(() => {
+    if (!selectedDept) {
+      setServices([]);
+      return;
+    }
+
+    setLoading(true);
+    let isMounted = true;
+
+    const unsub = onSnapshot(doc(db, 'Tarifas', selectedDept), (docSnap) => {
+      if (!isMounted) return;
+
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const loadedServices = [];
+        
+        // Cargar solo servicios normales, sin tarifas de prueba
+        Object.entries(data).forEach(([key, value]) => {
+          if (key !== 'enabled' && typeof value === 'object' && value !== null && !key.endsWith('_prueba')) {
+            loadedServices.push({ id: key, ...value });
+          }
+        });
+        
+        if (isMounted) {
+          setServices(loadedServices);
+          setLoading(false);
+        }
+      } else {
+        if (isMounted) {
+          setServices([]);
+          setLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsub();
+    };
+  }, [selectedDept]);
 
   const handleToggleDept = async (dept, currentStatus) => {
     try {
@@ -522,15 +533,75 @@ const GestionServicios = () => {
 
   const handleEditService = (service) => {
     setCurrentService(service);
-    setModoPrueba(tabValue === 2);
     setModalOpen(true);
   };
 
   const handleAddService = () => {
     setCurrentService(null);
-    setModoPrueba(tabValue === 2);
     setModalOpen(true);
   };
+
+  // Memoizar opciones de departamentos para evitar re-renders innecesarios
+  const deptOptions = useMemo(() => 
+    DEPARTAMENTOS.map(dept => ({
+      value: dept,
+      label: `${dept} ${deptStatus[dept] ? '(Habilitado)' : '(Deshabilitado)'}`,
+      enabled: !!deptStatus[dept]
+    })),
+    [deptStatus]
+  );
+
+  // Memoizar manejadores con callbacks
+  const memoizedHandleEditService = useCallback((service) => {
+    setCurrentService(service);
+    setModalOpen(true);
+  }, []);
+
+  const memoizedHandleDeleteService = useCallback((serviceId) => {
+    if (!window.confirm('¿Eliminar este servicio?')) return;
+    if (selectedDept) {
+      updateDoc(doc(db, 'Tarifas', selectedDept), {
+        [serviceId]: deleteField()
+      }).catch(err => console.error("Error deleting service:", err));
+    }
+  }, [selectedDept]);
+
+  // Memoizar renderizado de tabla
+  const tableRows = useMemo(() => 
+    services.map((srv) => (
+      <TableRow key={srv.id}>
+        <TableCell>{srv.categoria || '-'}</TableCell>
+        <TableCell>{srv.servicio || srv.nombre_visible || srv.nombre || '-'}</TableCell>
+        <TableCell>
+          <Typography color={srv.activo ? 'green' : 'text.secondary'}>
+            {srv.activo ? 'Activo' : 'Inactivo'}
+          </Typography>
+        </TableCell>
+        <TableCell>
+          {srv.reglas_tarifa?.tarifa_base ? `Bs. ${srv.reglas_tarifa.tarifa_base}` : 
+           srv.tarifa_general?.tarifaBase ? `Bs. ${srv.tarifa_general.tarifaBase}` :
+           '-'}
+        </TableCell>
+        <TableCell align="right">
+          <IconButton
+            size="small"
+            onClick={() => memoizedHandleEditService(srv)}
+            sx={{ color: '#d7171a' }}
+          >
+            <EditIcon />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={() => memoizedHandleDeleteService(srv.id)}
+            sx={{ color: '#d7171a' }}
+          >
+            <DeleteIcon />
+          </IconButton>
+        </TableCell>
+      </TableRow>
+    )),
+    [services, memoizedHandleEditService, memoizedHandleDeleteService]
+  );
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -542,7 +613,6 @@ const GestionServicios = () => {
         <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)} sx={{ mb: 3 }}>
           <Tab label="Departamentos" />
           <Tab label="Tarifas" />
-          <Tab label="Tarifas Prueba" />
         </Tabs>
 
         {/* Tab 0: Departamentos */}
@@ -580,9 +650,9 @@ const GestionServicios = () => {
                 label="Seleccionar Departamento"
                 onChange={(e) => setSelectedDept(e.target.value)}
               >
-                {DEPARTAMENTOS.map(dept => (
-                  <MenuItem key={dept} value={dept}>
-                    {dept} {deptStatus[dept] ? '(Habilitado)' : '(Deshabilitado)'}
+                {deptOptions.map(opt => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
                   </MenuItem>
                 ))}
               </Select>
@@ -608,110 +678,10 @@ const GestionServicios = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {services.map((srv) => (
-                        <TableRow key={srv.id}>
-                          <TableCell>{srv.categoria || '-'}</TableCell>
-                          <TableCell>{srv.servicio || srv.nombre}</TableCell>
-                          <TableCell>
-                            <Typography color={srv.activo ? 'green' : 'text.secondary'}>
-                              {srv.activo ? 'Activo' : 'Inactivo'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>Bs. {srv.tarifa_general?.tarifaBase}</TableCell>
-                          <TableCell align="right">
-                            <IconButton onClick={() => handleEditService(srv)} color="primary"><EditIcon /></IconButton>
-                            <IconButton onClick={() => handleDeleteService(srv.id)} color="error"><DeleteIcon /></IconButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {tableRows}
                       {services.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={5} align="center">No hay servicios registrados en este departamento.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </>
-            )}
-          </Box>
-        )}
-
-        {/* Tab 2: Tarifas Prueba */}
-        {tabValue === 2 && (
-          <Box>
-            <FormControl fullWidth sx={{ mb: 3 }}>
-              <InputLabel>Seleccionar Departamento</InputLabel>
-              <Select
-                value={selectedDept}
-                label="Seleccionar Departamento"
-                onChange={(e) => setSelectedDept(e.target.value)}
-              >
-                {DEPARTAMENTOS.map(dept => (
-                  <MenuItem key={dept} value={dept}>
-                    {dept} {deptStatus[dept] ? '(Habilitado)' : '(Deshabilitado)'}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            {selectedDept && (
-              <>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                  <Button variant="contained" startIcon={<AddIcon />} onClick={handleAddService} sx={{ backgroundColor: '#d7171a' }}>
-                    Asignar Tarifa Prueba
-                  </Button>
-                </Box>
-
-                <TableContainer component={Paper} variant="outlined">
-                  <Table>
-                    <TableHead>
-                      <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                        <TableCell>Categoría</TableCell>
-                        <TableCell>Servicio</TableCell>
-                        <TableCell>Estado</TableCell>
-                        <TableCell>Tarifa Base</TableCell>
-                        <TableCell align="right">Acciones</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {services.map((srv) => (
-                        <TableRow key={srv.id}>
-                          <TableCell>{srv.categoria || '-'}</TableCell>
-                          <TableCell>{srv.nombre_visible || srv.servicio || srv.nombre || '-'}</TableCell>
-                          <TableCell>
-                            <Typography color={srv.activo ? 'green' : 'text.secondary'}>
-                              {srv.activo ? 'Activo' : 'Inactivo'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            {srv.reglas_tarifa?.tarifa_base ? `Bs. ${srv.reglas_tarifa.tarifa_base}` : 
-                             srv.tarifa_general?.tarifaBase ? `Bs. ${srv.tarifa_general.tarifaBase}` :
-                             '-'}
-                          </TableCell>
-                          <TableCell align="right">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleEditService(srv)}
-                              sx={{ color: '#d7171a' }}
-                            >
-                              <EditIcon />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleDeleteService(srv.id)}
-                              sx={{ color: '#d7171a' }}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {services.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={5} align="center">
-                            <Typography color="text.secondary">No hay servicios configurados para este departamento</Typography>
-                          </TableCell>
                         </TableRow>
                       )}
                     </TableBody>
@@ -729,7 +699,7 @@ const GestionServicios = () => {
         service={currentService}
         department={selectedDept}
         onSave={handleSaveService}
-        modoPrueba={modoPrueba}
+        modoPrueba={false}
       />
     </Container>
   );

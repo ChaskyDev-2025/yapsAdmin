@@ -1,5 +1,5 @@
 // src/pages/admin/flotas/hooks/useServicios.js
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "../../../../data/firebase/firebase";
 
@@ -8,10 +8,21 @@ const DEPARTAMENTOS = [
   "Oruro", "Potosí", "Tarija", "Pando", "Beni"
 ];
 
+// Cache global para evitar múltiples cargas
+const serviciosCache = { data: null, timestamp: null };
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
 export const useServicios = () => {
   const [serviciosDisponibles, setServiciosDisponibles] = useState([]);
   const [serviciosPorCiudad, setServiciosPorCiudad] = useState({});
   const [loading, setLoading] = useState(true);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const fetchServicios = async () => {
     try {
@@ -25,55 +36,82 @@ export const useServicios = () => {
         ...doc.data(),
       }));
       
-      setServiciosDisponibles(serviciosList);
-      console.log('🚗 Servicios cargados (legacy):', serviciosList);
+      if (isMountedRef.current) {
+        setServiciosDisponibles(serviciosList);
+      }
     } catch (error) {
       console.error("Error al obtener servicios:", error);
-      throw error;
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
-  // Nueva función para obtener servicios por departamento
+  // Nueva función para obtener servicios por departamento - OPTIMIZADA
   const fetchServiciosPorCiudad = async () => {
     try {
       setLoading(true);
-      const serviciosPorDept = {};
 
-      // Iterar sobre cada departamento
-      for (const dept of DEPARTAMENTOS) {
-        try {
-          const deptRef = doc(db, "Tarifas", dept);
-          const deptSnap = await getDoc(deptRef);
-
-          if (deptSnap.exists()) {
-            const data = deptSnap.data();
-            // Filtrar solo los servicios (excluir "enabled" field)
-            const servicios = Object.entries(data)
-              .filter(([key]) => key !== "enabled")
-              .map(([key, value]) => ({
-                id: key,
-                nombre: key,
-                ...value,
-              }));
-            serviciosPorDept[dept] = servicios;
-            console.log(`🏙️ Servicios en ${dept}:`, servicios);
-          } else {
-            serviciosPorDept[dept] = [];
-          }
-        } catch (err) {
-          console.error(`Error obteniendo servicios de ${dept}:`, err);
-          serviciosPorDept[dept] = [];
+      // Verificar caché
+      const now = Date.now();
+      if (serviciosCache.data && serviciosCache.timestamp && 
+          (now - serviciosCache.timestamp) < CACHE_DURATION) {
+        if (isMountedRef.current) {
+          setServiciosPorCiudad(serviciosCache.data);
+          setLoading(false);
         }
+        return;
       }
 
-      setServiciosPorCiudad(serviciosPorDept);
-      console.log('🏙️ Servicios por ciudad cargados:', serviciosPorDept);
+      // Cargar todos en PARALELO, no secuencial
+      const promises = DEPARTAMENTOS.map(dept =>
+        getDoc(doc(db, "Tarifas", dept))
+          .then(deptSnap => {
+            if (deptSnap.exists()) {
+              const data = deptSnap.data();
+              // Filtrar solo los servicios (excluir "enabled" field)
+              const servicios = Object.entries(data)
+                .filter(([key]) => key !== "enabled" && typeof data[key] === 'object')
+                .map(([key, value]) => ({
+                  id: key,
+                  nombre: key,
+                  nombre_visible: value.nombre_visible || value.servicio || key,
+                  ...value,
+                }));
+              return { dept, servicios };
+            } else {
+              return { dept, servicios: [] };
+            }
+          })
+          .catch(err => {
+            console.error(`Error obteniendo servicios de ${dept}:`, err);
+            return { dept, servicios: [] };
+          })
+      );
+
+      // Esperar a que todas las promesas se resuelvan
+      const resultados = await Promise.all(promises);
+      
+      // Construir objeto de servicios por ciudad
+      const serviciosPorDept = {};
+      resultados.forEach(({ dept, servicios }) => {
+        serviciosPorDept[dept] = servicios;
+      });
+
+      // Guardar en caché
+      serviciosCache.data = serviciosPorDept;
+      serviciosCache.timestamp = Date.now();
+
+      if (isMountedRef.current) {
+        setServiciosPorCiudad(serviciosPorDept);
+      }
     } catch (error) {
       console.error("Error al obtener servicios por ciudad:", error);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 

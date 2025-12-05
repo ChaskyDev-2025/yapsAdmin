@@ -1,8 +1,8 @@
 // src/pages/admin/flotas/GestionFlotasRefactored.jsx
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Box, Paper, Typography, Button, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import { updateDoc, doc, serverTimestamp, getDoc } from "firebase/firestore";
+import { updateDoc, doc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, auth, storage } from "../../../data/firebase/firebase";
 
@@ -16,6 +16,7 @@ import { useDocumentosPorCiudad } from "./hooks/useDocumentosPorCiudad";
 import { FlotasTable } from "./components/FlotasTable";
 import { FlotaFormDialog } from "./components/FlotaFormDialog";
 import { DocsManagerModal } from "./components/DocsManagerModal";
+import { TableToolbar } from "../usuarios/components/TableToolbar";
 
 const GestionFlotas = () => {
   // Hooks personalizados
@@ -33,6 +34,24 @@ const GestionFlotas = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [openDocsManagerModal, setOpenDocsManagerModal] = useState(false);
   const [selectedFlotaForDocs, setSelectedFlotaForDocs] = useState(null);
+  
+  // Estados para búsqueda y ordenamiento
+  const [searchFlotas, setSearchFlotas] = useState("");
+  const [sortByFlotas, setSortByFlotas] = useState("nombre-asc");
+  const [filterEstadoFlotas, setFilterEstadoFlotas] = useState("todos");
+  
+  // Estados para columnas visibles
+  const [visibleColumnsFlotas, setVisibleColumnsFlotas] = useState({
+    logo: true,
+    nombre: true,
+    nit: true,
+    representante: true,
+    propietarios: true,
+    estado: true,
+    fecha: true,
+    documentos: true,
+    acciones: true,
+  });
 
   const [formData, setFormData] = useState({
     nombre: "",
@@ -54,6 +73,51 @@ const GestionFlotas = () => {
   const showSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
   };
+
+  // Filtrado y ordenamiento de flotas
+  const flotasFiltradas = useMemo(() => {
+    let filtered = flotas;
+    
+    // Filtro por búsqueda
+    if (searchFlotas) {
+      const search = searchFlotas.toLowerCase();
+      filtered = filtered.filter(f =>
+        (f.nombre || "").toLowerCase().includes(search) ||
+        (f.documentosFlota?.nit || "").toLowerCase().includes(search) ||
+        (f.perfilFlota?.representanteLegal || "").toLowerCase().includes(search)
+      );
+    }
+    
+    // Filtro por estado
+    if (filterEstadoFlotas !== "todos") {
+      filtered = filtered.filter(f => {
+        if (filterEstadoFlotas === "habilitadas") return f.habilitado !== false;
+        if (filterEstadoFlotas === "deshabilitadas") return f.habilitado === false;
+        return true;
+      });
+    }
+    
+    // Ordenamiento
+    const sorted = [...filtered];
+    switch (sortByFlotas) {
+      case "nombre-asc":
+        sorted.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+        break;
+      case "nombre-desc":
+        sorted.sort((a, b) => (b.nombre || "").localeCompare(a.nombre || ""));
+        break;
+      case "nit-asc":
+        sorted.sort((a, b) => (a.documentosFlota?.nit || "").localeCompare(b.documentosFlota?.nit || ""));
+        break;
+      case "nit-desc":
+        sorted.sort((a, b) => (b.documentosFlota?.nit || "").localeCompare(a.documentosFlota?.nit || ""));
+        break;
+      default:
+        break;
+    }
+    
+    return sorted;
+  }, [flotas, searchFlotas, filterEstadoFlotas, sortByFlotas]);
 
   // Funciones de manejo de formulario
   const handleOpenDialog = (flota = null) => {
@@ -312,13 +376,45 @@ const GestionFlotas = () => {
           </Button>
         </Box>
 
+        {/* Toolbar para Flotas */}
+        <TableToolbar
+          searchValue={searchFlotas}
+          onSearchChange={setSearchFlotas}
+          sortOptions={[
+            { label: "↑ Sort by Nombre (ASC)", value: "nombre-asc" },
+            { label: "↓ Sort by Nombre (DESC)", value: "nombre-desc" },
+            { label: "↑ Sort by NIT (ASC)", value: "nit-asc" },
+            { label: "↓ Sort by NIT (DESC)", value: "nit-desc" },
+          ]}
+          sortValue={sortByFlotas}
+          onSortChange={setSortByFlotas}
+          filterOptions={[
+            {
+              name: "estado",
+              label: "Estado",
+              defaultValue: "todos",
+              options: [
+                { label: "Todas", value: "todos" },
+                { label: "Habilitadas", value: "habilitadas" },
+                { label: "Deshabilitadas", value: "deshabilitadas" },
+              ],
+            },
+          ]}
+          filterValue={{ estado: filterEstadoFlotas }}
+          onFilterChange={(name, value) => setFilterEstadoFlotas(value)}
+          visibleColumns={visibleColumnsFlotas}
+          onColumnChange={(col, visible) => setVisibleColumnsFlotas(prev => ({ ...prev, [col]: visible }))}
+          showClearButton={true}
+        />
+
         <FlotasTable
-          flotas={flotas}
+          flotas={flotasFiltradas}
           administradores={administradores}
           onEdit={handleOpenDialog}
           onDelete={handleDelete}
           onToggleHabilitado={toggleHabilitado}
           onManageDocs={handleOpenDocsManager}
+          visibleColumns={visibleColumnsFlotas}
         />
       </Paper>
 

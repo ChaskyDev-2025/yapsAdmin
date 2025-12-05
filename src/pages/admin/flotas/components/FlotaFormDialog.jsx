@@ -1,5 +1,5 @@
 // src/pages/admin/flotas/components/FlotaFormDialog.jsx
-import React, { useEffect, useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -20,6 +20,7 @@ import {
   Switch,
   Tabs,
   Tab,
+  Paper,
 } from "@mui/material";
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
 
@@ -43,36 +44,56 @@ export const FlotaFormDialog = ({
   const [ciudadSeleccionadaServicios, setCiudadSeleccionadaServicios] = useState("");
   const [ciudadSeleccionadaDocumentos, setCiudadSeleccionadaDocumentos] = useState("");
 
+  const ciudadesServicios = useMemo(() => 
+    Object.keys(serviciosPorCiudad || {}),
+    [serviciosPorCiudad]
+  );
 
+  const ciudadesDocumentos = useMemo(() => 
+    Object.keys(documentosPorCiudad || {}),
+    [documentosPorCiudad]
+  );
+
+  const tabsServicios = useMemo(() =>
+    ciudadesServicios.map(ciudad => (
+      <Tab key={ciudad} label={`📍 ${ciudad}`} value={ciudad} />
+    )),
+    [ciudadesServicios]
+  );
+
+  const tabsDocumentos = useMemo(() =>
+    ciudadesDocumentos.map(ciudad => (
+      <Tab key={ciudad} label={`📍 ${ciudad}`} value={ciudad} />
+    )),
+    [ciudadesDocumentos]
+  );
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle
         sx={{
           backgroundColor: "#d7171a",
           color: "white",
           fontFamily: "Mulish, sans-serif",
           fontWeight: 900,
-          fontSize: "1.5rem",
+          fontSize: "1.3rem",
+          p: 2.5,
         }}
       >
-        {editMode ? "Editar Flota" : "Crear Nueva Flota"}
+        {editMode ? "✏️ Editar Flota" : "➕ Crear Nueva Flota"}
       </DialogTitle>
 
-      <DialogContent sx={{ mt: 2 }}>
-        <Stack spacing={3}>
-          {/* Imagen de la Flota */}
-          <Box>
+      <DialogContent sx={{ p: 3, bgcolor: "#fafafa" }}>
+        <Stack spacing={3.5}>
+          {/* SECCIÓN 1: LOGO */}
+          <Paper sx={{ p: 2.5, bgcolor: "white", borderRadius: 2 }}>
             <Typography
-              variant="subtitle1"
               sx={{
                 fontFamily: "Mulish, sans-serif",
                 fontWeight: 800,
                 color: "#d7171a",
                 mb: 2,
-                fontSize: "1.1rem",
-                borderBottom: "2px solid #d7171a",
-                pb: 1,
+                fontSize: "1rem",
               }}
             >
               🖼️ Logo de la Flota
@@ -109,128 +130,109 @@ export const FlotaFormDialog = ({
                   src={imagePreview}
                   alt="Preview"
                   sx={{
-                    width: 150,
-                    height: 150,
+                    width: 100,
+                    height: 100,
                     objectFit: "cover",
-                    borderRadius: 2,
-                    border: "2px solid #d7171a",
+                    borderRadius: 1.5,
+                    border: "3px solid #d7171a",
                   }}
                 />
               )}
             </Box>
-          </Box>
+          </Paper>
 
-          {/* Perfil de la Flota */}
-          <Box>
+          {/* SECCIÓN 2: INFORMACIÓN BÁSICA */}
+          <Paper sx={{ p: 2.5, bgcolor: "white", borderRadius: 2 }}>
             <Typography
-              variant="subtitle1"
               sx={{
                 fontFamily: "Mulish, sans-serif",
                 fontWeight: 800,
                 color: "#d7171a",
                 mb: 2,
-                fontSize: "1.1rem",
-                borderBottom: "2px solid #d7171a",
-                pb: 1,
+                fontSize: "1rem",
               }}
             >
-              📋 Perfil de la Flota
+              📋 Información de la Flota
             </Typography>
-          </Box>
+            <Stack spacing={1.5}>
+              <TextField
+                fullWidth
+                label="Nombre de la Flota"
+                name="nombre"
+                value={formData.nombre}
+                onChange={onInputChange}
+                required
+                size="small"
+              />
+              <TextField
+                fullWidth
+                label="Representante Legal"
+                name="representanteLegal"
+                value={formData.representanteLegal}
+                onChange={onInputChange}
+                size="small"
+              />
+              <TextField
+                fullWidth
+                label="Teléfono"
+                name="telefono"
+                value={formData.telefono}
+                onChange={onInputChange}
+                size="small"
+              />
+            </Stack>
+          </Paper>
 
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
-            <TextField
-              fullWidth
-              label="Nombre de la Flota"
-              name="nombre"
-              value={formData.nombre}
-              onChange={onInputChange}
-              required
-              size="small"
-              sx={{ fontFamily: "Mulish, sans-serif" }}
-            />
-            <TextField
-              fullWidth
-              label="Representante Legal"
-              name="representanteLegal"
-              value={formData.representanteLegal}
-              onChange={onInputChange}
-              size="small"
-              sx={{ fontFamily: "Mulish, sans-serif" }}
-            />
-            <TextField
-              fullWidth
-              label="Teléfono"
-              name="telefono"
-              value={formData.telefono}
-              onChange={onInputChange}
-              size="small"
-              sx={{ fontFamily: "Mulish, sans-serif" }}
-            />
-          </Box>
-
-          {/* Documentos de la Flota */}
-          <Box sx={{ mt: 2 }}>
+          {/* SECCIÓN 3: DOCUMENTOS */}
+          <Paper sx={{ p: 2.5, bgcolor: "white", borderRadius: 2 }}>
             <Typography
-              variant="subtitle1"
               sx={{
                 fontFamily: "Mulish, sans-serif",
                 fontWeight: 800,
                 color: "#d7171a",
                 mb: 2,
-                fontSize: "1.1rem",
-                borderBottom: "2px solid #d7171a",
-                pb: 1,
+                fontSize: "1rem",
               }}
             >
-              📄 Documentos
+              📄 Documentación Legal
             </Typography>
-          </Box>
+            <Stack spacing={1.5}>
+              <TextField
+                fullWidth
+                label="NIT"
+                name="nit"
+                value={formData.nit}
+                onChange={onInputChange}
+                required
+                size="small"
+                helperText="Número de Identificación Tributaria"
+              />
+              <TextField
+                fullWidth
+                label="URL Foto NIT"
+                name="fotoNit"
+                value={formData.fotoNit}
+                onChange={onInputChange}
+                placeholder="https://..."
+                size="small"
+                helperText="URL de la imagen del documento"
+              />
+            </Stack>
+          </Paper>
 
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
-            <TextField
-              fullWidth
-              label="NIT"
-              name="nit"
-              value={formData.nit}
-              onChange={onInputChange}
-              required
-              size="small"
-              sx={{ fontFamily: "Mulish, sans-serif" }}
-              helperText="Número de identificación tributaria"
-            />
-            <TextField
-              fullWidth
-              label="URL Foto NIT"
-              name="fotoNit"
-              value={formData.fotoNit}
-              onChange={onInputChange}
-              placeholder="https://..."
-              size="small"
-              sx={{ fontFamily: "Mulish, sans-serif" }}
-              helperText="URL de la imagen del documento NIT"
-            />
-          </Box>
-
-          {/* Propietarios */}
-          <Box sx={{ mt: 2 }}>
+          {/* SECCIÓN 4: PROPIETARIOS */}
+          <Paper sx={{ p: 2.5, bgcolor: "white", borderRadius: 2 }}>
             <Typography
-              variant="subtitle1"
               sx={{
                 fontFamily: "Mulish, sans-serif",
                 fontWeight: 800,
                 color: "#d7171a",
                 mb: 2,
-                fontSize: "1.1rem",
-                borderBottom: "2px solid #d7171a",
-                pb: 1,
+                fontSize: "1rem",
               }}
             >
-              👥 Propietarios (Administradores)
+              👥 Administradores
             </Typography>
-          </Box>
-
-          <Box>
             <FormControl fullWidth size="small">
               <InputLabel>Seleccionar Administradores</InputLabel>
               <Select
@@ -258,301 +260,185 @@ export const FlotaFormDialog = ({
                     })}
                   </Box>
                 )}
-                sx={{ fontFamily: "Mulish, sans-serif" }}
               >
                 {administradores.length === 0 ? (
-                  <MenuItem disabled>
-                    <Typography sx={{ fontFamily: "Mulish, sans-serif", color: "#484848" }}>
-                      Cargando administradores...
-                    </Typography>
-                  </MenuItem>
+                  <MenuItem disabled>Cargando administradores...</MenuItem>
                 ) : (
                   getAvailableAdministradores(formData.id).map((admin) => (
                     <MenuItem key={admin.uid} value={admin.uid}>
-                      <Typography sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        {admin.nombre} ({admin.email})
-                      </Typography>
+                      {admin.nombre} ({admin.email})
                     </MenuItem>
                   ))
                 )}
               </Select>
             </FormControl>
-          </Box>
+          </Paper>
 
-          {/* Servicios por Ciudad */}
-          <Box sx={{ mt: 2 }}>
-            <Typography
-              variant="subtitle1"
-              sx={{
-                fontFamily: "Mulish, sans-serif",
-                fontWeight: 800,
-                color: "#d7171a",
-                mb: 2,
-                fontSize: "1.1rem",
-                borderBottom: "2px solid #d7171a",
-                pb: 1,
-              }}
-            >
-              🚗 Servicios Disponibles por Ciudad
-            </Typography>
-          </Box>
+          {/* SECCIÓN 5: SERVICIOS */}
+          {ciudadesServicios.length > 0 && (
+            <Paper sx={{ p: 2.5, bgcolor: "white", borderRadius: 2 }}>
+              <Typography
+                sx={{
+                  fontFamily: "Mulish, sans-serif",
+                  fontWeight: 800,
+                  color: "#d7171a",
+                  mb: 2,
+                  fontSize: "1rem",
+                }}
+              >
+                🚗 Servicios
+              </Typography>
 
-          {/* Pestañas de Ciudades */}
-          {Object.keys(serviciosPorCiudad).length > 0 && (
-            <>
               <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
                 <Tabs 
-                  value={ciudadSeleccionadaServicios || (Object.keys(serviciosPorCiudad)[0] || "")}
+                  value={ciudadSeleccionadaServicios || (ciudadesServicios[0] || "")}
                   onChange={(e, newValue) => setCiudadSeleccionadaServicios(newValue)}
                   variant="scrollable"
                   scrollButtons="auto"
+                  sx={{ "& .MuiTab-root": { fontFamily: "Mulish, sans-serif", fontWeight: 600, fontSize: "0.85rem" } }}
                 >
-                  {Object.keys(serviciosPorCiudad).map((ciudad) => (
-                    <Tab key={ciudad} label={`📍 ${ciudad}`} value={ciudad} />
-                  ))}
+                  {tabsServicios}
                 </Tabs>
               </Box>
 
-              {/* Selector de Servicios para la ciudad seleccionada */}
               {ciudadSeleccionadaServicios && serviciosPorCiudad[ciudadSeleccionadaServicios] && (
-                <Box>
-                  <Typography sx={{ mb: 1, fontFamily: "Mulish, sans-serif", fontSize: "0.9rem", color: "#666" }}>
-                    Selecciona los servicios de {ciudadSeleccionadaServicios}:
-                  </Typography>
-                  
-                  {/* Mostrar servicios seleccionados agrupados por ciudad ARRIBA del Select */}
-                  {formData.servicios && formData.servicios.length > 0 && (
-                    <Box sx={{ mb: 2, p: 2, bgcolor: "#f5f5f5", borderRadius: 1 }}>
-                      <Typography variant="caption" sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600, color: "#666", mb: 1, display: 'block' }}>
-                        Servicios seleccionados (haz clic en X para eliminar):
-                      </Typography>
-                      
-                      {/* Agrupar servicios por ciudad */}
-                      {["La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", "Oruro", "Potosí", "Tarija", "Pando", "Beni"].map(ciudad => {
-                        // Filtrar servicios de esta ciudad
-                        const serviciosEnCiudad = formData.servicios.filter(servicioNombre => {
-                          // Buscar el servicio en esta ciudad
-                          const servicioEncontrado = serviciosPorCiudad[ciudad]?.find(s => (s.nombre || s.name || s.id) === servicioNombre);
-                          return servicioEncontrado ? true : false;
-                        });
-                        
-                        if (serviciosEnCiudad.length === 0) return null;
-                        
-                        return (
-                          <Box key={ciudad} sx={{ mb: 1.5 }}>
-                            <Typography 
-                              variant="caption" 
-                              sx={{ 
-                                fontFamily: "Mulish, sans-serif", 
-                                fontWeight: 700, 
-                                color: "#d7171a",
-                                display: 'block',
-                                mb: 0.5
-                              }}
-                            >
-                              📍 {ciudad}
-                            </Typography>
-                            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, pl: 1 }}>
-                              {serviciosEnCiudad.map((servicioNombre) => (
-                                <Chip
-                                  key={servicioNombre}
-                                  label={servicioNombre}
-                                  size="small"
-                                  onDelete={() => {
-                                    const nuevosServicios = formData.servicios.filter(s => s !== servicioNombre);
-                                    onFormDataChange({ ...formData, servicios: nuevosServicios });
-                                  }}
-                                  sx={{
-                                    bgcolor: "#000000",
-                                    color: "white",
-                                    fontFamily: "Mulish, sans-serif",
-                                    fontWeight: 600,
-                                  }}
-                                />
-                              ))}
-                            </Box>
-                          </Box>
-                        );
-                      })}
+                <Stack spacing={1.5}>
+                  {formData.servicios?.length > 0 && (
+                    <Box sx={{ p: 1.5, bgcolor: "#f5f5f5", borderRadius: 1, maxHeight: "120px", overflowY: "auto" }}>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                        {formData.servicios.map((servicio) => (
+                          <Chip
+                            key={servicio}
+                            label={servicio}
+                            size="small"
+                            onDelete={() => {
+                              onFormDataChange({ ...formData, servicios: formData.servicios.filter(s => s !== servicio) });
+                            }}
+                            sx={{
+                              bgcolor: "#000",
+                              color: "white",
+                              fontFamily: "Mulish, sans-serif",
+                              fontWeight: 600,
+                            }}
+                          />
+                        ))}
+                      </Box>
                     </Box>
                   )}
-                  
                   <FormControl fullWidth size="small">
-                    <InputLabel>Seleccionar Servicios de {ciudadSeleccionadaServicios}</InputLabel>
+                    <InputLabel>Seleccionar Servicios</InputLabel>
                     <Select
                       multiple
                       value={formData.servicios}
                       onChange={(e) => onFormDataChange({ ...formData, servicios: e.target.value })}
-                      input={<OutlinedInput label={`Seleccionar Servicios de ${ciudadSeleccionadaServicios}`} />}
-                      renderValue={(selected) => `${selected.length} servicio(s) seleccionado(s)`}
-                      sx={{ fontFamily: "Mulish, sans-serif" }}
+                      input={<OutlinedInput label="Seleccionar Servicios" />}
+                      renderValue={(selected) => `${selected.length} servicio(s)`}
                     >
                       {serviciosPorCiudad[ciudadSeleccionadaServicios].map((servicio) => {
                         const nombreServicio = servicio.nombre || servicio.name || servicio.id;
                         return (
                           <MenuItem key={servicio.id} value={nombreServicio}>
-                            <Typography sx={{ fontFamily: "Mulish, sans-serif" }}>
-                              {nombreServicio}
-                            </Typography>
+                            {nombreServicio}
                           </MenuItem>
                         );
                       })}
                     </Select>
                   </FormControl>
-                </Box>
+                </Stack>
               )}
-            </>
+            </Paper>
           )}
 
-          {/* Documentos por Ciudad */}
-          <Box sx={{ mt: 2 }}>
-            <Typography
-              variant="subtitle1"
-              sx={{
-                fontFamily: "Mulish, sans-serif",
-                fontWeight: 800,
-                color: "#d7171a",
-                mb: 2,
-                fontSize: "1.1rem",
-                borderBottom: "2px solid #d7171a",
-                pb: 1,
-              }}
-            >
-              📄 Documentos Disponibles por Ciudad
-            </Typography>
-          </Box>
+          {/* SECCIÓN 6: DOCUMENTOS */}
+          {ciudadesDocumentos.length > 0 && (
+            <Paper sx={{ p: 2.5, bgcolor: "white", borderRadius: 2 }}>
+              <Typography
+                sx={{
+                  fontFamily: "Mulish, sans-serif",
+                  fontWeight: 800,
+                  color: "#d7171a",
+                  mb: 2,
+                  fontSize: "1rem",
+                }}
+              >
+                📑 Documentos Requeridos
+              </Typography>
 
-          {/* Pestañas de Ciudades para Documentos */}
-          {documentosPorCiudad && Object.keys(documentosPorCiudad).length > 0 && (
-            <>
               <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
                 <Tabs 
-                  value={ciudadSeleccionadaDocumentos || (Object.keys(documentosPorCiudad)[0] || "")}
+                  value={ciudadSeleccionadaDocumentos || (ciudadesDocumentos[0] || "")}
                   onChange={(e, newValue) => setCiudadSeleccionadaDocumentos(newValue)}
                   variant="scrollable"
                   scrollButtons="auto"
+                  sx={{ "& .MuiTab-root": { fontFamily: "Mulish, sans-serif", fontWeight: 600, fontSize: "0.85rem" } }}
                 >
-                  {Object.keys(documentosPorCiudad).map((ciudad) => (
-                    <Tab key={ciudad} label={`📍 ${ciudad}`} value={ciudad} />
-                  ))}
+                  {tabsDocumentos}
                 </Tabs>
               </Box>
 
-              {/* Selector de Documentos para la ciudad seleccionada */}
               {ciudadSeleccionadaDocumentos && documentosPorCiudad[ciudadSeleccionadaDocumentos] && (
-                <Box>
-                  <Typography sx={{ mb: 1, fontFamily: "Mulish, sans-serif", fontSize: "0.9rem", color: "#666" }}>
-                    Selecciona los documentos de {ciudadSeleccionadaDocumentos}: ({documentosPorCiudad[ciudadSeleccionadaDocumentos]?.length || 0} disponibles)
-                  </Typography>
-                  
-                  {/* Mostrar documentos asignados como chips independientes FUERA del Select */}
-                  {formData.documentos && formData.documentos.length > 0 && (
-                    <Box sx={{ mb: 2, p: 2, bgcolor: "#f5f5f5", borderRadius: 1 }}>
-                      <Typography variant="caption" sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600, color: "#666", mb: 1, display: 'block' }}>
-                        Documentos asignados (haz clic en X para eliminar):
-                      </Typography>
-                      
-                      {/* Agrupar documentos por ciudad */}
-                      {["La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", "Oruro", "Potosí", "Tarija", "Pando", "Beni"].map(ciudad => {
-                        // Filtrar documentos de esta ciudad
-                        const docsEnCiudad = formData.documentos.filter(docId => {
-                          // Buscar el documento para saber su ciudad
+                <Stack spacing={1.5}>
+                  {formData.documentos?.length > 0 && (
+                    <Box sx={{ p: 1.5, bgcolor: "#f5f5f5", borderRadius: 1, maxHeight: "120px", overflowY: "auto" }}>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                        {formData.documentos.map((docId) => {
+                          let doc = null;
                           for (const c in documentosPorCiudad) {
                             const found = documentosPorCiudad[c]?.find(d => d.id === docId);
-                            if (found && c === ciudad) {
-                              return true;
+                            if (found) {
+                              doc = found;
+                              break;
                             }
                           }
-                          return false;
-                        });
-                        
-                        if (docsEnCiudad.length === 0) return null;
-                        
-                        return (
-                          <Box key={ciudad} sx={{ mb: 1.5 }}>
-                            <Typography 
-                              variant="caption" 
-                              sx={{ 
-                                fontFamily: "Mulish, sans-serif", 
-                                fontWeight: 700, 
-                                color: "#d7171a",
-                                display: 'block',
-                                mb: 0.5
+                          const label = doc?.titulo || doc?.screenTitle || docId;
+                          return (
+                            <Chip
+                              key={docId}
+                              label={label}
+                              size="small"
+                              onDelete={() => {
+                                onFormDataChange({ ...formData, documentos: formData.documentos.filter(d => d !== docId) });
                               }}
-                            >
-                              📍 {ciudad}
-                            </Typography>
-                            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, pl: 1 }}>
-                              {docsEnCiudad.map((docId) => {
-                                // Buscar el documento en TODAS las ciudades
-                                let doc = null;
-                                for (const c in documentosPorCiudad) {
-                                  const found = documentosPorCiudad[c]?.find(d => d.id === docId);
-                                  if (found) {
-                                    doc = found;
-                                    break;
-                                  }
-                                }
-                                const label = doc?.titulo || doc?.screenTitle || docId;
-                                return (
-                                  <Chip
-                                    key={docId}
-                                    label={label}
-                                    size="small"
-                                    onDelete={() => {
-                                      const nuevosDocs = formData.documentos.filter(d => d !== docId);
-                                      onFormDataChange({ ...formData, documentos: nuevosDocs });
-                                    }}
-                                    sx={{
-                                      bgcolor: "#d7171a",
-                                      color: "white",
-                                      fontFamily: "Mulish, sans-serif",
-                                      fontWeight: 600,
-                                    }}
-                                  />
-                                );
-                              })}
-                            </Box>
-                          </Box>
-                        );
-                      })}
+                              sx={{
+                                bgcolor: "#d7171a",
+                                color: "white",
+                                fontFamily: "Mulish, sans-serif",
+                                fontWeight: 600,
+                              }}
+                            />
+                          );
+                        })}
+                      </Box>
                     </Box>
                   )}
-                  
                   <FormControl fullWidth size="small">
-                    <InputLabel>Seleccionar Documentos de {ciudadSeleccionadaDocumentos}</InputLabel>
+                    <InputLabel>Seleccionar Documentos</InputLabel>
                     <Select
                       multiple
                       value={formData.documentos || []}
                       onChange={(e) => onFormDataChange({ ...formData, documentos: e.target.value })}
-                      input={<OutlinedInput label={`Seleccionar Documentos de ${ciudadSeleccionadaDocumentos}`} />}
-                      renderValue={(selected) => `${selected.length} documento(s) seleccionado(s)`}
-                      sx={{ fontFamily: "Mulish, sans-serif" }}
+                      input={<OutlinedInput label="Seleccionar Documentos" />}
+                      renderValue={(selected) => `${selected.length} documento(s)`}
                     >
                       {documentosPorCiudad[ciudadSeleccionadaDocumentos]?.filter(doc => {
-                        // No mostrar documentos que ya están asignados EN CUALQUIER CIUDAD
-                        const yaAsignado = formData.documentos?.includes(doc.id);
-                        return !yaAsignado;
+                        return !formData.documentos?.includes(doc.id);
                       }).map((doc) => {
                         const nombreDoc = doc.titulo || doc.screenTitle || doc.id;
-                        
                         return (
                           <MenuItem key={doc.id} value={doc.id}>
-                            <Typography sx={{ fontFamily: "Mulish, sans-serif" }}>
-                              {nombreDoc}
-                            </Typography>
+                            {nombreDoc}
                           </MenuItem>
                         );
                       })}
                     </Select>
                   </FormControl>
-                </Box>
+                </Stack>
               )}
-            </>
+            </Paper>
           )}
 
-          {/* Estado */}
-          <Box sx={{ mt: 2 }}>
+          {/* SECCIÓN 7: ESTADO */}
+          <Paper sx={{ p: 2.5, bgcolor: "white", borderRadius: 2 }}>
             <FormControlLabel
               control={
                 <Switch
@@ -571,24 +457,26 @@ export const FlotaFormDialog = ({
               label={
                 <Box>
                   <Typography sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>
-                    Flota Habilitada
+                    🟢 Flota Habilitada
                   </Typography>
                   <Typography variant="caption" sx={{ fontFamily: "Mulish, sans-serif", color: "#666" }}>
-                    {formData.habilitado
-                      ? "La flota puede recibir y procesar solicitudes de viaje"
-                      : "La flota no recibirá nuevas solicitudes de viaje"}
+                    {formData.habilitado ? "✓ Activa" : "✗ Inactiva"}
                   </Typography>
                 </Box>
               }
             />
-          </Box>
+          </Paper>
         </Stack>
       </DialogContent>
 
       <DialogActions sx={{ p: 2.5, bgcolor: "#f5f5f5" }}>
         <Button
           onClick={onClose}
-          sx={{ color: "#484848", fontFamily: "Mulish, sans-serif", fontWeight: 600 }}
+          sx={{
+            color: "#484848",
+            fontFamily: "Mulish, sans-serif",
+            fontWeight: 600,
+          }}
         >
           Cancelar
         </Button>
@@ -600,7 +488,7 @@ export const FlotaFormDialog = ({
             backgroundColor: "#d7171a",
             fontFamily: "Mulish, sans-serif",
             fontWeight: 700,
-            px: 4,
+            px: 3,
             "&:hover": {
               backgroundColor: "#a00000",
             },
@@ -609,7 +497,7 @@ export const FlotaFormDialog = ({
             },
           }}
         >
-          {isSaving ? "Guardando..." : editMode ? "Actualizar" : "Crear Flota"}
+          {isSaving ? "Guardando..." : editMode ? "✓ Actualizar" : "➕ Crear"}
         </Button>
       </DialogActions>
     </Dialog>

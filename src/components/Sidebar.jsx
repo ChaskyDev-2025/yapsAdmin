@@ -3,7 +3,7 @@ import { Box, Toolbar, List, ListItem, ListItemIcon, ListItemText } from "@mui/m
 import { Link, useLocation } from "react-router-dom";
 import { CardGiftcard } from "@mui/icons-material/CardGiftcard";
 
-const drawerWidthExpanded = 280;
+const drawerWidthExpanded = 230;
 const drawerWidthCollapsed = 70;
 
 const Sidebar = ({ logo, menuItems }) => {

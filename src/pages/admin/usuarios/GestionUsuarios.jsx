@@ -1,5 +1,5 @@
 // src/pages/admin/usuarios/GestionUsuarios.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -35,10 +35,13 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import PeopleIcon from "@mui/icons-material/People";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import LocalTaxiIcon from "@mui/icons-material/LocalTaxi";
+import HistoryIcon from "@mui/icons-material/History";
 import { useAuth } from "../../../auth/AuthContext";
 import { getAllUsers, createAdminUser, updateUser, deleteUser, isSuperAdmin } from "../../../services/userService";
 import { collection, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
+import { TableToolbar } from "./components/TableToolbar";
+import { HistorialViajesModal } from "./components/HistorialViajesModal";
 
 const GestionUsuarios = () => {
   const { userRole, user } = useAuth();
@@ -47,6 +50,8 @@ const GestionUsuarios = () => {
   const [pasajeros, setPasajeros] = useState([]);
   const [trabajadores, setTrabajadores] = useState([]);
   const [flotas, setFlotas] = useState([]);
+  const [historialModalOpen, setHistorialModalOpen] = useState(false);
+  const [pasajeroSeleccionado, setPasajeroSeleccionado] = useState(null);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -56,6 +61,50 @@ const GestionUsuarios = () => {
     open: false,
     message: "",
     severity: "success"
+  });
+  
+  // Estados para búsqueda y filtros
+  const [searchAdmin, setSearchAdmin] = useState("");
+  const [searchPasajeros, setSearchPasajeros] = useState("");
+  const [searchConductores, setSearchConductores] = useState("");
+  const [filterEstado, setFilterEstado] = useState("todos"); // todos, activos, inactivos
+  const [filterEstadoConductores, setFilterEstadoConductores] = useState("todos"); // todos, activos, inactivos
+  
+  // Estados para ordenamiento
+  const [sortByAdmin, setSortByAdmin] = useState("email-asc"); // email-asc, email-desc, nombre-asc, nombre-desc
+  const [sortByPasajeros, setSortByPasajeros] = useState("nombre-asc"); // nombre-asc, nombre-desc, email-asc, email-desc
+  const [sortByConductores, setSortByConductores] = useState("nombre-asc"); // nombre-asc, nombre-desc, email-asc, email-desc
+  
+  // Estados para columnas visibles (todas activas por defecto)
+  const [visibleColumnsAdmin, setVisibleColumnsAdmin] = useState({
+    email: true,
+    nombre: true,
+    rol: true,
+    flota: true,
+    estado: true,
+    contraseña: true,
+    creado: true,
+    acciones: true,
+  });
+  
+  const [visibleColumnsPasajeros, setVisibleColumnsPasajeros] = useState({
+    foto: true,
+    nombre: true,
+    email: true,
+    modo: true,
+    provider: true,
+    fecha: true,
+  });
+  
+  const [visibleColumnsConductores, setVisibleColumnsConductores] = useState({
+    foto: true,
+    nombre: true,
+    email: true,
+    rol: true,
+    flota: true,
+    fecha: true,
+    estado: true,
+    acciones: true,
   });
   
   const [formData, setFormData] = useState({
@@ -81,6 +130,125 @@ const GestionUsuarios = () => {
     }
     return isNaN(fecha) ? "-" : fecha.toLocaleDateString("es-ES");
   };
+
+  // Funciones de filtrado con useMemo
+  const usuariosFiltrados = useMemo(() => {
+    let filtered = usuarios;
+    
+    // Filtro por búsqueda
+    if (searchAdmin) {
+      const search = searchAdmin.toLowerCase();
+      filtered = filtered.filter(u => 
+        u.email.toLowerCase().includes(search) ||
+        u.nombre.toLowerCase().includes(search)
+      );
+    }
+    
+    // Filtro por estado
+    if (filterEstado !== "todos") {
+      filtered = filtered.filter(u => {
+        if (filterEstado === "activos") return u.active !== false;
+        if (filterEstado === "inactivos") return u.active === false;
+        return true;
+      });
+    }
+    
+    // Ordenamiento
+    const sorted = [...filtered];
+    switch (sortByAdmin) {
+      case "email-asc":
+        sorted.sort((a, b) => (a.email || "").localeCompare(b.email || ""));
+        break;
+      case "email-desc":
+        sorted.sort((a, b) => (b.email || "").localeCompare(a.email || ""));
+        break;
+      case "nombre-asc":
+        sorted.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+        break;
+      case "nombre-desc":
+        sorted.sort((a, b) => (b.nombre || "").localeCompare(a.nombre || ""));
+        break;
+      default:
+        break;
+    }
+    
+    return sorted;
+  }, [usuarios, searchAdmin, filterEstado, sortByAdmin]);
+
+  const pasajerosFiltrados = useMemo(() => {
+    let filtered = pasajeros;
+    
+    if (searchPasajeros) {
+      const search = searchPasajeros.toLowerCase();
+      filtered = filtered.filter(p =>
+        (p.name || p.perfil?.name || "").toLowerCase().includes(search) ||
+        (p.email || p.perfil?.email || "").toLowerCase().includes(search)
+      );
+    }
+    
+    // Ordenamiento
+    const sorted = [...filtered];
+    switch (sortByPasajeros) {
+      case "nombre-asc":
+        sorted.sort((a, b) => ((a.name || a.perfil?.name || "")).localeCompare(b.name || b.perfil?.name || ""));
+        break;
+      case "nombre-desc":
+        sorted.sort((a, b) => ((b.name || b.perfil?.name || "")).localeCompare(a.name || a.perfil?.name || ""));
+        break;
+      case "email-asc":
+        sorted.sort((a, b) => ((a.email || a.perfil?.email || "")).localeCompare(b.email || b.perfil?.email || ""));
+        break;
+      case "email-desc":
+        sorted.sort((a, b) => ((b.email || b.perfil?.email || "")).localeCompare(a.email || a.perfil?.email || ""));
+        break;
+      default:
+        break;
+    }
+    
+    return sorted;
+  }, [pasajeros, searchPasajeros, sortByPasajeros]);
+
+  const conductoresFiltrados = useMemo(() => {
+    let filtered = trabajadores;
+    
+    if (searchConductores) {
+      const search = searchConductores.toLowerCase();
+      filtered = filtered.filter(t =>
+        (t.perfil?.name || "").toLowerCase().includes(search) ||
+        (t.perfil?.email || "").toLowerCase().includes(search)
+      );
+    }
+    
+    // Filtro por estado
+    if (filterEstadoConductores !== "todos") {
+      filtered = filtered.filter(t => {
+        if (filterEstadoConductores === "activos") return t.activo !== false;
+        if (filterEstadoConductores === "inactivos") return t.activo === false;
+        return true;
+      });
+    }
+    
+    // Ordenamiento
+    const sorted = [...filtered];
+    switch (sortByConductores) {
+      case "nombre-asc":
+        sorted.sort((a, b) => ((a.perfil?.name || "")).localeCompare(b.perfil?.name || ""));
+        break;
+      case "nombre-desc":
+        sorted.sort((a, b) => ((b.perfil?.name || "")).localeCompare(a.perfil?.name || ""));
+        break;
+      case "email-asc":
+        sorted.sort((a, b) => ((a.perfil?.email || "")).localeCompare(b.perfil?.email || ""));
+        break;
+      case "email-desc":
+        sorted.sort((a, b) => ((b.perfil?.email || "")).localeCompare(a.perfil?.email || ""));
+        break;
+      default:
+        break;
+    }
+    
+    return sorted;
+  }, [trabajadores, searchConductores, sortByConductores, filterEstadoConductores]);
 
   // Cargar usuarios, pasajeros, trabajadores y flotas
   useEffect(() => {
@@ -386,20 +554,50 @@ const GestionUsuarios = () => {
         </Tabs>
 
         {tabValue === 0 && (
-          <TableContainer component={Paper} sx={{ boxShadow: 0 }}>
+          <>
+            {/* Toolbar para Administradores */}
+            <TableToolbar
+              searchValue={searchAdmin}
+              onSearchChange={setSearchAdmin}
+              sortOptions={[
+                { label: "↑ Sort by Email (ASC)", value: "email-asc" },
+                { label: "↓ Sort by Email (DESC)", value: "email-desc" },
+                { label: "↑ Sort by Nombre (ASC)", value: "nombre-asc" },
+                { label: "↓ Sort by Nombre (DESC)", value: "nombre-desc" },
+              ]}
+              sortValue={sortByAdmin}
+              onSortChange={setSortByAdmin}
+              filterOptions={[
+                {
+                  name: "estado",
+                  label: "Estado",
+                  defaultValue: "todos",
+                  options: [
+                    { label: "Todos", value: "todos" },
+                    { label: "Activos", value: "activos" },
+                    { label: "Inactivos", value: "inactivos" },
+                  ],
+                },
+              ]}
+              filterValue={{ estado: filterEstado }}
+              onFilterChange={(name, value) => setFilterEstado(value)}
+              visibleColumns={visibleColumnsAdmin}
+              onColumnChange={(col, visible) => setVisibleColumnsAdmin(prev => ({ ...prev, [col]: visible }))}
+              showClearButton={true}
+            />
+
+            <TableContainer component={Paper} sx={{ boxShadow: 0 }}>
         <Table>
           <TableHead sx={{ bgcolor: "#000000" }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Email</TableCell>
-              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Nombre</TableCell>
-              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Rol Sistema</TableCell>
-              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Flota</TableCell>
-              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Activo/Inactivo</TableCell>
-              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Contraseña Temp</TableCell>
-              <TableCell sx={{ fontWeight: "bold", color: "white" }}>Creado</TableCell>
-              <TableCell sx={{ fontWeight: "bold", color: "white" }} align="right">
-                Acciones
-              </TableCell>
+              {visibleColumnsAdmin.email && <TableCell sx={{ fontWeight: "bold", color: "white" }}>Email</TableCell>}
+              {visibleColumnsAdmin.nombre && <TableCell sx={{ fontWeight: "bold", color: "white" }}>Nombre</TableCell>}
+              {visibleColumnsAdmin.rol && <TableCell sx={{ fontWeight: "bold", color: "white" }}>Rol Sistema</TableCell>}
+              {visibleColumnsAdmin.flota && <TableCell sx={{ fontWeight: "bold", color: "white" }}>Flota</TableCell>}
+              {visibleColumnsAdmin.estado && <TableCell sx={{ fontWeight: "bold", color: "white" }}>Activo/Inactivo</TableCell>}
+              {visibleColumnsAdmin.contraseña && <TableCell sx={{ fontWeight: "bold", color: "white" }}>Contraseña Temp</TableCell>}
+              {visibleColumnsAdmin.creado && <TableCell sx={{ fontWeight: "bold", color: "white" }}>Creado</TableCell>}
+              {visibleColumnsAdmin.acciones && <TableCell sx={{ fontWeight: "bold", color: "white" }} align="right">Acciones</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -409,97 +607,106 @@ const GestionUsuarios = () => {
                   Cargando usuarios...
                 </TableCell>
               </TableRow>
-            ) : usuarios.length === 0 ? (
+            ) : usuariosFiltrados.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} align="center">
-                  No hay usuarios registrados
+                  {usuarios.length === 0 ? "No hay usuarios registrados" : "No hay resultados para los filtros seleccionados"}
                 </TableCell>
               </TableRow>
             ) : (
-              usuarios.map((usuario) => (
+              usuariosFiltrados.map((usuario) => (
                 <TableRow key={usuario.id} hover>
-                  <TableCell>{usuario.email}</TableCell>
-                  <TableCell>{usuario.nombre}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={usuario.role === "superadmin" ? "SuperAdmin" : "Admin"}
-                      color={usuario.role === "superadmin" ? "error" : "primary"}
-                      size="small"
-                      sx={{
-                        bgcolor: usuario.role === "superadmin" ? "#d7171a" : "#484848",
-                        fontWeight: 600,
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {usuario.flotaId ? (
-                      <Typography variant="body2">
-                        {flotas.find(f => f.id === usuario.flotaId)?.nombre || "Flota no encontrada"}
-                      </Typography>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">-</Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={usuario.active !== false}
-                          onChange={(e) => handleToggleActivo(usuario.id, e.target.checked)}
-                          size="small"
-                          sx={{
-                            "& .MuiSwitch-switchBase.Mui-checked": {
-                              color: "#4caf50",
-                            },
-                            "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                              backgroundColor: "#4caf50",
-                            },
-                          }}
-                        />
-                      }
-                      label={usuario.active !== false ? "Activo" : "Inactivo"}
-                      sx={{
-                        m: 0,
-                        "& .MuiFormControlLabel-label": {
-                          fontSize: "0.875rem",
+                  {visibleColumnsAdmin.email && <TableCell>{usuario.email}</TableCell>}
+                  {visibleColumnsAdmin.nombre && <TableCell>{usuario.nombre}</TableCell>}
+                  {visibleColumnsAdmin.rol && (
+                    <TableCell>
+                      <Chip
+                        label={usuario.role === "superadmin" ? "SuperAdmin" : "Admin"}
+                        color={usuario.role === "superadmin" ? "error" : "primary"}
+                        size="small"
+                        sx={{
+                          bgcolor: usuario.role === "superadmin" ? "#d7171a" : "#484848",
                           fontWeight: 600,
-                          color: usuario.active !== false ? "#fff" : "#fff",
-                          backgroundColor: usuario.active !== false ? "#4caf50" : "#9e9e9e",
-                          padding: "4px 12px",
-                          borderRadius: "16px",
-                          display: "inline-block",
-                        },
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {usuario.password ? (
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          fontFamily: "monospace", 
-                          bgcolor: "#f5f5f5", 
-                          p: 0.5, 
-                          borderRadius: 1,
-                          fontSize: "0.75rem"
                         }}
-                      >
-                        {usuario.password}
-                      </Typography>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        -
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>{new Date(usuario.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell align="right">
-                    {usuario.status === "pending" && (
-                      <Tooltip title="Copiar instrucciones de activación">
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            const instrucciones = `
+                      />
+                    </TableCell>
+                  )}
+                  {visibleColumnsAdmin.flota && (
+                    <TableCell>
+                      {usuario.flotaId ? (
+                        <Typography variant="body2">
+                          {flotas.find(f => f.id === usuario.flotaId)?.nombre || "Flota no encontrada"}
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">-</Typography>
+                      )}
+                    </TableCell>
+                  )}
+                  {visibleColumnsAdmin.estado && (
+                    <TableCell>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={usuario.active !== false}
+                            onChange={(e) => handleToggleActivo(usuario.id, e.target.checked)}
+                            size="small"
+                            sx={{
+                              "& .MuiSwitch-switchBase.Mui-checked": {
+                                color: "#4caf50",
+                              },
+                              "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                                backgroundColor: "#4caf50",
+                              },
+                            }}
+                          />
+                        }
+                        label={usuario.active !== false ? "Activo" : "Inactivo"}
+                        sx={{
+                          m: 0,
+                          "& .MuiFormControlLabel-label": {
+                            fontSize: "0.875rem",
+                            fontWeight: 600,
+                            color: usuario.active !== false ? "#fff" : "#fff",
+                            backgroundColor: usuario.active !== false ? "#4caf50" : "#9e9e9e",
+                            padding: "4px 12px",
+                            borderRadius: "16px",
+                            display: "inline-block",
+                          },
+                        }}
+                      />
+                    </TableCell>
+                  )}
+                  {visibleColumnsAdmin.contraseña && (
+                    <TableCell>
+                      {usuario.password ? (
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            fontFamily: "monospace", 
+                            bgcolor: "#f5f5f5", 
+                            p: 0.5, 
+                            borderRadius: 1,
+                            fontSize: "0.75rem"
+                          }}
+                        >
+                          {usuario.password}
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          -
+                        </Typography>
+                      )}
+                    </TableCell>
+                  )}
+                  {visibleColumnsAdmin.creado && <TableCell>{new Date(usuario.createdAt).toLocaleDateString()}</TableCell>}
+                  {visibleColumnsAdmin.acciones && (
+                    <TableCell align="right">
+                      {usuario.status === "pending" && (
+                        <Tooltip title="Copiar instrucciones de activación">
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              const instrucciones = `
 📋 ACTIVAR USUARIO: ${usuario.email}
 
 1. Firebase Console → Authentication → Add user
@@ -512,120 +719,181 @@ const GestionUsuarios = () => {
 8. Cambiar "active": true
 9. OPCIONAL: Eliminar campo "password"
                             `.trim();
-                            
-                            navigator.clipboard.writeText(instrucciones);
-                            setSuccess("Instrucciones copiadas al portapapeles");
-                            setTimeout(() => setSuccess(""), 3000);
-                          }}
-                          sx={{ color: "#d7171a" }}
-                        >
-                          <ContentCopyIcon />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                    <IconButton
-                      size="small"
-                      onClick={() => handleOpenDialog(usuario)}
-                      sx={{ color: "#484848" }}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleDeleteUser(usuario.id)}
-                      sx={{ color: "#d7171a" }}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
+                              
+                              navigator.clipboard.writeText(instrucciones);
+                              setSuccess("Instrucciones copiadas al portapapeles");
+                              setTimeout(() => setSuccess(""), 3000);
+                            }}
+                            sx={{ color: "#d7171a" }}
+                          >
+                            <ContentCopyIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <IconButton
+                        size="small"
+                        onClick={() => handleOpenDialog(usuario)}
+                        sx={{ color: "#484848" }}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDeleteUser(usuario.id)}
+                        sx={{ color: "#d7171a" }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
       </TableContainer>
+          </>
         )}
 
         {tabValue === 1 && (
-          <TableContainer component={Paper} sx={{ boxShadow: 0 }}>
+          <>
+            {/* Toolbar para Pasajeros */}
+            <TableToolbar
+              searchValue={searchPasajeros}
+              onSearchChange={setSearchPasajeros}
+              sortOptions={[
+                { label: "↑ Sort by Nombre (ASC)", value: "nombre-asc" },
+                { label: "↓ Sort by Nombre (DESC)", value: "nombre-desc" },
+                { label: "↑ Sort by Email (ASC)", value: "email-asc" },
+                { label: "↓ Sort by Email (DESC)", value: "email-desc" },
+              ]}
+              sortValue={sortByPasajeros}
+              onSortChange={setSortByPasajeros}
+              visibleColumns={visibleColumnsPasajeros}
+              onColumnChange={(col, visible) => setVisibleColumnsPasajeros(prev => ({ ...prev, [col]: visible }))}
+              showClearButton={true}
+            />
+
+            <TableContainer component={Paper} sx={{ boxShadow: 0 }}>
             <Table>
               <TableHead sx={{ bgcolor: "#000000" }}>
                 <TableRow>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Foto
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Nombre
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Email
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Modo
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Provider
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Fecha Registro
+                  {visibleColumnsPasajeros.foto && (
+                    <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                      Foto
+                    </TableCell>
+                  )}
+                  {visibleColumnsPasajeros.nombre && (
+                    <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                      Nombre
+                    </TableCell>
+                  )}
+                  {visibleColumnsPasajeros.email && (
+                    <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                      Email
+                    </TableCell>
+                  )}
+                  {visibleColumnsPasajeros.modo && (
+                    <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                      Modo
+                    </TableCell>
+                  )}
+                  {visibleColumnsPasajeros.provider && (
+                    <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                      Provider
+                    </TableCell>
+                  )}
+                  {visibleColumnsPasajeros.fecha && (
+                    <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                      Fecha Registro
+                    </TableCell>
+                  )}
+                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", textAlign: "center" }}>
+                    Acciones
                   </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {pasajeros.length === 0 ? (
+                {pasajerosFiltrados.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
-                        No hay pasajeros registrados
+                        {pasajeros.length === 0 ? "No hay pasajeros registrados" : "No hay resultados para la búsqueda"}
                       </Typography>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  pasajeros.map((pasajero) => (
+                  pasajerosFiltrados.map((pasajero) => (
                     <TableRow key={pasajero.id} hover>
-                      <TableCell>
-                        <Avatar
-                          src={pasajero.perfil?.photoUrl || pasajero.photoURL}
-                          alt={pasajero.name || pasajero.perfil?.name || pasajero.email}
-                          sx={{ width: 40, height: 40, bgcolor: "#d7171a" }}
-                        >
-                          {(pasajero.name || pasajero.perfil?.name || pasajero.email || "?")?.charAt(0).toUpperCase()}
-                        </Avatar>
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                        {pasajero.name || pasajero.perfil?.name || "Sin nombre"}
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        {pasajero.email || pasajero.perfil?.email || "-"}
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={pasajero.modo || pasajero.perfil?.modo || "pasajero"}
-                          size="small"
-                          sx={{
-                            bgcolor: "#484848",
-                            color: "white",
-                            fontWeight: 600,
-                            fontFamily: "Mulish, sans-serif",
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={pasajero.provider || pasajero.perfil?.provider || "N/A"}
-                          size="small"
-                          sx={{
-                            bgcolor: (pasajero.provider || pasajero.perfil?.provider) === "google" ? "#4285f4" : "#484848",
-                            color: "white",
-                            fontWeight: 600,
-                            fontFamily: "Mulish, sans-serif",
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        {pasajero.createdAt?.toDate?.().toLocaleDateString() || 
-                         pasajero.perfil?.createdAt?.toDate?.().toLocaleDateString() || 
-                         "-"}
+                      {visibleColumnsPasajeros.foto && (
+                        <TableCell>
+                          <Avatar
+                            src={pasajero.perfil?.photoUrl || pasajero.photoURL}
+                            alt={pasajero.name || pasajero.perfil?.name || pasajero.email}
+                            sx={{ width: 40, height: 40, bgcolor: "#d7171a" }}
+                          >
+                            {(pasajero.name || pasajero.perfil?.name || pasajero.email || "?")?.charAt(0).toUpperCase()}
+                          </Avatar>
+                        </TableCell>
+                      )}
+                      {visibleColumnsPasajeros.nombre && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                          {pasajero.name || pasajero.perfil?.name || "Sin nombre"}
+                        </TableCell>
+                      )}
+                      {visibleColumnsPasajeros.email && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          {pasajero.email || pasajero.perfil?.email || "-"}
+                        </TableCell>
+                      )}
+                      {visibleColumnsPasajeros.modo && (
+                        <TableCell>
+                          <Chip
+                            label={pasajero.modo || pasajero.perfil?.modo || "pasajero"}
+                            size="small"
+                            sx={{
+                              bgcolor: "#484848",
+                              color: "white",
+                              fontWeight: 600,
+                              fontFamily: "Mulish, sans-serif",
+                            }}
+                          />
+                        </TableCell>
+                      )}
+                      {visibleColumnsPasajeros.provider && (
+                        <TableCell>
+                          <Chip
+                            label={pasajero.provider || pasajero.perfil?.provider || "N/A"}
+                            size="small"
+                            sx={{
+                              bgcolor: (pasajero.provider || pasajero.perfil?.provider) === "google" ? "#4285f4" : "#484848",
+                              color: "white",
+                              fontWeight: 600,
+                              fontFamily: "Mulish, sans-serif",
+                            }}
+                          />
+                        </TableCell>
+                      )}
+                      {visibleColumnsPasajeros.fecha && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          {pasajero.createdAt?.toDate?.().toLocaleDateString() || 
+                           pasajero.perfil?.createdAt?.toDate?.().toLocaleDateString() || 
+                           "-"}
+                        </TableCell>
+                      )}
+                      <TableCell align="center">
+                        <Tooltip title="Ver Historial de Viajes">
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setPasajeroSeleccionado(pasajero.id);
+                              setHistorialModalOpen(true);
+                            }}
+                            sx={{ color: "#d7171a" }}
+                          >
+                            <HistoryIcon />
+                          </IconButton>
+                        </Tooltip>
                       </TableCell>
                     </TableRow>
                   ))
@@ -633,10 +901,43 @@ const GestionUsuarios = () => {
               </TableBody>
             </Table>
           </TableContainer>
+          </>
         )}
 
         {tabValue === 2 && (
-          <TableContainer component={Paper} sx={{ boxShadow: 0 }}>
+          <>
+            {/* Toolbar para Conductores */}
+            <TableToolbar
+              searchValue={searchConductores}
+              onSearchChange={setSearchConductores}
+              sortOptions={[
+                { label: "↑ Sort by Nombre (ASC)", value: "nombre-asc" },
+                { label: "↓ Sort by Nombre (DESC)", value: "nombre-desc" },
+                { label: "↑ Sort by Email (ASC)", value: "email-asc" },
+                { label: "↓ Sort by Email (DESC)", value: "email-desc" },
+              ]}
+              sortValue={sortByConductores}
+              onSortChange={setSortByConductores}
+              filterOptions={[
+                {
+                  name: "estado",
+                  label: "Estado",
+                  defaultValue: "todos",
+                  options: [
+                    { label: "Todos", value: "todos" },
+                    { label: "Activos", value: "activos" },
+                    { label: "Inactivos", value: "inactivos" },
+                  ],
+                },
+              ]}
+              filterValue={{ estado: filterEstadoConductores }}
+              onFilterChange={(name, value) => setFilterEstadoConductores(value)}
+              visibleColumns={visibleColumnsConductores}
+              onColumnChange={(col, visible) => setVisibleColumnsConductores(prev => ({ ...prev, [col]: visible }))}
+              showClearButton={true}
+            />
+
+            <TableContainer component={Paper} sx={{ boxShadow: 0 }}>
             <Table>
               <TableHead sx={{ bgcolor: "#000000" }}>
                 <TableRow>
@@ -669,22 +970,22 @@ const GestionUsuarios = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
+                    <TableCell colSpan={8} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                         Cargando trabajadores...
                       </Typography>
                     </TableCell>
                   </TableRow>
-                ) : trabajadores.length === 0 ? (
+                ) : conductoresFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
+                    <TableCell colSpan={8} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
-                        No hay trabajadores registrados
+                        {trabajadores.length === 0 ? "No hay trabajadores registrados" : "No hay resultados para la búsqueda"}
                       </Typography>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  trabajadores.map((trabajador) => (
+                  conductoresFiltrados.map((trabajador) => (
                     <TableRow key={trabajador.id} hover>
                       <TableCell>
                         <Avatar
@@ -732,10 +1033,8 @@ const GestionUsuarios = () => {
                                   await updateDoc(ref, {
                                     activo: e.target.checked,
                                   });
-                                  // Refrescar trabajadores
                                   loadTrabajadores();
                                 } catch (err) {
-                                  console.error("Error al actualizar estado:", err);
                                   setSnackbar({
                                     open: true,
                                     message: "Error al actualizar estado",
@@ -799,6 +1098,7 @@ const GestionUsuarios = () => {
               </TableBody>
             </Table>
           </TableContainer>
+          </>
         )}
       </Paper>
 
@@ -894,6 +1194,12 @@ const GestionUsuarios = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      <HistorialViajesModal
+        open={historialModalOpen}
+        onClose={() => setHistorialModalOpen(false)}
+        pasajeroUID={pasajeroSeleccionado}
+      />
     </Box>
   );
 };
