@@ -47,7 +47,7 @@ export const HistorialViajesModal = ({ open, onClose, pasajeroUID }) => {
           setViajes([]);
         }
       } catch (error) {
-        console.error('Error cargando viajes:', error);
+        // Error al cargar historial
         setViajes([]);
       } finally {
         setLoading(false);

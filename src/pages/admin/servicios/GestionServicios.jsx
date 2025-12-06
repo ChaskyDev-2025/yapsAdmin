@@ -18,7 +18,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Alert,
   Switch,
   FormControlLabel,
   Select,
@@ -26,22 +25,19 @@ import {
   InputLabel,
   FormControl,
   Grid,
-  TextField,
-  Card,
-  CardContent,
-  Avatar
+  TextField
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import CloseIcon from '@mui/icons-material/Close';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 
-import { collection, getDocs, doc, updateDoc, setDoc, deleteField, onSnapshot } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '../../../data/firebase/firebase';
+import { doc, updateDoc, setDoc, deleteField, onSnapshot } from 'firebase/firestore';
+import { db } from '../../../data/firebase/firebase';
+import { CATEGORIAS_ESPECIALES } from './config/categoriasEspeciales';
+import { FormularioEspecial } from './components/FormularioEspecial';
+import { TableToolbar } from '../usuarios/components/TableToolbar';
 
 const DEPARTAMENTOS = [
   "La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", 
@@ -51,11 +47,12 @@ const DEPARTAMENTOS = [
 const SERVICE_CATALOG = {
   "Viajes": ["Moto Taxi", "Economico", "Comodidad", "Vagoneta", "Empresarial o VIP", "El primero disponible"],
   "Envios": ["Moto", "Vagoneta", "Carga"],
-  "Carga local": ["Vagoneta", "Camioneta pequena", "Camioneta mediana"],
-  "Carga nacional": ["Camioneta mediana", "Camion grande", "Camion extra grande", "Tracto camion"],
-  "Volqueta y construccion": ["Volqueta (4,8,12 cubos)", "Camion (ripio, arena y ladrillo)"],
-  "Mudanza": ["Camioneta pequena", "Camioneta mediana", "Camion grande"],
-  "Maquinaria y gruas": ["Motoniveladora", "Retro excavadora", "Excavadora hidraulica", "Gruas pluma", "Gruas rampa"]
+  "carga_local": ["vagoneta", "camioneta pequena", "camioneta mediana"],
+  "carga_nacional": ["camioneta mediana", "camion grande", "camion extra grande", "tracto camion"],
+  "carga_internacional": ["camion gran tonelaje", "camion refrigerado", "camion toldo", "tracto camion"],
+  "volqueta_y_construccion": ["volqueta (4,8,12 cubos)", "camion (ripio, arena y ladrillo)"],
+  "mudanza": ["camioneta pequena", "camioneta mediana", "camion grande"],
+  "maquinaria_y_gruas": ["motoniveladora", "retro excavadora", "excavadora hidraulica", "gruas pluma", "gruas rampa"]
 };
 
 // Configuración de campos personalizables por categoría
@@ -66,7 +63,7 @@ const CAMPOS_POR_CATEGORIA = {
   "Carga nacional": ["tarifa_base", "precio_por_km", "seguro", "costo_descarga"],
   "Volqueta y construccion": ["tarifa_base", "hora_minima", "costo_por_hora", "costo_por_viaje"],
   "Mudanza": ["tarifa_base", "m3_incluido", "costo_por_m3_extra", "costo_por_hora"],
-  "Maquinaria y gruas": ["tarifa_base", "hora_minima", "costo_por_hora", "costo_traslado"]
+  "Maquinaria y gruas": ["costo_por_hora", "hora_minima", "costo_traslado"]
 };
 
 // --- Modal Component ---
@@ -94,83 +91,42 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
     horasPico: []
   });
 
-  useEffect(() => {
-    // Actualizar campos dinámicos cuando la categoría cambia EN MODO PRUEBA
-    if (category && modoPrueba && CAMPOS_POR_CATEGORIA[category]) {
-      const campos = CAMPOS_POR_CATEGORIA[category];
-      setCamposDinamicos(campos);
-      
-      // Inicializar reglas_tarifa con los campos de la categoría
-      const nuevasReglas = {};
-      campos.forEach(campo => {
-        nuevasReglas[campo] = '';
-      });
-      setFormData(prev => ({
-        ...prev,
-        reglas_tarifa: nuevasReglas
-      }));
-    }
-  }, [category, modoPrueba]);
+  const isEspecialCategory = Object.keys(CATEGORIAS_ESPECIALES).includes(category);
 
   useEffect(() => {
-    if (service) {
-      setCategory(service.categoria || '');
-      setServiceName(service.servicio || '');
-      
-      if (modoPrueba) {
-        const campos = CAMPOS_POR_CATEGORIA[service.categoria] || [];
-        setCamposDinamicos(campos);
-        
-        const reglasTarifa = {};
-        campos.forEach(campo => {
-          reglasTarifa[campo] = String(service.reglas_tarifa?.[campo] ?? '');
-        });
-        
-        setFormData({
-          activo: service.activo !== undefined ? service.activo : true,
-          nombre_visible: service.nombre_visible || service.servicio || '',
-          categoria: service.categoria || 'transporte_pasajeros',
-          tipo_calculo: service.tipo_calculo || 'distancia_tiempo',
-          reglas_tarifa: reglasTarifa,
-          tarifasAeropuerto: service.tarifasAeropuerto?.tramos || [],
-          horasPico: service.horasPico?.franjas || []
-        });
-      } else {
-        setFormData({
-          activo: service.activo !== undefined ? service.activo : true,
-          tarifa_general: {
-            tarifaBase: String(service.tarifa_general?.tarifaBase ?? ''),
-            distanciaBase: String(service.tarifa_general?.distanciaBase ?? ''),
-            porKm: String(service.tarifa_general?.porKm ?? ''),
-            porMin: String(service.tarifa_general?.porMin ?? ''),
-            horaPicoExtra: String(service.tarifa_general?.horaPicoExtra ?? ''),
-            nocturno: String(service.tarifa_general?.nocturno ?? ''),
-            comision: String(service.tarifa_general?.comision ?? '')
-          },
-          tarifasAeropuerto: service.tarifasAeropuerto?.tramos || [],
-          horasPico: service.horasPico?.franjas || []
-        });
-      }
-    } else {
-      // Reset for new service
+    if (!open) {
       setCategory('');
       setServiceName('');
-      
+      setCamposDinamicos([]);
+      setFormData({
+        activo: true,
+        tarifa_general: {
+          tarifaBase: 0,
+          distanciaBase: 0,
+          porKm: 0,
+          porMin: 0,
+          horaPicoExtra: 0,
+          nocturno: 0,
+          comision: 0
+        },
+        tarifasAeropuerto: [{ desdeKm: "10", precio: "40.00" }, { desdeKm: "20", precio: "60.00" }],
+        horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }]
+      });
+      return;
+    }
+
+    // Si no hay service, es modo "nuevo"
+    if (!service) {
+      setCategory('');
+      setServiceName('');
       if (modoPrueba) {
-        const campos = [];
-        setCamposDinamicos(campos);
-        
-        const reglasTarifa = {};
-        campos.forEach(campo => {
-          reglasTarifa[campo] = '';
-        });
-        
+        setCamposDinamicos([]);
         setFormData({
           activo: true,
           nombre_visible: '',
           categoria: 'transporte_pasajeros',
           tipo_calculo: 'distancia_tiempo',
-          reglas_tarifa: reglasTarifa,
+          reglas_tarifa: {},
           tarifasAeropuerto: [{ desdeKm: "10", precio: "40.00" }, { desdeKm: "20", precio: "60.00" }],
           horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }]
         });
@@ -182,8 +138,68 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
           horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }]
         });
       }
+      return;
     }
-  }, [service, open, modoPrueba]);
+
+    // Si hay service, cargar sus datos
+    setCategory(service.categoria || '');
+    setServiceName(service.servicio || service.nombre_visible || service.id || '');
+    
+    const isEspecial = Object.keys(CATEGORIAS_ESPECIALES).includes(service.categoria);
+    
+    if (isEspecial) {
+      const reglasTarifa = {};
+      if (CATEGORIAS_ESPECIALES[service.categoria]) {
+        const campos = CATEGORIAS_ESPECIALES[service.categoria].campos;
+        Object.keys(campos).forEach(campo => {
+          reglasTarifa[campo] = String(service.reglas_tarifa?.[campo] ?? '');
+        });
+      }
+      
+      setFormData({
+        activo: service.activo !== undefined ? service.activo : true,
+        nombre_visible: service.nombre_visible || service.servicio || service.id || '',
+        categoria: service.categoria || 'transporte_pasajeros',
+        tipo_calculo: service.tipo_calculo || 'alquiler_horas',
+        reglas_tarifa: reglasTarifa,
+        tarifasAeropuerto: service.Tarifas_Aeropuerto?.tramos || [],
+        horasPico: service.Horas_pico?.franjas || []
+      });
+    } else if (modoPrueba) {
+      const campos = CAMPOS_POR_CATEGORIA[service.categoria] || [];
+      setCamposDinamicos(campos);
+      
+      const reglasTarifa = {};
+      campos.forEach(campo => {
+        reglasTarifa[campo] = String(service.reglas_tarifa?.[campo] ?? '');
+      });
+      
+      setFormData({
+        activo: service.activo !== undefined ? service.activo : true,
+        nombre_visible: service.nombre_visible || service.servicio || '',
+        categoria: service.categoria || 'transporte_pasajeros',
+        tipo_calculo: service.tipo_calculo || 'distancia_tiempo',
+        reglas_tarifa: reglasTarifa,
+        tarifasAeropuerto: service.Tarifas_Aeropuerto?.tramos || [],
+        horasPico: service.Horas_pico?.franjas || []
+      });
+    } else {
+      setFormData({
+        activo: service.activo !== undefined ? service.activo : true,
+        tarifa_general: {
+          tarifaBase: String(service.tarifa_general?.tarifaBase ?? ''),
+          distanciaBase: String(service.tarifa_general?.distanciaBase ?? ''),
+          porKm: String(service.tarifa_general?.porKm ?? ''),
+          porMin: String(service.tarifa_general?.porMin ?? ''),
+          horaPicoExtra: String(service.tarifa_general?.horaPicoExtra ?? ''),
+          nocturno: String(service.tarifa_general?.nocturno ?? ''),
+          comision: String(service.tarifa_general?.comision ?? '')
+        },
+        tarifasAeropuerto: service.Tarifas_Aeropuerto?.tramos || [],
+        horasPico: service.Horas_pico?.franjas || []
+      });
+    }
+  }, [open, service, modoPrueba]);
 
 
   // Aeropuerto handlers
@@ -231,7 +247,33 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
       let dataToSave;
       let key;
 
-      if (modoPrueba) {
+      // Verificar si es una categoría especial
+      const esEspecial = Object.keys(CATEGORIAS_ESPECIALES).includes(category);
+
+      if (esEspecial) {
+        // Estructura para categorías especiales (Carga, Mudanza, Maquinaria)
+        const reglas_tarifa_numerica = {};
+        Object.keys(formData.reglas_tarifa).forEach((k) => {
+          const val = formData.reglas_tarifa[k];
+          // Mantener booleanos como booleanos, números como números
+          if (typeof val === 'boolean') {
+            reglas_tarifa_numerica[k] = val;
+          } else if (val === '' || val === null || val === undefined) {
+            reglas_tarifa_numerica[k] = 0;
+          } else {
+            reglas_tarifa_numerica[k] = isNaN(parseFloat(val)) ? val : parseFloat(val);
+          }
+        });
+
+        dataToSave = {
+          activo: formData.activo,
+          nombre_visible: serviceName,
+          categoria: category,
+          tipo_calculo: formData.tipo_calculo,
+          reglas_tarifa: reglas_tarifa_numerica
+        };
+        key = `${category}_${serviceName}`.replace(/[^a-zA-Z0-9]/g, '_');
+      } else if (modoPrueba) {
         // Estructura simplificada para tarifas prueba
         const reglas_tarifa_numerica = {};
         Object.keys(formData.reglas_tarifa).forEach((k) => {
@@ -254,7 +296,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
         };
         key = `${category}_${serviceName}`.replace(/[^a-zA-Z0-9]/g, '_') + '_prueba';
       } else {
-        // Estructura original para tarifas normales
+        // Estructura original para tarifas normales (Viajes y Envíos)
         const tarifa_general_numerica = {};
         Object.keys(formData.tarifa_general).forEach((k) => {
           const val = formData.tarifa_general[k];
@@ -290,9 +332,9 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>{service ? `Editar Tarifa${modoPrueba ? ' Prueba' : ''}` : `Asignar Tarifa${modoPrueba ? ' Prueba' : ''}`}</DialogTitle>
-      <DialogContent dividers>
+      <DialogContent dividers sx={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
         <Grid container spacing={3}>
-          {/* Category & Service Selection */}
+          {/* SECTION 1: Category & Service Selection (TOP) */}
           <Grid item xs={12} md={6}>
             <FormControl fullWidth disabled={!!service}>
               <InputLabel>Categoría</InputLabel>
@@ -332,88 +374,139 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
             />
           </Grid>
 
-          {/* Tarifas Base */}
+          {/* SECTION 2: Tarifas Base (MIDDLE - Full Width) */}
           <Grid item xs={12}>
-            <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
               {modoPrueba ? 'Reglas de Tarifa (Modo Prueba)' : 'Tarifas Base'}
             </Typography>
-            <Grid container spacing={2}>
-              {modoPrueba ? (
-                camposDinamicos && camposDinamicos.length > 0 ? (
-                  camposDinamicos.map((key) => (
+            
+            {/* Formulario especial para categorías especiales */}
+            {isEspecialCategory && category && (
+              <FormularioEspecial
+                categoria={category}
+                formData={formData}
+                onFormDataChange={setFormData}
+              />
+            )}
+            
+            {/* Formularios originales para Viajes y Envíos */}
+            {!isEspecialCategory && (
+              <Grid container spacing={2}>
+                {modoPrueba ? (
+                  camposDinamicos && camposDinamicos.length > 0 ? (
+                    camposDinamicos.map((key) => (
+                      <Grid item xs={6} md={3} key={key}>
+                        <TextField
+                          label={key.replace(/_/g, ' ').toUpperCase()}
+                          type="number"
+                          fullWidth
+                          size="small"
+                          value={formData.reglas_tarifa?.[key] ?? ''}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            reglas_tarifa: { ...prev.reglas_tarifa, [key]: e.target.value }
+                          }))}
+                          step="0.01"
+                        />
+                      </Grid>
+                    ))
+                  ) : (
+                    <Grid item xs={12}>
+                      <Typography variant="body2" color="textSecondary">
+                        Selecciona una categoría para ver los campos disponibles
+                      </Typography>
+                    </Grid>
+                  )
+                ) : (
+                  formData.tarifa_general && Object.keys(formData.tarifa_general).map((key) => (
                     <Grid item xs={6} md={3} key={key}>
                       <TextField
-                        label={key.replace(/_/g, ' ').toUpperCase()}
+                        label={key.replace(/([A-Z])/g, ' $1').trim()}
                         type="number"
                         fullWidth
                         size="small"
-                        value={formData.reglas_tarifa?.[key] ?? ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          reglas_tarifa: { ...prev.reglas_tarifa, [key]: e.target.value }
-                        }))}
-                        step="0.01"
+                        value={formData.tarifa_general[key]}
+                        onChange={(e) => {
+                          const tarifa_general_numerica = {};
+                          Object.keys(formData.tarifa_general).forEach((k) => {
+                            tarifa_general_numerica[k] = k === key ? e.target.value : formData.tarifa_general[k];
+                          });
+                          setFormData(prev => ({ ...prev, tarifa_general: tarifa_general_numerica }));
+                        }}
                       />
                     </Grid>
                   ))
-                ) : (
-                  <Grid item xs={12}>
-                    <Typography variant="body2" color="textSecondary">
-                      Selecciona una categoría para ver los campos disponibles
-                    </Typography>
-                  </Grid>
-                )
-              ) : (
-                formData.tarifa_general && Object.keys(formData.tarifa_general).map((key) => (
-                  <Grid item xs={6} md={3} key={key}>
-                    <TextField
-                      label={key.replace(/([A-Z])/g, ' $1').trim()}
-                      type="number"
-                      fullWidth
-                      size="small"
-                      value={formData.tarifa_general[key]}
-                      onChange={(e) => {
-                        const tarifa_general_numerica = {};
-                        Object.keys(formData.tarifa_general).forEach((k) => {
-                          tarifa_general_numerica[k] = k === key ? e.target.value : formData.tarifa_general[k];
-                        });
-                        setFormData(prev => ({ ...prev, tarifa_general: tarifa_general_numerica }));
-                      }}
-                    />
-                  </Grid>
-                ))
-              )}
-            </Grid>
+                )}
+              </Grid>
+            )}
           </Grid>
 
           {/* Tarifas Aeropuerto */}
-          <Grid item xs={12} md={6}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-              <Typography variant="h6">Tarifas Aeropuerto</Typography>
-              <IconButton onClick={addAeropuerto} color="primary"><AddCircleOutlineIcon /></IconButton>
-            </Box>
-            {formData.tarifasAeropuerto.map((tramo, idx) => (
-              <Box key={idx} sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                <TextField label="Desde Km" size="small" value={tramo.desdeKm} onChange={(e) => updateAeropuerto(idx, 'desdeKm', e.target.value)} />
-                <TextField label="Precio (Bs)" size="small" type="number" value={tramo.precio} onChange={(e) => updateAeropuerto(idx, 'precio', e.target.value)} />
-                <IconButton onClick={() => removeAeropuerto(idx)} color="error"><RemoveCircleOutlineIcon /></IconButton>
+          <Grid item xs={12}>
+            <Box sx={{ p: 2, border: '1px solid #ddd', borderRadius: 1, bgcolor: '#f9f9f9' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>Tarifas Aeropuerto</Typography>
+                <IconButton onClick={addAeropuerto} color="primary" size="small"><AddCircleOutlineIcon /></IconButton>
               </Box>
-            ))}
+              <Box sx={{ maxHeight: '250px', overflowY: 'auto' }}>
+                {formData.tarifasAeropuerto.map((tramo, idx) => (
+                  <Box key={idx} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
+                    <TextField 
+                      label="Desde Km" 
+                      size="small" 
+                      type="number"
+                      value={tramo.desdeKm} 
+                      onChange={(e) => updateAeropuerto(idx, 'desdeKm', e.target.value)} 
+                      sx={{ flex: 1 }}
+                    />
+                    <TextField 
+                      label="Precio (Bs)" 
+                      size="small" 
+                      type="number" 
+                      value={tramo.precio} 
+                      onChange={(e) => updateAeropuerto(idx, 'precio', e.target.value)} 
+                      sx={{ flex: 1 }}
+                    />
+                    <IconButton onClick={() => removeAeropuerto(idx)} color="error" size="small"><RemoveCircleOutlineIcon /></IconButton>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
           </Grid>
 
           {/* Horas Pico */}
-          <Grid item xs={12} md={6}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-              <Typography variant="h6">Horas Pico</Typography>
-              <IconButton onClick={addHoraPico} color="primary"><AddCircleOutlineIcon /></IconButton>
-            </Box>
-            {formData.horasPico.map((franja, idx) => (
-              <Box key={idx} sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                <TextField label="Desde" type="time" size="small" InputLabelProps={{ shrink: true }} value={franja.desde} onChange={(e) => updateHoraPico(idx, 'desde', e.target.value)} />
-                <TextField label="Hasta" type="time" size="small" InputLabelProps={{ shrink: true }} value={franja.hasta} onChange={(e) => updateHoraPico(idx, 'hasta', e.target.value)} />
-                <IconButton onClick={() => removeHoraPico(idx)} color="error"><RemoveCircleOutlineIcon /></IconButton>
+          <Grid item xs={12}>
+            <Box sx={{ p: 2, border: '1px solid #ddd', borderRadius: 1, bgcolor: '#f9f9f9' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>Horas Pico</Typography>
+                <IconButton onClick={addHoraPico} color="primary" size="small"><AddCircleOutlineIcon /></IconButton>
               </Box>
-            ))}
+              <Box sx={{ maxHeight: '250px', overflowY: 'auto' }}>
+                {formData.horasPico.map((franja, idx) => (
+                  <Box key={idx} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
+                    <TextField 
+                      label="Desde" 
+                      type="time" 
+                      size="small" 
+                      InputLabelProps={{ shrink: true }} 
+                      value={franja.desde} 
+                      onChange={(e) => updateHoraPico(idx, 'desde', e.target.value)} 
+                      sx={{ flex: 1 }}
+                    />
+                    <TextField 
+                      label="Hasta" 
+                      type="time" 
+                      size="small" 
+                      InputLabelProps={{ shrink: true }} 
+                      value={franja.hasta} 
+                      onChange={(e) => updateHoraPico(idx, 'hasta', e.target.value)} 
+                      sx={{ flex: 1 }}
+                    />
+                    <IconButton onClick={() => removeHoraPico(idx)} color="error" size="small"><RemoveCircleOutlineIcon /></IconButton>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
           </Grid>
         </Grid>
       </DialogContent>
@@ -429,13 +522,36 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
 
 // --- Main Component ---
 const GestionServicios = () => {
+  // Función para formatear nombres de categorías
+  const formatearCategoria = (categoria) => {
+    if (!categoria) return '-';
+    return categoria
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
   const [tabValue, setTabValue] = useState(0);
   const [deptStatus, setDeptStatus] = useState({});
   const [selectedDept, setSelectedDept] = useState('');
   const [services, setServices] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentService, setCurrentService] = useState(null);
-  const [loading, setLoading] = useState(false);
+  
+  // Estados para búsqueda y filtros
+  const [searchServices, setSearchServices] = useState("");
+  const [sortByServices, setSortByServices] = useState("nombre-asc");
+  const [filterCategoryServices, setFilterCategoryServices] = useState("todas");
+  
+  // Estados para columnas visibles
+  const [visibleColumnsServicios, setVisibleColumnsServicios] = useState({
+    categoria: true,
+    nombre: true,
+    estado: true,
+    tarifa_base: true,
+    acciones: true,
+  });
 
   // Load Department Statuses - Solo cargar cuando sea necesario
   useEffect(() => {
@@ -462,7 +578,6 @@ const GestionServicios = () => {
       return;
     }
 
-    setLoading(true);
     let isMounted = true;
 
     const unsub = onSnapshot(doc(db, 'Tarifas', selectedDept), (docSnap) => {
@@ -481,12 +596,10 @@ const GestionServicios = () => {
         
         if (isMounted) {
           setServices(loadedServices);
-          setLoading(false);
         }
       } else {
         if (isMounted) {
           setServices([]);
-          setLoading(false);
         }
       }
     });
@@ -496,6 +609,46 @@ const GestionServicios = () => {
       unsub();
     };
   }, [selectedDept]);
+
+  // Filtrar y ordenar servicios
+  const servicesFiltrados = useMemo(() => {
+    let filtered = services;
+
+    // Filtro por búsqueda
+    if (searchServices) {
+      const search = searchServices.toLowerCase();
+      filtered = filtered.filter(s =>
+        (s.nombre || s.nombre_visible || s.servicio || '').toLowerCase().includes(search) ||
+        (s.categoria || '').toLowerCase().includes(search)
+      );
+    }
+
+    // Filtro por categoría
+    if (filterCategoryServices !== 'todas') {
+      filtered = filtered.filter(s => s.categoria === filterCategoryServices);
+    }
+
+    // Ordenamiento
+    const sorted = [...filtered];
+    switch (sortByServices) {
+      case 'nombre-asc':
+        sorted.sort((a, b) => ((a.nombre || a.nombre_visible || a.servicio || '').localeCompare(b.nombre || b.nombre_visible || b.servicio || '')));
+        break;
+      case 'nombre-desc':
+        sorted.sort((a, b) => ((b.nombre || b.nombre_visible || b.servicio || '').localeCompare(a.nombre || a.nombre_visible || a.servicio || '')));
+        break;
+      case 'categoria-asc':
+        sorted.sort((a, b) => ((a.categoria || '').localeCompare(b.categoria || '')));
+        break;
+      case 'categoria-desc':
+        sorted.sort((a, b) => ((b.categoria || '').localeCompare(a.categoria || '')));
+        break;
+      default:
+        break;
+    }
+
+    return sorted;
+  }, [services, searchServices, sortByServices, filterCategoryServices]);
 
   const handleToggleDept = async (dept, currentStatus) => {
     try {
@@ -518,22 +671,6 @@ const GestionServicios = () => {
         enabled: deptStatus[selectedDept] || false
       }, { merge: true });
     }
-  };
-
-  const handleDeleteService = async (serviceId) => {
-    if (!window.confirm('¿Eliminar este servicio?')) return;
-    try {
-      await updateDoc(doc(db, 'Tarifas', selectedDept), {
-        [serviceId]: deleteField()
-      });
-    } catch (err) {
-      console.error("Error deleting service:", err);
-    }
-  };
-
-  const handleEditService = (service) => {
-    setCurrentService(service);
-    setModalOpen(true);
   };
 
   const handleAddService = () => {
@@ -566,43 +703,6 @@ const GestionServicios = () => {
     }
   }, [selectedDept]);
 
-  // Memoizar renderizado de tabla
-  const tableRows = useMemo(() => 
-    services.map((srv) => (
-      <TableRow key={srv.id}>
-        <TableCell>{srv.categoria || '-'}</TableCell>
-        <TableCell>{srv.servicio || srv.nombre_visible || srv.nombre || '-'}</TableCell>
-        <TableCell>
-          <Typography color={srv.activo ? 'green' : 'text.secondary'}>
-            {srv.activo ? 'Activo' : 'Inactivo'}
-          </Typography>
-        </TableCell>
-        <TableCell>
-          {srv.reglas_tarifa?.tarifa_base ? `Bs. ${srv.reglas_tarifa.tarifa_base}` : 
-           srv.tarifa_general?.tarifaBase ? `Bs. ${srv.tarifa_general.tarifaBase}` :
-           '-'}
-        </TableCell>
-        <TableCell align="right">
-          <IconButton
-            size="small"
-            onClick={() => memoizedHandleEditService(srv)}
-            sx={{ color: '#d7171a' }}
-          >
-            <EditIcon />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => memoizedHandleDeleteService(srv.id)}
-            sx={{ color: '#d7171a' }}
-          >
-            <DeleteIcon />
-          </IconButton>
-        </TableCell>
-      </TableRow>
-    )),
-    [services, memoizedHandleEditService, memoizedHandleDeleteService]
-  );
-
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Paper sx={{ p: 3 }}>
@@ -617,69 +717,174 @@ const GestionServicios = () => {
 
         {/* Tab 0: Departamentos */}
         {tabValue === 0 && (
-          <Grid container spacing={2}>
-            {DEPARTAMENTOS.map((dept) => (
-              <Grid item xs={12} sm={6} md={4} key={dept}>
-                <Card variant="outlined">
-                  <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h6">{dept}</Typography>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={!!deptStatus[dept]}
-                          onChange={() => handleToggleDept(dept, deptStatus[dept])}
-                          color="primary"
+          <Box>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
+              Estado de Departamentos
+            </Typography>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Departamento</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>Estado</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {DEPARTAMENTOS.map((dept) => (
+                    <TableRow key={dept} sx={{ '&:hover': { backgroundColor: '#f9f9f9' } }}>
+                      <TableCell>
+                        <Typography sx={{ fontWeight: '500' }}>{dept}</Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Box sx={{
+                          display: 'inline-block',
+                          px: 2,
+                          py: 0.5,
+                          borderRadius: 1,
+                          backgroundColor: deptStatus[dept] ? '#e8f5e9' : '#ffebee',
+                          color: deptStatus[dept] ? '#2e7d32' : '#c62828'
+                        }}>
+                          <Typography variant="body2" sx={{ fontWeight: '600' }}>
+                            {deptStatus[dept] ? '✓ Habilitado' : '✗ Deshabilitado'}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell align="center">
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={!!deptStatus[dept]}
+                              onChange={() => handleToggleDept(dept, deptStatus[dept])}
+                              color="primary"
+                              size="small"
+                            />
+                          }
+                          label=""
+                          sx={{ m: 0 }}
                         />
-                      }
-                      label={deptStatus[dept] ? "Habilitado" : "Deshabilitado"}
-                    />
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
         )}
 
         {/* Tab 1: Tarifas */}
         {tabValue === 1 && (
           <Box>
-            <FormControl fullWidth sx={{ mb: 3 }}>
-              <InputLabel>Seleccionar Departamento</InputLabel>
-              <Select
-                value={selectedDept}
-                label="Seleccionar Departamento"
-                onChange={(e) => setSelectedDept(e.target.value)}
-              >
-                {deptOptions.map(opt => (
-                  <MenuItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mb: 3, gap: 2 }}>
+              <Box sx={{ flex: 1 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Seleccionar Departamento</InputLabel>
+                  <Select
+                    value={selectedDept}
+                    label="Seleccionar Departamento"
+                    onChange={(e) => setSelectedDept(e.target.value)}
+                  >
+                    {deptOptions.map(opt => (
+                      <MenuItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+              <Button variant="contained" startIcon={<AddIcon />} onClick={handleAddService} sx={{ backgroundColor: '#d7171a', whiteSpace: 'nowrap' }}>
+                Asignar Tarifa
+              </Button>
+            </Box>
 
             {selectedDept && (
-              <>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                  <Button variant="contained" startIcon={<AddIcon />} onClick={handleAddService} sx={{ backgroundColor: '#d7171a' }}>
-                    Asignar Tarifa
-                  </Button>
-                </Box>
+              <Box>
+
+                {/* Toolbar para Servicios */}
+                <TableToolbar
+                  searchValue={searchServices}
+                  onSearchChange={setSearchServices}
+                  sortOptions={[
+                    { label: "↑ Sort by Nombre (ASC)", value: "nombre-asc" },
+                    { label: "↓ Sort by Nombre (DESC)", value: "nombre-desc" },
+                    { label: "↑ Sort by Categoría (ASC)", value: "categoria-asc" },
+                    { label: "↓ Sort by Categoría (DESC)", value: "categoria-desc" },
+                  ]}
+                  sortValue={sortByServices}
+                  onSortChange={setSortByServices}
+                  filterOptions={[
+                    {
+                      name: "categoria",
+                      label: "Categoría",
+                      defaultValue: "todas",
+                      options: [
+                        { label: "Todas", value: "todas" },
+                        ...Array.from(new Set(services.map(s => s.categoria))).map(cat => ({
+                          label: formatearCategoria(cat),
+                          value: cat
+                        }))
+                      ],
+                    },
+                  ]}
+                  filterValue={{ categoria: filterCategoryServices }}
+                  onFilterChange={(name, value) => setFilterCategoryServices(value)}
+                  visibleColumns={visibleColumnsServicios}
+                  onColumnChange={(col, visible) => setVisibleColumnsServicios(prev => ({ ...prev, [col]: visible }))}
+                  showClearButton={true}
+                />
 
                 <TableContainer component={Paper} variant="outlined">
                   <Table>
                     <TableHead>
                       <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                        <TableCell>Categoría</TableCell>
-                        <TableCell>Servicio</TableCell>
-                        <TableCell>Estado</TableCell>
-                        <TableCell>Tarifa Base</TableCell>
-                        <TableCell align="right">Acciones</TableCell>
+                        {visibleColumnsServicios.categoria && <TableCell>Categoría</TableCell>}
+                        {visibleColumnsServicios.nombre && <TableCell>Servicio</TableCell>}
+                        {visibleColumnsServicios.estado && <TableCell>Estado</TableCell>}
+                        {visibleColumnsServicios.tarifa_base && <TableCell>Tarifa Base</TableCell>}
+                        {visibleColumnsServicios.acciones && <TableCell align="right">Acciones</TableCell>}
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {tableRows}
-                      {services.length === 0 && (
+                      {servicesFiltrados.map((srv) => (
+                        <TableRow key={srv.id}>
+                          {visibleColumnsServicios.categoria && <TableCell>{formatearCategoria(srv.categoria)}</TableCell>}
+                          {visibleColumnsServicios.nombre && <TableCell>{srv.servicio || srv.nombre_visible || srv.nombre || '-'}</TableCell>}
+                          {visibleColumnsServicios.estado && (
+                            <TableCell>
+                              <Typography color={srv.activo ? 'green' : 'text.secondary'}>
+                                {srv.activo ? 'Activo' : 'Inactivo'}
+                              </Typography>
+                            </TableCell>
+                          )}
+                          {visibleColumnsServicios.tarifa_base && (
+                            <TableCell>
+                              {srv.reglas_tarifa?.costo_por_hora ? `Bs. ${srv.reglas_tarifa.costo_por_hora}` :
+                               srv.reglas_tarifa?.tarifa_base ? `Bs. ${srv.reglas_tarifa.tarifa_base}` : 
+                               srv.tarifa_general?.tarifaBase ? `Bs. ${srv.tarifa_general.tarifaBase}` :
+                               '-'}
+                            </TableCell>
+                          )}
+                          {visibleColumnsServicios.acciones && (
+                            <TableCell align="right">
+                              <IconButton
+                                size="small"
+                                onClick={() => memoizedHandleEditService(srv)}
+                                sx={{ color: '#d7171a' }}
+                              >
+                                <EditIcon />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={() => memoizedHandleDeleteService(srv.id)}
+                                sx={{ color: '#d7171a' }}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                      {servicesFiltrados.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={5} align="center">No hay servicios registrados en este departamento.</TableCell>
                         </TableRow>
@@ -687,7 +892,7 @@ const GestionServicios = () => {
                     </TableBody>
                   </Table>
                 </TableContainer>
-              </>
+              </Box>
             )}
           </Box>
         )}

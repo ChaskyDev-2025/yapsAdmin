@@ -34,6 +34,7 @@ export const DocsManagerModal = ({
   const [selectedTemplates, setSelectedTemplates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
+  const [ciudadSeleccionada, setCiudadSeleccionada] = useState("");
 
   // Función para cargar templates
   const fetchTemplates = async () => {
@@ -240,7 +241,46 @@ export const DocsManagerModal = ({
     <Dialog open={assignDialogOpen} onClose={() => setAssignDialogOpen(false)} maxWidth="sm" fullWidth>
       <DialogTitle>Asignar Documentos a {flota?.nombre}</DialogTitle>
       <DialogContent>
-        <Box sx={{ mt: 1 }}>
+        {CIUDADES.length > 0 && (
+          <Box sx={{ mb: 2, mt: 1 }}>
+            <Typography
+              variant="subtitle2"
+              sx={{
+                fontFamily: "Mulish, sans-serif",
+                fontWeight: 600,
+                mb: 1,
+              }}
+            >
+              Filtrar por Departamento:
+            </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                gap: 1,
+                flexWrap: "wrap",
+              }}
+            >
+              <Chip
+                label="Todos"
+                onClick={() => setCiudadSeleccionada("")}
+                color={ciudadSeleccionada === "" ? "primary" : "default"}
+                variant={ciudadSeleccionada === "" ? "filled" : "outlined"}
+                sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}
+              />
+              {CIUDADES.map((ciudad) => (
+                <Chip
+                  key={ciudad}
+                  label={ciudad}
+                  onClick={() => setCiudadSeleccionada(ciudad)}
+                  color={ciudadSeleccionada === ciudad ? "primary" : "default"}
+                  variant={ciudadSeleccionada === ciudad ? "filled" : "outlined"}
+                  sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}
+                />
+              ))}
+            </Box>
+          </Box>
+        )}
+        <Box sx={{ mt: 2 }}>
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
               <CircularProgress />
@@ -248,7 +288,7 @@ export const DocsManagerModal = ({
           ) : !templates || typeof templates !== 'object' || Object.keys(templates).length === 0 ? (
             <Typography sx={{ fontFamily: 'Mulish, sans-serif' }}>No hay documentos disponibles</Typography>
           ) : (
-            CIUDADES.map((ciudad) => {
+            CIUDADES.filter(ciudad => !ciudadSeleccionada || ciudadSeleccionada === ciudad).map((ciudad) => {
               const docsEnCiudad = templates[ciudad] || [];
               if (docsEnCiudad.length === 0) return null;
               

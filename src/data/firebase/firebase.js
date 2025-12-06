@@ -16,7 +16,7 @@ const firebaseConfig = {
   measurementId: "G-LMSR97W98Q"
 };
 
-console.log("📦 Firebase Project ID:", firebaseConfig.projectId);
+// Firebase initialized
 
 const app = initializeApp(firebaseConfig);
 export const analytics = getAnalytics(app);

@@ -17,6 +17,7 @@ import RoomServiceIcon from "@mui/icons-material/RoomService";
 import CardGiftcardIcon from "@mui/icons-material/CardGiftcard";
 import ArticleIcon from "@mui/icons-material/Article";
 import DescriptionIcon from "@mui/icons-material/Description";
+import MailIcon from "@mui/icons-material/Mail";
 import Navbar          from "../components/Navbar";
 import Footer          from "../components/Footer";
 import Sidebar         from "../components/Sidebar";
@@ -34,6 +35,7 @@ const AdminLayout = () => {
       return [
         { path: "/admin/dashboard", label: "Inicio", icon: <DashboardIcon /> },
         { path: "/admin/gestion-usuarios", label: "Gestión Usuarios", icon: <SupervisorAccountIcon /> },
+        { path: "/admin/solicitudes", label: "Solicitudes", icon: <MailIcon /> },
         { path: "/admin/flotas", label: "Flotas", icon: <DirectionsCarIcon /> },
         { path: "/admin/servicios", label: "Servicios", icon: <RoomServiceIcon /> },
         { path: "/admin/documentos", label: "Documentos", icon: <ArticleIcon /> },

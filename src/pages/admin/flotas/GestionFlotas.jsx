@@ -16,6 +16,7 @@ import { useDocumentosPorCiudad } from "./hooks/useDocumentosPorCiudad";
 import { FlotasTable } from "./components/FlotasTable";
 import { FlotaFormDialog } from "./components/FlotaFormDialog";
 import { DocsManagerModal } from "./components/DocsManagerModal";
+import { ServiciosManagerModal } from "./components/ServiciosManagerModal";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
 
 const GestionFlotas = () => {
@@ -34,6 +35,8 @@ const GestionFlotas = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [openDocsManagerModal, setOpenDocsManagerModal] = useState(false);
   const [selectedFlotaForDocs, setSelectedFlotaForDocs] = useState(null);
+  const [openServiciosManagerModal, setOpenServiciosManagerModal] = useState(false);
+  const [selectedFlotaForServicios, setSelectedFlotaForServicios] = useState(null);
   
   // Estados para búsqueda y ordenamiento
   const [searchFlotas, setSearchFlotas] = useState("");
@@ -47,6 +50,7 @@ const GestionFlotas = () => {
     nit: true,
     representante: true,
     propietarios: true,
+    servicios: true,
     estado: true,
     fecha: true,
     documentos: true,
@@ -310,6 +314,13 @@ const GestionFlotas = () => {
     setOpenDocsManagerModal(true);
   };
 
+  const handleManageDocs = handleOpenDocsManager;
+
+  const handleManageServicios = (flota) => {
+    setSelectedFlotaForServicios(flota);
+    setOpenServiciosManagerModal(true);
+  };
+
   const handleCloseDocsManagerModal = () => {
     setOpenDocsManagerModal(false);
     setSelectedFlotaForDocs(null);
@@ -351,6 +362,35 @@ const GestionFlotas = () => {
     } catch (error) {
       console.error('Error asignando plantillas a la flota:', error);
       showSnackbar('Error al asignar plantillas: ' + error.message, 'error');
+    }
+  };
+
+  // Asignar servicios a la flota seleccionada
+  const handleAssignServiciosToFlota = async (serviciosSelected) => {
+    if (!selectedFlotaForServicios) return;
+    
+    try {
+      const serviciosIds = Array.isArray(serviciosSelected) 
+        ? serviciosSelected 
+        : [];
+
+      const flotaRef = doc(db, 'flotas', selectedFlotaForServicios.id);
+
+      await updateDoc(flotaRef, {
+        servicios: serviciosIds,
+        updatedAt: serverTimestamp(),
+      });
+
+      setSelectedFlotaForServicios({
+        ...selectedFlotaForServicios,
+        servicios: serviciosIds,
+      });
+      
+      await fetchFlotas();
+      showSnackbar('Servicios asignados correctamente', 'success');
+    } catch (error) {
+      console.error('Error asignando servicios a la flota:', error);
+      showSnackbar('Error al asignar servicios: ' + error.message, 'error');
     }
   };
 
@@ -410,10 +450,12 @@ const GestionFlotas = () => {
         <FlotasTable
           flotas={flotasFiltradas}
           administradores={administradores}
+          servicios={serviciosDisponibles}
           onEdit={handleOpenDialog}
           onDelete={handleDelete}
           onToggleHabilitado={toggleHabilitado}
-          onManageDocs={handleOpenDocsManager}
+          onManageDocs={handleManageDocs}
+          onManageServicios={handleManageServicios}
           visibleColumns={visibleColumnsFlotas}
         />
       </Paper>
@@ -452,6 +494,15 @@ const GestionFlotas = () => {
         onClose={handleCloseDocsManagerModal}
         flota={selectedFlotaForDocs}
         onAssignTemplates={handleAssignTemplatesToFlota}
+      />
+
+      {/* Modal de gestión de servicios por flota */}
+      <ServiciosManagerModal
+        open={openServiciosManagerModal}
+        onClose={() => setOpenServiciosManagerModal(false)}
+        flota={selectedFlotaForServicios}
+        serviciosPorCiudad={serviciosPorCiudad}
+        onAssignServicios={handleAssignServiciosToFlota}
       />
 
       {/* Diálogo de confirmación de eliminación */}

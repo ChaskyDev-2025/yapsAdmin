@@ -20,14 +20,17 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import DescriptionIcon from "@mui/icons-material/Description";
+import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 
 export const FlotasTable = ({
   flotas,
   administradores,
+  servicios = [],
   onEdit,
   onDelete,
   onToggleHabilitado,
   onManageDocs,
+  onManageServicios,
   visibleColumns = {},
 }) => {
   return (
@@ -58,6 +61,11 @@ export const FlotasTable = ({
             {visibleColumns.propietarios && (
               <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
                 Propietarios
+              </TableCell>
+            )}
+            {visibleColumns.servicios && (
+              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                Servicios
               </TableCell>
             )}
             {visibleColumns.estado && (
@@ -160,6 +168,29 @@ export const FlotasTable = ({
                         Sin propietarios
                       </Typography>
                     )}
+                  </TableCell>
+                )}
+                {visibleColumns.servicios && (
+                  <TableCell>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<LocalOfferIcon />}
+                      onClick={() => onManageServicios(flota)}
+                      sx={{
+                        borderColor: "#d7171a",
+                        color: "#d7171a",
+                        fontFamily: "Mulish, sans-serif",
+                        fontWeight: 600,
+                        fontSize: "0.75rem",
+                        "&:hover": {
+                          borderColor: "#a00000",
+                          bgcolor: "rgba(215, 23, 26, 0.04)",
+                        },
+                      }}
+                    >
+                      Servicios: {flota.servicios?.length || 0}
+                    </Button>
                   </TableCell>
                 )}
                 {visibleColumns.estado && (

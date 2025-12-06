@@ -18,6 +18,7 @@ import GestionFlotas from "../pages/admin/flotas/GestionFlotas";
 import GestionServicios from "../pages/admin/servicios/GestionServicios";
 import Referidos from "../pages/admin/referidos/Referidos";
 import DocumentosPendientes from "../pages/admin/documentosPendientes/DocumentosPendientes";
+import Solicitudes from "../pages/admin/solicitudes/Solicitudes";
 
 const AdminRoutes = () => (
   <Routes>
@@ -39,6 +40,7 @@ const AdminRoutes = () => (
       <Route path="documentos-pendientes" element={<DocumentosPendientes />} />
       <Route path="flotas" element={<GestionFlotas />} />
       <Route path="referidos" element={<Referidos />} />
+      <Route path="solicitudes" element={<Solicitudes />} />
     </Route>
   </Routes>
 );

@@ -139,8 +139,8 @@ const GestionUsuarios = () => {
     if (searchAdmin) {
       const search = searchAdmin.toLowerCase();
       filtered = filtered.filter(u => 
-        u.email.toLowerCase().includes(search) ||
-        u.nombre.toLowerCase().includes(search)
+        (u.email && u.email.toLowerCase().includes(search)) ||
+        (u.nombre && u.nombre.toLowerCase().includes(search))
       );
     }
     
@@ -157,16 +157,16 @@ const GestionUsuarios = () => {
     const sorted = [...filtered];
     switch (sortByAdmin) {
       case "email-asc":
-        sorted.sort((a, b) => (a.email || "").localeCompare(b.email || ""));
+        sorted.sort((a, b) => ((a.email || "") || "").localeCompare((b.email || "") || ""));
         break;
       case "email-desc":
-        sorted.sort((a, b) => (b.email || "").localeCompare(a.email || ""));
+        sorted.sort((a, b) => ((b.email || "") || "").localeCompare((a.email || "") || ""));
         break;
       case "nombre-asc":
-        sorted.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+        sorted.sort((a, b) => ((a.nombre || "") || "").localeCompare((b.nombre || "") || ""));
         break;
       case "nombre-desc":
-        sorted.sort((a, b) => (b.nombre || "").localeCompare(a.nombre || ""));
+        sorted.sort((a, b) => ((b.nombre || "") || "").localeCompare((a.nombre || "") || ""));
         break;
       default:
         break;
@@ -190,16 +190,16 @@ const GestionUsuarios = () => {
     const sorted = [...filtered];
     switch (sortByPasajeros) {
       case "nombre-asc":
-        sorted.sort((a, b) => ((a.name || a.perfil?.name || "")).localeCompare(b.name || b.perfil?.name || ""));
+        sorted.sort((a, b) => ((a.name || a.perfil?.name || "") || "").localeCompare((b.name || b.perfil?.name || "") || ""));
         break;
       case "nombre-desc":
-        sorted.sort((a, b) => ((b.name || b.perfil?.name || "")).localeCompare(a.name || a.perfil?.name || ""));
+        sorted.sort((a, b) => ((b.name || b.perfil?.name || "") || "").localeCompare((a.name || a.perfil?.name || "") || ""));
         break;
       case "email-asc":
-        sorted.sort((a, b) => ((a.email || a.perfil?.email || "")).localeCompare(b.email || b.perfil?.email || ""));
+        sorted.sort((a, b) => ((a.email || a.perfil?.email || "") || "").localeCompare((b.email || b.perfil?.email || "") || ""));
         break;
       case "email-desc":
-        sorted.sort((a, b) => ((b.email || b.perfil?.email || "")).localeCompare(a.email || a.perfil?.email || ""));
+        sorted.sort((a, b) => ((b.email || b.perfil?.email || "") || "").localeCompare((a.email || a.perfil?.email || "") || ""));
         break;
       default:
         break;
@@ -232,16 +232,16 @@ const GestionUsuarios = () => {
     const sorted = [...filtered];
     switch (sortByConductores) {
       case "nombre-asc":
-        sorted.sort((a, b) => ((a.perfil?.name || "")).localeCompare(b.perfil?.name || ""));
+        sorted.sort((a, b) => ((a.perfil?.name || "") || "").localeCompare((b.perfil?.name || "") || ""));
         break;
       case "nombre-desc":
-        sorted.sort((a, b) => ((b.perfil?.name || "")).localeCompare(a.perfil?.name || ""));
+        sorted.sort((a, b) => ((b.perfil?.name || "") || "").localeCompare((a.perfil?.name || "") || ""));
         break;
       case "email-asc":
-        sorted.sort((a, b) => ((a.perfil?.email || "")).localeCompare(b.perfil?.email || ""));
+        sorted.sort((a, b) => ((a.perfil?.email || "") || "").localeCompare((b.perfil?.email || "") || ""));
         break;
       case "email-desc":
-        sorted.sort((a, b) => ((b.perfil?.email || "")).localeCompare(a.perfil?.email || ""));
+        sorted.sort((a, b) => ((b.perfil?.email || "") || "").localeCompare((a.perfil?.email || "") || ""));
         break;
       default:
         break;
@@ -312,9 +312,13 @@ const GestionUsuarios = () => {
   const handleOpenDialog = (usuario = null) => {
     if (usuario) {
       setEditingUser(usuario);
+      // Para trabajadores (conductores), siempre tomar del perfil
+      const isTrabajador = usuario.perfil;
+      const nombreFinal = isTrabajador ? (usuario.perfil?.name || "") : (usuario.nombre || "");
+      
       setFormData({
         email: usuario.email || usuario.perfil?.email || "",
-        nombre: usuario.nombre || usuario.perfil?.name || "",
+        nombre: nombreFinal,
         role: usuario.role || "driver",
         password: "",
         flotaId: usuario.flotaId || "",

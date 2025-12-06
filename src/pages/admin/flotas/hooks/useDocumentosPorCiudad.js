@@ -44,7 +44,7 @@ export const useDocumentosPorCiudad = () => {
             };
           }
         } catch (err) {
-          console.error(`Error obteniendo documentos de ${ciudad}:`, err);
+          // Error al obtener documentos
           return {
             ciudad,
             documentos: []
@@ -58,13 +58,11 @@ export const useDocumentosPorCiudad = () => {
       // Construir el objeto documentosPorDept desde los resultados
       resultados.forEach(({ ciudad, documentos }) => {
         documentosPorDept[ciudad] = documentos;
-        console.log(`📄 Documentos en ${ciudad}:`, documentos.length);
       });
 
       setDocumentosPorCiudad(documentosPorDept);
-      console.log('📄 Documentos por ciudad cargados (paralelo):', Object.keys(documentosPorDept).length, 'ciudades');
     } catch (error) {
-      console.error("Error al obtener documentos por ciudad:", error);
+      // Error al obtener documentos
     } finally {
       setLoading(false);
     }
