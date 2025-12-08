@@ -25,11 +25,12 @@ export const CATEGORIAS_ESPECIALES = {
       unidad_precio: { label: "Unidad de Precio", type: "select", options: ["Bs", "USD"] }
     }
   },
-  "volqueta_y_construccion": {
-    tipo_calculo: "viaje_material",
-    servicios: ["volqueta (4,8,12 cubos)", "camion (ripio, arena y ladrillo)"],
+  "construccion": {
+    tipo_calculo: "tarifa_fija",
+    servicios: ["volqueta 4 cubos", "volqueta 8 cubos", "volqueta 12 cubos", "camion material"],
     campos: {
-      tarifa_base: { label: "Tarifa Base (Bs)", type: "number", step: "0.01" }
+      tarifa_base: { label: "Tarifa Base (Bs)", type: "number", step: "0.01" },
+      unidad_precio: { label: "Unidad de Precio", type: "select", options: ["Bs", "USD"] }
     }
   },
   "mudanza": {

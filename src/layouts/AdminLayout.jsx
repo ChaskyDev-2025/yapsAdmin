@@ -18,6 +18,7 @@ import CardGiftcardIcon from "@mui/icons-material/CardGiftcard";
 import ArticleIcon from "@mui/icons-material/Article";
 import DescriptionIcon from "@mui/icons-material/Description";
 import MailIcon from "@mui/icons-material/Mail";
+import AssignmentIcon from "@mui/icons-material/Assignment";
 import Navbar          from "../components/Navbar";
 import Footer          from "../components/Footer";
 import Sidebar         from "../components/Sidebar";
@@ -49,6 +50,7 @@ const AdminLayout = () => {
     return [
       { path: "/admin/dashboard", label: "Inicio", icon: <DashboardIcon /> },
       { path: "/admin/radiotaxis", label: "Radiotaxis", icon: <LocalTaxiIcon /> },
+      { path: "/admin/solicitudes-asignadas", label: "Solicitudes", icon: <AssignmentIcon /> },
       { path: "/admin/documentos-pendientes", label: "Docs Pendientes", icon: <DescriptionIcon /> },
       { path: "/admin/ajustes", label: "Ajustes", icon: <SettingsIcon /> },
       { path: "/admin/personalizar", label: "Personalizar", icon: <BuildIcon /> },

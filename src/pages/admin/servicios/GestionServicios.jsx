@@ -47,10 +47,10 @@ const DEPARTAMENTOS = [
 const SERVICE_CATALOG = {
   "Viajes": ["Moto Taxi", "Economico", "Comodidad", "Vagoneta", "Empresarial o VIP", "El primero disponible"],
   "Envios": ["Moto", "Vagoneta", "Carga"],
-  "carga_local": ["vagoneta", "camioneta pequena", "camioneta mediana"],
+  "carga_local": ["camioneta", "camioneta pequena", "camioneta mediana"],
   "carga_nacional": ["camioneta mediana", "camion grande", "camion extra grande", "tracto camion"],
   "carga_internacional": ["camion gran tonelaje", "camion refrigerado", "camion toldo", "tracto camion"],
-  "volqueta_y_construccion": ["volqueta (4,8,12 cubos)", "camion (ripio, arena y ladrillo)"],
+  "construccion": ["volqueta 4 cubos", "volqueta 8 cubos", "volqueta 12 cubos", "camion material"],
   "mudanza": ["camioneta pequena", "camioneta mediana", "camion grande"],
   "maquinaria_y_gruas": ["motoniveladora", "retro excavadora", "excavadora hidraulica", "gruas pluma", "gruas rampa"]
 };
@@ -61,7 +61,7 @@ const CAMPOS_POR_CATEGORIA = {
   "Envios": ["tarifa_base", "costo_por_km", "peso_minimo", "costo_por_kg"],
   "Carga local": ["tarifa_base", "volumen_minimo", "costo_por_m3", "costo_por_hora"],
   "Carga nacional": ["tarifa_base", "precio_por_km", "seguro", "costo_descarga"],
-  "Volqueta y construccion": ["tarifa_base", "hora_minima", "costo_por_hora", "costo_por_viaje"],
+  "Construccion": ["tarifa_base", "hora_minima", "costo_por_hora", "costo_por_viaje"],
   "Mudanza": ["tarifa_base", "m3_incluido", "costo_por_m3_extra", "costo_por_hora"],
   "Maquinaria y gruas": ["costo_por_hora", "hora_minima", "costo_traslado"]
 };
@@ -86,6 +86,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
     nombre_visible: '',
     categoria: 'transporte_pasajeros',
     tipo_calculo: 'distancia_tiempo',
+    unidad_precio: 'Bs',
     reglas_tarifa: {},
     tarifasAeropuerto: [],
     horasPico: []
@@ -126,6 +127,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
           nombre_visible: '',
           categoria: 'transporte_pasajeros',
           tipo_calculo: 'distancia_tiempo',
+          unidad_precio: 'Bs',
           reglas_tarifa: {},
           tarifasAeropuerto: [{ desdeKm: "10", precio: "40.00" }, { desdeKm: "20", precio: "60.00" }],
           horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }]
@@ -134,6 +136,8 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
         setFormData({
           activo: true,
           tarifa_general: { tarifaBase: '', distanciaBase: '', porKm: '', porMin: '', horaPicoExtra: '', nocturno: '', comision: '' },
+          tipo_calculo: 'tarifa_fija',
+          unidad_precio: 'Bs',
           tarifasAeropuerto: [{ desdeKm: "10", precio: "40.00" }, { desdeKm: "20", precio: "60.00" }],
           horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }]
         });
@@ -187,14 +191,15 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
       setFormData({
         activo: service.activo !== undefined ? service.activo : true,
         tarifa_general: {
-          tarifaBase: String(service.tarifa_general?.tarifaBase ?? ''),
-          distanciaBase: String(service.tarifa_general?.distanciaBase ?? ''),
-          porKm: String(service.tarifa_general?.porKm ?? ''),
-          porMin: String(service.tarifa_general?.porMin ?? ''),
-          horaPicoExtra: String(service.tarifa_general?.horaPicoExtra ?? ''),
-          nocturno: String(service.tarifa_general?.nocturno ?? ''),
-          comision: String(service.tarifa_general?.comision ?? '')
+          tarifaBase: String(service.reglas_tarifa?.tarifaBase ?? service.tarifa_general?.tarifaBase ?? ''),
+          distanciaBase: String(service.reglas_tarifa?.distanciaBase ?? service.tarifa_general?.distanciaBase ?? ''),
+          porKm: String(service.reglas_tarifa?.porKm ?? service.tarifa_general?.porKm ?? ''),
+          porMin: String(service.reglas_tarifa?.porMin ?? service.tarifa_general?.porMin ?? ''),
+          horaPicoExtra: String(service.reglas_tarifa?.horaPicoExtra ?? service.tarifa_general?.horaPicoExtra ?? ''),
+          nocturno: String(service.reglas_tarifa?.nocturno ?? service.tarifa_general?.nocturno ?? ''),
+          comision: String(service.reglas_tarifa?.comision ?? service.tarifa_general?.comision ?? '')
         },
+        tipo_calculo: service.tipo_calculo || 'tarifa_fija',
         tarifasAeropuerto: service.Tarifas_Aeropuerto?.tramos || [],
         horasPico: service.Horas_pico?.franjas || []
       });
@@ -265,6 +270,11 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
           }
         });
 
+        // Agregar unidad_precio a reglas_tarifa si existe
+        if (formData.unidad_precio) {
+          reglas_tarifa_numerica.unidad_precio = formData.unidad_precio;
+        }
+
         dataToSave = {
           activo: formData.activo,
           nombre_visible: serviceName,
@@ -303,18 +313,15 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
           tarifa_general_numerica[k] = val === '' || val === null || val === undefined ? 0 : parseFloat(val) || 0;
         });
 
+        // Agregar unidad_precio a la estructura
+        tarifa_general_numerica.unidad_precio = formData.unidad_precio || 'Bs';
+
         dataToSave = {
-          categoria: category,
-          servicio: serviceName,
-          nombre: `${category} - ${serviceName}`,
           activo: formData.activo,
-          tarifa_general: tarifa_general_numerica,
-          Tarifas_Aeropuerto: {
-            tramos: formData.tarifasAeropuerto.map(t => ({ desdeKm: t.desdeKm, precio: parseFloat(t.precio) || 0 }))
-          },
-          Horas_pico: {
-            franjas: formData.horasPico
-          }
+          nombre_visible: serviceName,
+          categoria: category,
+          tipo_calculo: formData.tipo_calculo,
+          reglas_tarifa: tarifa_general_numerica
         };
         key = `${category}_${serviceName}`.replace(/[^a-zA-Z0-9]/g, '_');
       }
@@ -367,11 +374,24 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
             </FormControl>
           </Grid>
 
-          <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center' }}>
+          <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <FormControlLabel
               control={<Switch checked={formData.activo} onChange={(e) => setFormData({ ...formData, activo: e.target.checked })} />}
               label="Activo"
             />
+            {!isEspecialCategory && (
+              <FormControl sx={{ minWidth: 120 }}>
+                <InputLabel>Unidad Precio</InputLabel>
+                <Select
+                  value={formData.unidad_precio || 'Bs'}
+                  label="Unidad Precio"
+                  onChange={(e) => setFormData({ ...formData, unidad_precio: e.target.value })}
+                >
+                  <MenuItem value="Bs">Bs</MenuItem>
+                  <MenuItem value="USD">USD</MenuItem>
+                </Select>
+              </FormControl>
+            )}
           </Grid>
 
           {/* SECTION 2: Tarifas Base (MIDDLE - Full Width) */}
@@ -666,10 +686,14 @@ const GestionServicios = () => {
       });
     } catch (err) {
       // If doc doesn't exist, create it
-      await setDoc(doc(db, 'Tarifas', selectedDept), {
-        [serviceName]: serviceData,
-        enabled: deptStatus[selectedDept] || false
-      }, { merge: true });
+      try {
+        await setDoc(doc(db, 'Tarifas', selectedDept), {
+          [serviceName]: serviceData,
+          enabled: deptStatus[selectedDept] || false
+        }, { merge: true });
+      } catch (setDocErr) {
+        throw setDocErr;
+      }
     }
   };
 

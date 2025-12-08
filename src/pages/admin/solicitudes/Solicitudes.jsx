@@ -46,6 +46,7 @@ const Solicitudes = () => {
   const [sortBySolicitudes, setSortBySolicitudes] = useState("fecha-desc");
   const [flotas, setFlotas] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
+  const [pasajeros, setPasajeros] = useState([]);
   const [selectedSolicitud, setSelectedSolicitud] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [asignadaFlota, setAsignadaFlota] = useState("");
@@ -57,13 +58,23 @@ const Solicitudes = () => {
     const cargarSolicitudes = async () => {
       try {
         const snapshot = await getDocs(collection(db, "solicitudes"));
-        const data = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          fechaCreacion: doc.data().fechaCreacion?.toDate ? doc.data().fechaCreacion.toDate() : new Date(doc.data().fechaCreacion),
-          "solicitud.detalles.fechaProgramada": doc.data().solicitud?.detalles?.fechaProgramada?.toDate ? doc.data().solicitud.detalles.fechaProgramada.toDate() : null,
-          "solicitud.detalles.fechaInicio": doc.data().solicitud?.detalles?.fechaInicio?.toDate ? doc.data().solicitud.detalles.fechaInicio.toDate() : null,
-        }));
+        const data = snapshot.docs.map(doc => {
+          const docData = doc.data();
+          return {
+            id: doc.id,
+            ...docData,
+            fechaCreacion: docData.fechaCreacion?.toDate ? docData.fechaCreacion.toDate() : (docData.fechaCreacion instanceof Date ? docData.fechaCreacion : null),
+            solicitud: {
+              ...docData.solicitud,
+              fechaCreacion: docData.solicitud?.fechaCreacion?.toDate ? docData.solicitud.fechaCreacion.toDate() : (docData.solicitud?.fechaCreacion instanceof Date ? docData.solicitud.fechaCreacion : null),
+              detalles: {
+                ...docData.solicitud?.detalles,
+                fechaProgramada: docData.solicitud?.detalles?.fechaProgramada?.toDate ? docData.solicitud.detalles.fechaProgramada.toDate() : null,
+                fechaInicio: docData.solicitud?.detalles?.fechaInicio?.toDate ? docData.solicitud.detalles.fechaInicio.toDate() : null,
+              }
+            }
+          };
+        });
         setSolicitudes(data);
       } catch (error) {
         console.error("Error cargando solicitudes:", error);
@@ -77,7 +88,7 @@ const Solicitudes = () => {
   useEffect(() => {
     const cargarFlotas = async () => {
       try {
-        const snapshot = await getDocs(collection(db, "Flotas"));
+        const snapshot = await getDocs(collection(db, "flotas"));
         const data = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
@@ -109,11 +120,86 @@ const Solicitudes = () => {
     cargarUsuarios();
   }, []);
 
-  // Obtener nombre del usuario por UID
+  // Cargar pasajeros
+  useEffect(() => {
+    const cargarPasajeros = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, "pasajeros"));
+        const data = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setPasajeros(data);
+      } catch (error) {
+        console.error("Error cargando pasajeros:", error);
+      }
+    };
+
+    cargarPasajeros();
+  }, []);
+
+  // Normalizar strings para comparación consistente
+  const normalizarTexto = (texto) => {
+    if (!texto) return "";
+    return texto
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "_") // Reemplazar espacios por guiones bajos
+      .replace(/[_-]+/g, "_") // Normalizar guiones múltiples
+      .replace(/\s+y\s+/g, "_y_") // Normalizar " y " a "_y_"
+      .replace(/á/g, "a")
+      .replace(/é/g, "e")
+      .replace(/í/g, "i")
+      .replace(/ó/g, "o")
+      .replace(/ú/g, "u")
+      .replace(/ñ/g, "n");
+  };
+
+  // Obtener flotas disponibles para una categoría y servicio
+  const obtenerFlotasDisponibles = (categoria, servicio) => {
+    if (!categoria) return [];
+    
+    const categoriaNorm = normalizarTexto(categoria);
+    
+    const flotasDisponibles = flotas.filter(flota => {
+      // Buscar en el array de servicios
+      const servicios = flota.servicios;
+      if (!Array.isArray(servicios)) return false;
+      
+      // Buscar servicios que contengan la categoría normalizada
+      const encontrado = servicios.some(svc => {
+        const svcNorm = normalizarTexto(svc);
+        // Solo verificar que el servicio comience o contenga la categoría
+        return svcNorm.includes(categoriaNorm);
+      });
+      
+      return encontrado;
+    });
+    
+    return flotasDisponibles;
+  };
   const obtenerNombreUsuario = (uid) => {
     if (!uid) return "No disponible";
+    
+    // Primero busca en pasajeros
+    const pasajero = pasajeros.find(p => p.id === uid);
+    if (pasajero) {
+      return pasajero.perfil?.name || pasajero.nombre || pasajero.email || pasajero.id || "Usuario desconocido";
+    }
+    
+    // Si no encuentra en pasajeros, busca en usuarios
     const usuario = usuarios.find(u => u.id === uid);
-    return usuario?.nombre || usuario?.email || "Usuario desconocido";
+    if (usuario) {
+      return usuario.nombre || usuario.email || usuario.id || "Usuario desconocido";
+    }
+    
+    // Si no encuentra en ninguno, intenta buscar por email
+    const usuarioEmail = usuarios.find(u => u.email === uid);
+    if (usuarioEmail) {
+      return usuarioEmail.nombre || usuarioEmail.email || "Usuario desconocido";
+    }
+    
+    return uid || "No disponible";
   };
 
   // Filtrar y ordenar solicitudes
@@ -142,10 +228,18 @@ const Solicitudes = () => {
     const sorted = [...filtered];
     switch (sortBySolicitudes) {
       case "fecha-asc":
-        sorted.sort((a, b) => new Date(a.fechaCreacion) - new Date(b.fechaCreacion));
+        sorted.sort((a, b) => {
+          const fechaA = a.solicitud?.fechaCreacion || a.fechaCreacion;
+          const fechaB = b.solicitud?.fechaCreacion || b.fechaCreacion;
+          return new Date(fechaA) - new Date(fechaB);
+        });
         break;
       case "fecha-desc":
-        sorted.sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion));
+        sorted.sort((a, b) => {
+          const fechaA = a.solicitud?.fechaCreacion || a.fechaCreacion;
+          const fechaB = b.solicitud?.fechaCreacion || b.fechaCreacion;
+          return new Date(fechaB) - new Date(fechaA);
+        });
         break;
       case "cliente-asc":
         sorted.sort((a, b) => {
@@ -239,11 +333,25 @@ const Solicitudes = () => {
   const formatearFecha = (fecha) => {
     if (!fecha) return "-";
     try {
-      const d = new Date(fecha);
+      let d;
+      // Si ya es una instancia de Date
+      if (fecha instanceof Date) {
+        d = fecha;
+      } else if (typeof fecha === 'object' && fecha.toDate) {
+        // Si es un Timestamp de Firebase
+        d = fecha.toDate();
+      } else {
+        // Intentar crear una fecha
+        d = new Date(fecha);
+      }
+      
+      if (isNaN(d.getTime())) return "-";
+      
       return d.toLocaleDateString("es-ES", {
         year: "numeric",
         month: "2-digit",
-        day: "2-digit",
+        day: "2-digit"
+      }) + " " + d.toLocaleTimeString("es-ES", {
         hour: "2-digit",
         minute: "2-digit"
       });
@@ -302,10 +410,15 @@ const Solicitudes = () => {
               ]
             }
           ]}
-          filterValues={{ estado: filterEstado }}
-          onFilterChange={(values) => setFilterEstado(values.estado)}
+          filterValue={{ estado: filterEstado }}
+          onFilterChange={(filterName, value) => {
+            if (filterName === "estado") {
+              setFilterEstado(value);
+            }
+          }}
           visibleColumns={{}}
           onVisibleColumnsChange={() => {}}
+          showClearButton={true}
         />
 
         {/* Tabla de solicitudes */}
@@ -330,7 +443,7 @@ const Solicitudes = () => {
               ) : (
                 solicitudesFiltradas.map((solicitud) => (
                   <TableRow key={solicitud.id} sx={{ "&:hover": { backgroundColor: "#f9f9f9" } }}>
-                    <TableCell>{formatearFecha(solicitud.fechaCreacion)}</TableCell>
+                    <TableCell>{formatearFecha(solicitud.solicitud?.fechaCreacion)}</TableCell>
                     <TableCell>{solicitud.solicitud?.categoria || "-"}</TableCell>
                     <TableCell>{solicitud.solicitud?.servicio || "-"}</TableCell>
                     <TableCell>
@@ -406,7 +519,7 @@ const Solicitudes = () => {
                   label="Seleccionar Flota"
                   onChange={(e) => setAsignadaFlota(e.target.value)}
                 >
-                  {flotas.map(flota => (
+                  {obtenerFlotasDisponibles(selectedSolicitud.solicitud?.categoria).map(flota => (
                     <MenuItem key={flota.id} value={flota.id}>
                       {flota.nombre || flota.id}
                     </MenuItem>
@@ -433,7 +546,7 @@ const Solicitudes = () => {
         <DialogTitle sx={{ backgroundColor: "#d7171a", color: "white", fontWeight: "bold" }}>
           Detalles de la Solicitud
         </DialogTitle>
-        <DialogContent sx={{ pt: 3, backgroundColor: "#fafafa" }}>
+        <DialogContent sx={{ pt: 3, backgroundColor: "#fafafa", maxHeight: "80vh", overflow: "auto" }}>
           {solicitudSeleccionada && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
               {/* Información General */}
@@ -489,7 +602,7 @@ const Solicitudes = () => {
                   <Grid item xs={6}>
                     <TextField
                       label="Fecha de Creación"
-                      value={formatearFecha(solicitudSeleccionada.fechaCreacion)}
+                      value={formatearFecha(solicitudSeleccionada.solicitud?.fechaCreacion )}
                       disabled
                       fullWidth
                       size="small"
@@ -507,46 +620,18 @@ const Solicitudes = () => {
                   <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
                     📍 Origen
                   </Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12}>
-                      <TextField
-                        label="Dirección"
-                        value={solicitudSeleccionada.solicitud.origen.direccion || ""}
-                        disabled
-                        fullWidth
-                        size="small"
-                        multiline
-                        rows={3}
-                        InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000", overflow: "visible", whiteSpace: "pre-wrap", wordWrap: "break-word" } }}
-                        InputLabelProps={{ style: { color: "#000" } }}
-                        sx={{ ...disabledTextFieldStyles, "& .MuiOutlinedInput-root": { overflow: "visible" } }}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        label="Latitud"
-                        value={solicitudSeleccionada.solicitud.origen.lat || ""}
-                        disabled
-                        fullWidth
-                        size="small"
-                        InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                        InputLabelProps={{ style: { color: "#000" } }}
-                        sx={disabledTextFieldStyles}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        label="Longitud"
-                        value={solicitudSeleccionada.solicitud.origen.lng || ""}
-                        disabled
-                        fullWidth
-                        size="small"
-                        InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                        InputLabelProps={{ style: { color: "#000" } }}
-                        sx={disabledTextFieldStyles}
-                      />
-                    </Grid>
-                  </Grid>
+                  <TextField
+                    label="Dirección"
+                    value={solicitudSeleccionada.solicitud.origen.direccion || ""}
+                    disabled
+                    fullWidth
+                    size="small"
+                    multiline
+                    minRows={3}
+                    InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000", overflow: "auto", whiteSpace: "pre-wrap", wordWrap: "break-word", maxHeight: "150px" } }}
+                    InputLabelProps={{ style: { color: "#000" } }}
+                    sx={{ ...disabledTextFieldStyles, "& .MuiOutlinedInput-root": { overflow: "auto", alignItems: "flex-start", width: "100%" }, "& .MuiInputBase-input": { overflow: "auto !important", width: "100%" } }}
+                  />
                 </Box>
               )}
 
@@ -555,46 +640,18 @@ const Solicitudes = () => {
                   <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
                     📍 Destino
                   </Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12}>
-                      <TextField
-                        label="Dirección"
-                        value={solicitudSeleccionada.solicitud.destino.direccion || ""}
-                        disabled
-                        fullWidth
-                        size="small"
-                        multiline
-                        rows={3}
-                        InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000", overflow: "visible", whiteSpace: "pre-wrap", wordWrap: "break-word" } }}
-                        InputLabelProps={{ style: { color: "#000" } }}
-                        sx={{ ...disabledTextFieldStyles, "& .MuiOutlinedInput-root": { overflow: "visible" } }}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        label="Latitud"
-                        value={solicitudSeleccionada.solicitud.destino.lat || ""}
-                        disabled
-                        fullWidth
-                        size="small"
-                        InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                        InputLabelProps={{ style: { color: "#000" } }}
-                        sx={disabledTextFieldStyles}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        label="Longitud"
-                        value={solicitudSeleccionada.solicitud.destino.lng || ""}
-                        disabled
-                        fullWidth
-                        size="small"
-                        InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                        InputLabelProps={{ style: { color: "#000" } }}
-                        sx={disabledTextFieldStyles}
-                      />
-                    </Grid>
-                  </Grid>
+                  <TextField
+                    label="Dirección"
+                    value={solicitudSeleccionada.solicitud.destino.direccion || ""}
+                    disabled
+                    fullWidth
+                    size="small"
+                    multiline
+                    minRows={3}
+                    InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000", overflow: "auto", whiteSpace: "pre-wrap", wordWrap: "break-word", maxHeight: "150px" } }}
+                    InputLabelProps={{ style: { color: "#000" } }}
+                    sx={{ ...disabledTextFieldStyles, "& .MuiOutlinedInput-root": { overflow: "auto", alignItems: "flex-start", width: "100%" }, "& .MuiInputBase-input": { overflow: "auto !important", width: "100%" } }}
+                  />
                 </Box>
               )}
 
@@ -603,46 +660,18 @@ const Solicitudes = () => {
                   <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
                     📍 Ubicación
                   </Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12}>
-                      <TextField
-                        label="Dirección"
-                        value={solicitudSeleccionada.solicitud.ubicacion.direccion || ""}
-                        disabled
-                        fullWidth
-                        size="small"
-                        multiline
-                        rows={3}
-                        InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000", overflow: "visible", whiteSpace: "pre-wrap", wordWrap: "break-word" } }}
-                        InputLabelProps={{ style: { color: "#000" } }}
-                        sx={{ ...disabledTextFieldStyles, "& .MuiOutlinedInput-root": { overflow: "visible" } }}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        label="Latitud"
-                        value={solicitudSeleccionada.solicitud.ubicacion.lat || ""}
-                        disabled
-                        fullWidth
-                        size="small"
-                        InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                        InputLabelProps={{ style: { color: "#000" } }}
-                        sx={disabledTextFieldStyles}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        label="Longitud"
-                        value={solicitudSeleccionada.solicitud.ubicacion.lng || ""}
-                        disabled
-                        fullWidth
-                        size="small"
-                        InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                        InputLabelProps={{ style: { color: "#000" } }}
-                        sx={disabledTextFieldStyles}
-                      />
-                    </Grid>
-                  </Grid>
+                  <TextField
+                    label="Dirección"
+                    value={solicitudSeleccionada.solicitud.ubicacion.direccion || ""}
+                    disabled
+                    fullWidth
+                    size="small"
+                    multiline
+                    minRows={3}
+                    InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000", overflow: "auto", whiteSpace: "pre-wrap", wordWrap: "break-word", maxHeight: "150px" } }}
+                    InputLabelProps={{ style: { color: "#000" } }}
+                    sx={{ ...disabledTextFieldStyles, "& .MuiOutlinedInput-root": { overflow: "auto", alignItems: "flex-start", width: "100%" }, "& .MuiInputBase-input": { overflow: "auto !important", width: "100%" } }}
+                  />
                 </Box>
               )}
 
@@ -820,7 +849,7 @@ const Solicitudes = () => {
               <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
                 <TextField
                   label="Usuario"
-                  value={obtenerNombreUsuario(solicitudSeleccionada.uidUser)}
+                  value={obtenerNombreUsuario(solicitudSeleccionada.uidUser || solicitudSeleccionada.solicitud?.uidUser)}
                   disabled
                   fullWidth
                   size="small"
