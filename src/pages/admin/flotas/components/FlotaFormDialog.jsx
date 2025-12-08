@@ -303,16 +303,26 @@ export const FlotaFormDialog = ({
 
               {ciudadSeleccionadaServicios && serviciosPorCiudad[ciudadSeleccionadaServicios] && (
                 <Stack spacing={1.5}>
-                  {formData.servicios?.length > 0 && (
+                  {formData.servicios && formData.servicios[ciudadSeleccionadaServicios]?.length > 0 && (
                     <Box sx={{ p: 1.5, bgcolor: "#f5f5f5", borderRadius: 1, maxHeight: "120px", overflowY: "auto" }}>
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                        {formData.servicios.map((servicio) => (
+                        {Object.entries(formData.servicios[ciudadSeleccionadaServicios] || {}).map(([slug, servicio]) => (
                           <Chip
-                            key={servicio}
-                            label={servicio}
+                            key={slug}
+                            label={`${servicio.servicio} - ${servicio.categoria}`}
                             size="small"
                             onDelete={() => {
-                              onFormDataChange({ ...formData, servicios: formData.servicios.filter(s => s !== servicio) });
+                              const serviciosActualizados = {
+                                ...formData.servicios,
+                                [ciudadSeleccionadaServicios]: Object.fromEntries(
+                                  Object.entries(formData.servicios[ciudadSeleccionadaServicios]).filter(([s]) => s !== slug)
+                                )
+                              };
+                              // Si no hay más servicios en esta ciudad, remover la ciudad
+                              if (Object.keys(serviciosActualizados[ciudadSeleccionadaServicios]).length === 0) {
+                                delete serviciosActualizados[ciudadSeleccionadaServicios];
+                              }
+                              onFormDataChange({ ...formData, servicios: serviciosActualizados });
                             }}
                             sx={{
                               bgcolor: "#000",
@@ -329,15 +339,36 @@ export const FlotaFormDialog = ({
                     <InputLabel>Seleccionar Servicios</InputLabel>
                     <Select
                       multiple
-                      value={formData.servicios}
-                      onChange={(e) => onFormDataChange({ ...formData, servicios: e.target.value })}
+                      value={formData.servicios && formData.servicios[ciudadSeleccionadaServicios] ? 
+                        Object.keys(formData.servicios[ciudadSeleccionadaServicios]) : []
+                      }
+                      onChange={(e) => {
+                        const serviciosSlugsSeleccionados = e.target.value;
+                        const serviciosCompletos = {};
+                        
+                        serviciosSlugsSeleccionados.forEach(slug => {
+                          const servicioObj = serviciosPorCiudad[ciudadSeleccionadaServicios].find(s => s.id === slug);
+                          if (servicioObj) {
+                            serviciosCompletos[slug] = {
+                              servicio: servicioObj.servicio || servicioObj.nombre,
+                              categoria: servicioObj.categoria
+                            };
+                          }
+                        });
+                        
+                        const serviciosActualizados = {
+                          ...formData.servicios,
+                          [ciudadSeleccionadaServicios]: serviciosCompletos
+                        };
+                        onFormDataChange({ ...formData, servicios: serviciosActualizados });
+                      }}
                       input={<OutlinedInput label="Seleccionar Servicios" />}
                       renderValue={(selected) => `${selected.length} servicio(s)`}
                     >
                       {serviciosPorCiudad[ciudadSeleccionadaServicios].map((servicio) => {
-                        const nombreServicio = servicio.nombre || servicio.name || servicio.id;
+                        const nombreServicio = servicio.nombre || servicio.id;
                         return (
-                          <MenuItem key={servicio.id} value={nombreServicio}>
+                          <MenuItem key={servicio.id} value={servicio.id}>
                             {nombreServicio}
                           </MenuItem>
                         );

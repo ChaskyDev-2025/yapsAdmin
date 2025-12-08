@@ -21,9 +21,10 @@ const CIUDADES = [
 ];
 
 const Documentos = () => {
-  const { userFlotaId, userRole } = useAuth();
+  const { userFlotaId } = useAuth();
   const [flotaInfo, setFlotaInfo] = useState(null);
   const [ciudadSeleccionada, setCiudadSeleccionada] = useState("La Paz");
+  const isSuperAdmin = !userFlotaId; // SuperAdmin no tiene flotaId
   
   /* ── estado del modal ───────────── */
   const { rows, loading, create, update, remove, toggleActivo } = useDocuments();
@@ -37,6 +38,7 @@ const Documentos = () => {
   useEffect(() => {
     const loadFlotaInfo = async () => {
       if (userFlotaId) {
+        // Admin: cargar solo su flota
         try {
           const flotaDoc = await getDoc(doc(db, "flotas", userFlotaId));
           if (flotaDoc.exists()) {
@@ -60,7 +62,8 @@ const Documentos = () => {
       await create({ 
         ...nuevoDoc, 
         titulo: nuevoDoc.screenTitle,
-        ciudad: ciudadSeleccionada 
+        ciudad: ciudadSeleccionada
+        // No pasar flotaId - los documentos por ciudad se asignan a flotas en GestionFlotas
       });
       handleClose();            // cierra el modal
     } catch (err) {
@@ -144,33 +147,50 @@ const Documentos = () => {
             Documentos por Ciudad
           </Typography>
           
-          {userFlotaId && flotaInfo && (
+          {isSuperAdmin ? (
             <Alert 
-              severity="info" 
+              severity="success" 
               sx={{ 
                 mt: 2,
-                backgroundColor: "#e3f2fd",
-                "& .MuiAlert-icon": { color: "#1976d2" }
+                backgroundColor: "#c8e6c9",
+                "& .MuiAlert-icon": { color: "#2e7d32" }
               }}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  📂 Gestionando documentos de la flota:
-                </Typography>
-                <Chip
-                  label={flotaInfo.nombre}
-                  sx={{
-                    bgcolor: "#d7171a",
-                    color: "white",
-                    fontWeight: 600,
-                    fontFamily: "Mulish, sans-serif"
-                  }}
-                />
-                <Typography variant="caption" sx={{ color: "#666", fontStyle: "italic" }}>
-                  (Solo puedes ver y modificar documentos de tu flota)
+                  👑 Modo SuperAdmin - Gestiona documentos de cualquier flota
                 </Typography>
               </Box>
             </Alert>
+          ) : (
+            userFlotaId && flotaInfo && (
+              <Alert 
+                severity="info" 
+                sx={{ 
+                  mt: 2,
+                  backgroundColor: "#e3f2fd",
+                  "& .MuiAlert-icon": { color: "#1976d2" }
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    📂 Gestionando documentos de la flota:
+                  </Typography>
+                  <Chip
+                    label={flotaInfo.nombre}
+                    sx={{
+                      bgcolor: "#d7171a",
+                      color: "white",
+                      fontWeight: 600,
+                      fontFamily: "Mulish, sans-serif"
+                    }}
+                  />
+                  <Typography variant="caption" sx={{ color: "#666", fontStyle: "italic" }}>
+                    (Solo puedes ver y modificar documentos de tu flota)
+                  </Typography>
+                </Box>
+              </Alert>
+            )
           )}
 
           <Typography color="text.secondary" mt={2}>

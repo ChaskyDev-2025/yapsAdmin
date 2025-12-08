@@ -35,13 +35,13 @@ export class FirebaseDocumentRepository extends DocumentRepository {
         titulo: data.screenTitle || "Sin título",
       }));
     } else {
-      // SuperAdmin: leer de las subcollecciones por ciudad
-      console.log("📖 FirebaseRepository.getAll() - Leyendo de: crear-documentos por ciudad");
+      // SuperAdmin: leer tanto de crear-documentos como de las flotas individuales
+      console.log("📖 FirebaseRepository.getAll() - Leyendo de: crear-documentos y flotas individuales");
       
       // Ciudades constantes
       const CIUDADES = ["La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", "Oruro", "Potosí", "Tarija", "Pando", "Beni"];
       
-      // Cargar todas las ciudades EN PARALELO con Promise.all()
+      // Cargar documentos de crear-documentos por ciudad
       const promesasCiudades = CIUDADES.map(async (ciudad) => {
         const docId = this._getCiudadDocId(ciudad);
         const docRef = doc(db, "crear-documentos", docId);
@@ -58,11 +58,37 @@ export class FirebaseDocumentRepository extends DocumentRepository {
         return [];
       });
       
+      // Cargar documentos de todas las flotas
+      let flotasDocumentos = [];
+      try {
+        const flotasSnapshot = await getDocs(collection(db, "flotas"));
+        flotasDocumentos = [];
+        
+        for (const flotaDoc of flotasSnapshot.docs) {
+          const flotaData = flotaDoc.data();
+          const documentos = flotaData.documentos || {};
+          
+          // Convertir el map de documentos a array y agregar info de la flota
+          const docsFlota = Object.entries(documentos).map(([id, data]) => ({
+            id,
+            firebaseId: id,
+            ...data,
+            titulo: data.screenTitle || data.titulo || "Sin título",
+            flotaId: flotaDoc.id,
+            flotaNombre: flotaData.nombre || "Sin nombre"
+          }));
+          
+          flotasDocumentos = [...flotasDocumentos, ...docsFlota];
+        }
+      } catch (error) {
+        console.warn(`⚠️ Error cargando documentos de flotas:`, error);
+      }
+      
       // Esperar a que todas las promesas se resuelvan en paralelo
       const resultadosCiudades = await Promise.all(promesasCiudades);
       
       // Combinar todos los documentos
-      const allDocs = resultadosCiudades.flat();
+      const allDocs = [...resultadosCiudades.flat(), ...flotasDocumentos];
       
       console.log("📊 Documentos encontrados:", allDocs.length);
       
@@ -95,42 +121,58 @@ export class FirebaseDocumentRepository extends DocumentRepository {
       console.log("✅ Documento guardado en map documentos");
       return id;
     } else {
-      // SuperAdmin: guardar en subcampo documentosPorCiudad del documento ciudad
-      const ciudad = data.ciudad || "La Paz";
-      const docId = this._getCiudadDocId(ciudad);
+      // SuperAdmin: puede guardar en una flota específica o en crear-documentos
+      const id = customId || `doc_${Date.now().toString(36)}`;
+      const docData = { ...data, id, activo: true };
       
-      // Generar ID único para el documento dentro de la ciudad
-      const docDataId = `${docId}_${Math.random().toString(36).substring(2, 15)}`;
-      
-      const docData = { 
-        ...data, 
-        id: docDataId,
-        firebaseId: docDataId,
-        activo: true 
-      };
-      
-      console.log("💾 FirebaseRepository.create() - Guardando en: crear-documentos/" + docId + "/documentosPorCiudad");
-      
-      // Leer documento existente
-      const docRef = doc(db, "crear-documentos", docId);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        // Agregar al array existente
-        const documentosPorCiudad = docSnap.data().documentosPorCiudad || [];
-        await updateDoc(docRef, {
-          documentosPorCiudad: [...documentosPorCiudad, docData]
+      if (data.flotaId) {
+        // Guardar en una flota específica
+        console.log("💾 FirebaseRepository.create() - Guardando en: flotas/" + data.flotaId + "/documentos." + id);
+        
+        await updateDoc(doc(db, "flotas", data.flotaId), {
+          [`documentos.${id}`]: docData
         });
+        
+        console.log("✅ Documento guardado en flota");
+        return id;
       } else {
-        // Crear nuevo documento con el array
-        await setDoc(docRef, {
-          ciudad,
-          documentosPorCiudad: [docData]
-        });
+        // Guardar en crear-documentos (legado)
+        const ciudad = data.ciudad || "La Paz";
+        const docId = this._getCiudadDocId(ciudad);
+        
+        // Generar ID único para el documento dentro de la ciudad
+        const docDataId = `${docId}_${Math.random().toString(36).substring(2, 15)}`;
+        
+        const createDocData = { 
+          ...data, 
+          id: docDataId,
+          firebaseId: docDataId,
+          activo: true 
+        };
+        
+        console.log("💾 FirebaseRepository.create() - Guardando en: crear-documentos/" + docId + "/documentosPorCiudad");
+        
+        // Leer documento existente
+        const docRef = doc(db, "crear-documentos", docId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          // Agregar al array existente
+          const documentosPorCiudad = docSnap.data().documentosPorCiudad || [];
+          await updateDoc(docRef, {
+            documentosPorCiudad: [...documentosPorCiudad, createDocData]
+          });
+        } else {
+          // Crear nuevo documento con el array
+          await setDoc(docRef, {
+            ciudad,
+            documentosPorCiudad: [createDocData]
+          });
+        }
+        
+        console.log("✅ Documento guardado en crear-documentos/" + docId);
+        return docDataId;
       }
-      
-      console.log("✅ Documento guardado en crear-documentos/" + docId);
-      return docDataId;
     }
   }
 

@@ -189,7 +189,16 @@ export const FlotasTable = ({
                         },
                       }}
                     >
-                      Servicios: {flota.servicios?.length || 0}
+                      Servicios: {
+                        typeof flota.servicios === 'object' && !Array.isArray(flota.servicios)
+                          ? Object.values(flota.servicios || {}).reduce((total, deptServicios) => {
+                              if (typeof deptServicios === 'object' && !Array.isArray(deptServicios)) {
+                                return total + Object.keys(deptServicios).length;
+                              }
+                              return total + (Array.isArray(deptServicios) ? deptServicios.length : 0);
+                            }, 0)
+                          : (flota.servicios?.length || 0)
+                      }
                     </Button>
                   </TableCell>
                 )}

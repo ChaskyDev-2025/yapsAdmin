@@ -24,16 +24,16 @@ import {
   InputLabel,
   Grid,
 } from "@mui/material";
-import { collection, getDocs, updateDoc, doc, query, where } from "firebase/firestore";
+import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import EditIcon from "@mui/icons-material/Edit";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
-import { useAuth } from "../../../auth/AuthContext";
+import GenerarOfertaModal from "./components/GenerarOfertaModal";
 
 const SolicitudesAsignadas = () => {
-  const { user } = useAuth();
   
   const disabledTextFieldStyles = {
     "& .MuiInputBase-input.Mui-disabled": {
@@ -53,6 +53,8 @@ const SolicitudesAsignadas = () => {
   const [asignadoConductor, setAsignadoConductor] = useState("");
   const [detallesDialogOpen, setDetallesDialogOpen] = useState(false);
   const [solicitudSeleccionada, setSolicitudSeleccionada] = useState(null);
+  const [ofertaModalOpen, setOfertaModalOpen] = useState(false);
+  const [solicitudParaOferta, setSolicitudParaOferta] = useState(null);
   const [cargando, setCargando] = useState(true);
 
   // Opciones para filtros y ordenamiento
@@ -69,9 +71,12 @@ const SolicitudesAsignadas = () => {
       options: [
         { label: "Todas", value: "todas" },
         { label: "Asignada", value: "asignada" },
-        { label: "En Proceso", value: "en_proceso" },
-        { label: "Completada", value: "completada" },
-        { label: "Rechazada", value: "rechazada" }
+        { label: "Ofertado", value: "ofertado" },
+        { label: "Aceptado", value: "aceptado" },
+        { label: "Conductor Asignado", value: "conductor_asignado" },
+        { label: "En Curso", value: "en_curso" },
+        { label: "Finalizado", value: "finalizado" },
+        { label: "Rechazado", value: "rechazado" }
       ]
     }
   ];
@@ -100,7 +105,7 @@ const SolicitudesAsignadas = () => {
               }
             };
           })
-          .filter(sol => (sol.estado === "asignada" || sol.estado === "en_proceso") && sol.flota_asignada);
+          .filter(sol => sol.flota_asignada);
         
         setSolicitudes(data);
 
@@ -230,6 +235,59 @@ const SolicitudesAsignadas = () => {
     setSolicitudSeleccionada(null);
   };
 
+  const handleOpenOfertaModal = (solicitud) => {
+    setSolicitudParaOferta(solicitud);
+    setOfertaModalOpen(true);
+  };
+
+  const handleCloseOfertaModal = () => {
+    setOfertaModalOpen(false);
+    setSolicitudParaOferta(null);
+  };
+
+  const handleSaveOferta = async (ofertaData) => {
+    if (!solicitudParaOferta) return;
+
+    try {
+      await updateDoc(doc(db, "solicitudes", solicitudParaOferta.id), {
+        solicitud: {
+          ...solicitudParaOferta.solicitud,
+          oferta: {
+            costo: ofertaData.costo, // Total a cobrar (costo base + campos)
+            campos: ofertaData.campos,
+            fechaOferta: new Date()
+          }
+        },
+        estado: "ofertado"
+      });
+
+      setSolicitudes(prevSolicitudes =>
+        prevSolicitudes.map(sol =>
+          sol.id === solicitudParaOferta.id
+            ? {
+                ...sol,
+                solicitud: {
+                  ...sol.solicitud,
+                  oferta: {
+                    costo: ofertaData.costo,
+                    campos: ofertaData.campos,
+                    fechaOferta: new Date()
+                  }
+                },
+                estado: "ofertado"
+              }
+            : sol
+        )
+      );
+
+      handleCloseOfertaModal();
+      alert("Oferta guardada exitosamente");
+    } catch (error) {
+      console.error("Error guardando oferta:", error);
+      alert("Error al guardar la oferta");
+    }
+  };
+
   // Asignar conductor
   const handleAsignarConductor = async () => {
     if (!selectedSolicitud || !asignadoConductor) {
@@ -352,6 +410,26 @@ const SolicitudesAsignadas = () => {
                         <VisibilityIcon />
                       </IconButton>
                       {solicitud.estado === "asignada" && (
+                        <>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenOfertaModal(solicitud)}
+                            title="Generar oferta"
+                            color="info"
+                          >
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleRechazarSolicitud(solicitud)}
+                            title="Rechazar"
+                            color="error"
+                          >
+                            <CancelIcon />
+                          </IconButton>
+                        </>
+                      )}
+                      {solicitud.estado === "aceptado" && (
                         <>
                           <IconButton
                             size="small"
@@ -633,6 +711,13 @@ const SolicitudesAsignadas = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Modal para generar oferta */}
+      <GenerarOfertaModal
+        open={ofertaModalOpen}
+        onClose={handleCloseOfertaModal}
+        onSave={handleSaveOferta}
+      />
     </Container>
   );
 };

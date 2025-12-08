@@ -16,7 +16,7 @@ import { useDocumentosPorCiudad } from "./hooks/useDocumentosPorCiudad";
 import { FlotasTable } from "./components/FlotasTable";
 import { FlotaFormDialog } from "./components/FlotaFormDialog";
 import { DocsManagerModal } from "./components/DocsManagerModal";
-import { ServiciosManagerModal } from "./components/ServiciosManagerModal";
+import ServiciosManagerModalNew from "./components/ServiciosManagerModalNew";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
 
 const GestionFlotas = () => {
@@ -66,7 +66,7 @@ const GestionFlotas = () => {
     fotoNit: "",
     otrosDocumentos: [],
     uidPropietarios: [],
-    servicios: [],
+    servicios: {}, // Cambio: ahora es un objeto con departamentos como claves
     documentos: [],
     habilitado: true,
   });
@@ -137,7 +137,7 @@ const GestionFlotas = () => {
         fotoNit: flota.documentosFlota?.fotoNit || "",
         otrosDocumentos: flota.documentosFlota?.otrosDocumentos || [],
         uidPropietarios: flota.uidPropietarios || [],
-        servicios: flota.servicios || [],
+        servicios: typeof flota.servicios === 'object' && !Array.isArray(flota.servicios) ? flota.servicios : {},
         documentos: flota.documentos || [],
         habilitado: flota.habilitado !== undefined ? flota.habilitado : true,
       });
@@ -261,11 +261,23 @@ const GestionFlotas = () => {
 
       if (editMode && currentFlota) {
         await updateFlota(currentFlota.id, flotaData);
-        // Actualizar flotaId en usuarios
+        
+        // Obtener los UIDs anteriores de los administradores
+        const adminsAnteriores = currentFlota.uidPropietarios || [];
+        
+        // Actualizar flotaId en usuarios seleccionados
         for (const uid of formData.uidPropietarios) {
           const userRef = doc(db, "users", uid);
           await updateDoc(userRef, { flotaId: currentFlota.id, updatedAt: serverTimestamp() });
         }
+        
+        // Remover flotaId de los administradores que fueron desasignados
+        const adminsDesasignados = adminsAnteriores.filter(uid => !formData.uidPropietarios.includes(uid));
+        for (const uid of adminsDesasignados) {
+          const userRef = doc(db, "users", uid);
+          await updateDoc(userRef, { flotaId: null, updatedAt: serverTimestamp() });
+        }
+        
         showSnackbar("Flota actualizada exitosamente", "success");
       } else {
         const nuevaFlotaId = await createFlota(flotaData);
@@ -321,6 +333,30 @@ const GestionFlotas = () => {
     setOpenServiciosManagerModal(true);
   };
 
+  const handleSaveServicios = async (serviciosSeleccionados) => {
+    if (!selectedFlotaForServicios) return;
+
+    try {
+      setIsSaving(true);
+      
+      // Actualizar la flota con los servicios seleccionados
+      await updateFlota(selectedFlotaForServicios.id, {
+        ...selectedFlotaForServicios,
+        servicios: serviciosSeleccionados,
+      });
+
+      // Actualizar estado local
+      await fetchFlotas();
+      setOpenServiciosManagerModal(false);
+      showSnackbar("Servicios actualizados exitosamente", "success");
+    } catch (error) {
+      console.error("Error actualizando servicios:", error);
+      showSnackbar("Error al actualizar servicios", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleCloseDocsManagerModal = () => {
     setOpenDocsManagerModal(false);
     setSelectedFlotaForDocs(null);
@@ -362,35 +398,6 @@ const GestionFlotas = () => {
     } catch (error) {
       console.error('Error asignando plantillas a la flota:', error);
       showSnackbar('Error al asignar plantillas: ' + error.message, 'error');
-    }
-  };
-
-  // Asignar servicios a la flota seleccionada
-  const handleAssignServiciosToFlota = async (serviciosSelected) => {
-    if (!selectedFlotaForServicios) return;
-    
-    try {
-      const serviciosIds = Array.isArray(serviciosSelected) 
-        ? serviciosSelected 
-        : [];
-
-      const flotaRef = doc(db, 'flotas', selectedFlotaForServicios.id);
-
-      await updateDoc(flotaRef, {
-        servicios: serviciosIds,
-        updatedAt: serverTimestamp(),
-      });
-
-      setSelectedFlotaForServicios({
-        ...selectedFlotaForServicios,
-        servicios: serviciosIds,
-      });
-      
-      await fetchFlotas();
-      showSnackbar('Servicios asignados correctamente', 'success');
-    } catch (error) {
-      console.error('Error asignando servicios a la flota:', error);
-      showSnackbar('Error al asignar servicios: ' + error.message, 'error');
     }
   };
 
@@ -476,16 +483,17 @@ const GestionFlotas = () => {
         isSaving={isSaving}
         editMode={editMode}
         onFormDataChange={setFormData}
-        getAvailableAdministradores={(currentFlotaId) => 
-          administradores.filter((admin) => {
+        getAvailableAdministradores={(currentFlotaId) => {
+          const selectedUids = formData.uidPropietarios || [];
+          return administradores.filter((admin) => {
+            // Si está en la selección actual, permitir deseleccionar
+            if (selectedUids.includes(admin.uid)) return true;
             // Si el admin no tiene flota, está disponible
             if (!admin.flotaId) return true;
-            // Si la flota actual está siendo editada, permite cambios
-            if (currentFlotaId && admin.flotaId === currentFlotaId) return true;
             // Si el admin ya está en otra flota, no lo muestra
             return false;
-          })
-        }
+          });
+        }}
       />
 
       {/* Modal de gestión de documentos por flota */}
@@ -497,12 +505,12 @@ const GestionFlotas = () => {
       />
 
       {/* Modal de gestión de servicios por flota */}
-      <ServiciosManagerModal
+      <ServiciosManagerModalNew
         open={openServiciosManagerModal}
         onClose={() => setOpenServiciosManagerModal(false)}
         flota={selectedFlotaForServicios}
         serviciosPorCiudad={serviciosPorCiudad}
-        onAssignServicios={handleAssignServiciosToFlota}
+        onSaveServicios={handleSaveServicios}
       />
 
       {/* Diálogo de confirmación de eliminación */}

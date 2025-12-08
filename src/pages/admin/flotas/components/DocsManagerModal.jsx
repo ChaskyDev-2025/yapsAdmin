@@ -111,30 +111,44 @@ export const DocsManagerModal = ({
     setSelectedTemplates(assigned);
   }, [flota, open]);
 
-  // Función para buscar el nombre y ciudad de un documento por su ID
-  const getDocInfo = (docId) => {
-    if (!templates || typeof templates !== 'object') return { name: docId, ciudad: null };
+  // Función para buscar el nombre y ciudad de un documento por su slug o ID
+  const getDocInfo = (docIdentifier) => {
+    if (!templates || typeof templates !== 'object') return { name: docIdentifier, ciudad: null };
     
     // Buscar en todas las ciudades
     for (const ciudad in templates) {
       const docs = templates[ciudad];
       if (Array.isArray(docs)) {
-        const found = docs.find(t => t.id === docId);
+        const found = docs.find(t => {
+          const slug = generateDocumentSlug(t.titulo || t.screenTitle || t.nombre || t.id);
+          return slug === docIdentifier || t.id === docIdentifier;
+        });
         if (found) {
           return {
-            name: found.titulo || found.screenTitle || found.nombre || docId,
+            name: found.titulo || found.screenTitle || found.nombre || docIdentifier,
             ciudad
           };
         }
       }
     }
-    return { name: docId, ciudad: null };
+    return { name: docIdentifier, ciudad: null };
   };
 
   // Función para buscar el nombre de un documento por su ID
   const getDocName = (docId) => {
     const info = getDocInfo(docId);
     return info.name;
+  };
+
+  // Generar un identificador único basado en el nombre del documento (ej: envios_vagoneta)
+  const generateDocumentSlug = (docName) => {
+    return docName
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+      .replace(/[^a-z0-9\s]/g, '') // Remover caracteres especiales
+      .trim()
+      .replace(/\s+/g, '_'); // Reemplazar espacios con guiones bajos
   };
 
   return (
@@ -205,15 +219,15 @@ export const DocsManagerModal = ({
                     📍 {ciudad}
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', pl: 1 }}>
-                    {docsEnCiudad.map((docId, i) => {
-                      const docName = getDocName(docId);
+                    {docsEnCiudad.map((docIdentifier, i) => {
+                      const docName = getDocName(docIdentifier);
                       return (
                         <Chip 
-                          key={docId || i} 
+                          key={docIdentifier || i} 
                           label={docName} 
                           color="primary"
                           onDelete={() => {
-                            const updated = flota.documentos.filter(d => d !== docId);
+                            const updated = flota.documentos.filter(d => d !== docIdentifier);
                             if (onAssignTemplates) onAssignTemplates(updated);
                           }}
                         />
@@ -308,7 +322,8 @@ export const DocsManagerModal = ({
                     📍 {ciudad}
                   </Typography>
                   {docsEnCiudad.map((tpl) => {
-                    const isSelected = selectedTemplates.includes(tpl.id);
+                    const docSlug = generateDocumentSlug(tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id);
+                    const isSelected = selectedTemplates.includes(docSlug);
                     const docName = tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id;
                     return (
                       <Box 
@@ -329,9 +344,9 @@ export const DocsManagerModal = ({
                           variant={isSelected ? 'contained' : 'outlined'} 
                           onClick={() => {
                             if (isSelected) {
-                              setSelectedTemplates(prev => prev.filter(id => id !== tpl.id));
+                              setSelectedTemplates(prev => prev.filter(id => id !== docSlug));
                             } else {
-                              setSelectedTemplates(prev => [...prev, tpl.id]);
+                              setSelectedTemplates(prev => [...prev, docSlug]);
                             }
                           }}
                           sx={{
