@@ -69,11 +69,10 @@ export default function ModalDerecho({ userId, setDocActivo }) {
     }
 
     let cancel = false;
-    const CIUDADES = ["La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", "Oruro", "Potosí", "Tarija", "Pando", "Beni"];
 
     const loadDocs = async () => {
       try {
-        // 1. Obtener el trabajador para obtener su flotaId
+        // Obtener el trabajador para obtener sus documentos
         const trabajadorRef = doc(db, "trabajadores", userId);
         const trabajadorSnap = await getDoc(trabajadorRef);
 
@@ -86,9 +85,11 @@ export default function ModalDerecho({ userId, setDocActivo }) {
         }
 
         const trabajador = trabajadorSnap.data();
-        const flotaId = trabajador.flotaId;
+        
+        // Obtener los documentos del trabajador (array de strings con IDs o nombres)
+        const documentosDelTrabajador = trabajador.documentos || [];
 
-        if (!flotaId) {
+        if (!documentosDelTrabajador || documentosDelTrabajador.length === 0) {
           if (!cancel) {
             setDocs([]);
             setCargando(false);
@@ -96,93 +97,27 @@ export default function ModalDerecho({ userId, setDocActivo }) {
           return;
         }
 
-        // Pre-cargar documentos de todas las ciudades EN PARALELO
-        const documentosPorCiudadCache = {};
-        const promesasCiudades = CIUDADES.map(async (ciudad) => {
-          const ciudadDocId = ciudad.toLowerCase().replace(/\s+/g, '') + "_doc";
-          const docRef = doc(db, "crear-documentos", ciudadDocId);
-          
-          try {
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists() && docSnap.data().documentosPorCiudad) {
-              documentosPorCiudadCache[ciudad] = docSnap.data().documentosPorCiudad;
-            }
-          } catch (e) {
-            console.warn(`Error cargando documentos de ${ciudad}:`, e);
+        try {
+          if (!cancel) {
+            // Convertir los documentos a items para mostrar
+            const items = documentosDelTrabajador.map((docName, index) => ({
+              id: index,
+              nombre: docName,
+              estado: "asignada",
+              url: "#",
+              preview: null,
+            }));
+
+            setDocs(items);
+            setCargando(false);
           }
-        });
-
-        // Esperar a que todas las peticiones de ciudades se completen en paralelo
-        await Promise.all(promesasCiudades);
-
-        // 2. Ahora escuchar cambios en la flota con los documentos ya en caché
-        const flotaRef = doc(db, "flotas", flotaId);
-        const unsubscribFlota = onSnapshot(flotaRef, (flotaSnap) => {
-          if (!flotaSnap.exists()) {
-            if (!cancel) {
-              setDocs([]);
-              setCargando(false);
-            }
-            return;
+        } catch (error) {
+          console.error("Error procesando documentos:", error);
+          if (!cancel) {
+            setDocs([]);
+            setCargando(false);
           }
-
-          const flota = flotaSnap.data();
-          // Soportar ambos sistemas: nuevo (flota.documentos) y antiguo (flota.documentosFlota.documentosAsignados)
-          const documentosAsignados = flota.documentos || flota.documentosFlota?.documentosAsignados || [];
-
-          if (!documentosAsignados || documentosAsignados.length === 0) {
-            if (!cancel) {
-              setDocs([]);
-              setCargando(false);
-            }
-            return;
-          }
-
-          try {
-            // Combinar todos los documentos del caché (ya cargados)
-            const todasLasPlantillas = [];
-            Object.values(documentosPorCiudadCache).forEach(docs => {
-              todasLasPlantillas.push(...docs);
-            });
-
-            if (!cancel) {
-              // Filtrar solo los documentos asignados a la flota
-              const items = documentosAsignados
-                .map((documentoId) => {
-                  // Buscar en todas las plantillas del caché
-                  const plantilla = todasLasPlantillas.find((p) => 
-                    p.id === documentoId || p.firebaseId === documentoId
-                  );
-                  
-                  if (!plantilla) {
-                    console.warn(`❌ Plantilla no encontrada para ID: ${documentoId}`);
-                    return null;
-                  }
-                  
-                  return {
-                    id: plantilla.id || plantilla.firebaseId,
-                    nombre: plantilla.titulo || plantilla.screenTitle || plantilla.nombre || plantilla.id,
-                    estado: "asignada",
-                    url: "#",
-                    preview: null,
-                    plantilla,
-                  };
-                })
-                .filter(Boolean);
-
-              setDocs(items);
-              setCargando(false);
-            }
-          } catch (error) {
-            console.error("Error procesando documentos:", error);
-            if (!cancel) {
-              setDocs([]);
-              setCargando(false);
-            }
-          }
-        });
-
-        return () => unsubscribFlota();
+        }
       } catch (error) {
         console.error("Error al cargar documentos:", error);
         if (!cancel) {

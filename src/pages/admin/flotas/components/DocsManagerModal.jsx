@@ -109,6 +109,44 @@ export const DocsManagerModal = ({
     fetchTemplates();
   }, []);
 
+  // Inicializar selectedTemplates desde flota.documentos cuando se abre el modal
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    
+    if (flota?.documentos && typeof flota.documentos === 'object' && !Array.isArray(flota.documentos)) {
+      const initialized = {};
+      
+      // Iterar sobre las ciudades en flota.documentos
+      Object.entries(flota.documentos).forEach(([ciudad, docs]) => {
+        // Ignorar índices numéricos (artefactos de serialización)
+        if (isNaN(Number(ciudad))) {
+          if (typeof docs === 'object' && !Array.isArray(docs)) {
+            // Convertir de objeto a array: {slug: {id: docId}} -> [{slug, id, nombre}]
+            const docsArray = Object.entries(docs).map(([slug, docInfo]) => {
+              console.log('Convirtiendo documento de objeto a array:', { ciudad, slug, docInfo });
+              return {
+                slug,
+                id: docInfo.id || docInfo,
+                nombre: docInfo.nombre || slug.replace(/_/g, ' ')
+              };
+            });
+            initialized[ciudad] = docsArray;
+          } else if (Array.isArray(docs)) {
+            // Ya está en formato array, usarlo directo
+            initialized[ciudad] = docs;
+          }
+        }
+      });
+      
+      console.log('SelectedTemplates inicializado correctamente:', initialized);
+      setSelectedTemplates(initialized);
+    } else {
+      setSelectedTemplates({});
+    }
+  }, [open, flota?.documentos]);
+
   // Calcular mensaje de estado (memoizado)
   const mensaje = useMemo(() => {
     if (open && flota?.documentos && typeof flota.documentos === 'object') {
@@ -149,22 +187,6 @@ export const DocsManagerModal = ({
     setMessage(mensaje);
   }, [mensaje]);
 
-  useEffect(() => {
-    // Precargar selección si la flota ya tiene documentos asignados
-    if (flota?.documentos && typeof flota.documentos === 'object' && !Array.isArray(flota.documentos)) {
-      // Filtrar índices numéricos como "0", mantener solo ciudades válidas
-      const docsLimpios = {};
-      for (const key in flota.documentos) {
-        if (isNaN(Number(key))) { // Solo agregar si la key no es un número
-          docsLimpios[key] = flota.documentos[key];
-        }
-      }
-      setSelectedTemplates(docsLimpios);
-    } else {
-      setSelectedTemplates({});
-    }
-  }, [flota, open]);
-
   // Obtener información del documento por slug o ID
   const getDocInfo = (docIdentifier) => {
     if (!templates || typeof templates !== 'object') return { nombre: docIdentifier, ciudad: null };
@@ -195,22 +217,39 @@ export const DocsManagerModal = ({
 
   // Handler optimizado para seleccionar/deseleccionar documentos
   const handleToggleDoc = useCallback((ciudad, docSlug, tpl, isSelected) => {
-    const updated = { ...selectedTemplates };
-    if (!updated[ciudad]) {
-      updated[ciudad] = {};
-    }
-    
-    if (isSelected) {
-      delete updated[ciudad][docSlug];
-      if (Object.keys(updated[ciudad]).length === 0) {
+    setSelectedTemplates(prevState => {
+      const updated = JSON.parse(JSON.stringify(prevState));
+      
+      // Inicializar la ciudad si no existe
+      if (!updated[ciudad]) {
+        updated[ciudad] = [];
+      }
+      
+      // Siempre usar array para múltiples documentos
+      if (!Array.isArray(updated[ciudad])) {
+        // Convertir de objeto antiguo a array
+        updated[ciudad] = [];
+      }
+      
+      if (isSelected) {
+        // Remover del array
+        updated[ciudad] = updated[ciudad].filter(item => item.slug !== docSlug);
+      } else {
+        // Agregar al array
+        updated[ciudad].push({
+          slug: docSlug,
+          id: tpl.id,
+          nombre: tpl.titulo || tpl.screenTitle || tpl.nombre
+        });
+      }
+      
+      // Limpiar ciudad si el array está vacío
+      if (updated[ciudad].length === 0) {
         delete updated[ciudad];
       }
-    } else {
-      updated[ciudad][docSlug] = {
-        id: tpl.id
-      };
-    }
-    setSelectedTemplates(updated);
+      
+      return updated;
+    });
   }, []);
 
   return (
@@ -417,7 +456,20 @@ export const DocsManagerModal = ({
                       <Box sx={{ pl: 1 }}>
                         {docsPorCategoria[categoria].map((tpl) => {
                           const docSlug = generateDocSlug(tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id);
-                          const isSelected = selectedTemplates[ciudad]?.[docSlug] !== undefined;
+                          const docsEnCiudad = selectedTemplates[ciudad] || [];
+                          const isSelected = Array.isArray(docsEnCiudad) 
+                            ? docsEnCiudad.some(item => {
+                                const match = item.slug === docSlug;
+                                if (!match) {
+                                  console.log('Comparando slugs:', {
+                                    template: docSlug,
+                                    saved: item.slug,
+                                    match
+                                  });
+                                }
+                                return match;
+                              })
+                            : false;
                           const docName = tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id;
                           
                           return (
@@ -476,8 +528,23 @@ export const DocsManagerModal = ({
         <Button onClick={() => setAssignDialogOpen(false)} startIcon={<CloseIcon />}>Cancelar</Button>
         <Button 
           onClick={() => {
-            // Pasar los IDs de documentos seleccionados al padre
-            if (onAssignTemplates) onAssignTemplates(selectedTemplates);
+            // Convertir array a objeto para guardado
+            const documentosParaGuardar = {};
+            Object.entries(selectedTemplates).forEach(([ciudad, documentos]) => {
+              if (Array.isArray(documentos)) {
+                documentosParaGuardar[ciudad] = {};
+                documentos.forEach(doc => {
+                  documentosParaGuardar[ciudad][doc.slug] = { 
+                    id: doc.id,
+                    nombre: doc.nombre 
+                  };
+                });
+              } else {
+                documentosParaGuardar[ciudad] = documentos;
+              }
+            });
+            
+            if (onAssignTemplates) onAssignTemplates(documentosParaGuardar);
             setAssignDialogOpen(false);
           }} 
           variant="contained"

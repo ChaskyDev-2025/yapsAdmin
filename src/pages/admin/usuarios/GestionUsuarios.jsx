@@ -42,6 +42,7 @@ import { collection, getDocs, deleteDoc, doc, updateDoc } from "firebase/firesto
 import { db } from "../../../data/firebase/firebase";
 import { TableToolbar } from "./components/TableToolbar";
 import { HistorialViajesModal } from "./components/HistorialViajesModal";
+import { HistorialViajesConductorModal } from "./components/HistorialViajesConductorModal";
 
 const GestionUsuarios = () => {
   const { userRole, user } = useAuth();
@@ -52,6 +53,8 @@ const GestionUsuarios = () => {
   const [flotas, setFlotas] = useState([]);
   const [historialModalOpen, setHistorialModalOpen] = useState(false);
   const [pasajeroSeleccionado, setPasajeroSeleccionado] = useState(null);
+  const [historialConductorModalOpen, setHistorialConductorModalOpen] = useState(false);
+  const [conductorSeleccionado, setConductorSeleccionado] = useState(null);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -1073,6 +1076,18 @@ const GestionUsuarios = () => {
                         />
                       </TableCell>
                       <TableCell>
+                        <Tooltip title="Ver Historial de Viajes">
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setConductorSeleccionado(trabajador.id);
+                              setHistorialConductorModalOpen(true);
+                            }}
+                            sx={{ color: "#d7171a", mr: 1 }}
+                          >
+                            <HistoryIcon />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip title="Editar">
                           <IconButton
                             size="small"
@@ -1203,6 +1218,12 @@ const GestionUsuarios = () => {
         open={historialModalOpen}
         onClose={() => setHistorialModalOpen(false)}
         pasajeroUID={pasajeroSeleccionado}
+      />
+
+      <HistorialViajesConductorModal
+        open={historialConductorModalOpen}
+        onClose={() => setHistorialConductorModalOpen(false)}
+        conductorUID={conductorSeleccionado}
       />
     </Box>
   );

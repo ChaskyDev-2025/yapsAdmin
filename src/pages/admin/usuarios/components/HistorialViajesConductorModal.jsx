@@ -17,20 +17,77 @@ import {
   Chip,
   CircularProgress
 } from '@mui/material';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../../data/firebase/firebase';
 
-export const HistorialViajesModal = ({ open, onClose, pasajeroUID }) => {
+export const HistorialViajesConductorModal = ({ open, onClose, conductorUID }) => {
   const [viajes, setViajes] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [pasajerosMap, setPasajerosMap] = useState({});
+
+  // Cargar datos del pasajero
+  const cargarNombrePasajero = async (uidUser) => {
+    console.log('Buscando pasajero con UID:', uidUser);
+    if (pasajerosMap[uidUser]) {
+      console.log('Pasajero encontrado en caché:', pasajerosMap[uidUser]);
+      return pasajerosMap[uidUser];
+    }
+    
+    try {
+      // Primero intentar obtener por ID del documento
+      const docRef = doc(db, 'pasajeros', uidUser);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        console.log('Pasajero encontrado por ID');
+        const pasajero = docSnap.data();
+        console.log('Datos pasajero:', pasajero);
+        const nombre = pasajero.perfil?.name || pasajero.name || pasajero.email || '-';
+        const rating = pasajero.rating || '-';
+        console.log('Nombre extraído:', nombre, 'Rating:', rating);
+        setPasajerosMap(prev => ({ 
+          ...prev, 
+          [uidUser]: { nombre, rating }
+        }));
+        return { nombre, rating };
+      }
+      
+      // Si no está por ID, buscar por campo uid
+      console.log('Buscando por campo uid en pasajeros');
+      const pasajerosCollection = collection(db, 'pasajeros');
+      const q = query(pasajerosCollection, where('uid', '==', uidUser));
+      const snapshot = await getDocs(q);
+      
+      console.log('Documentos encontrados:', snapshot.docs.length);
+      
+      if (snapshot.docs.length > 0) {
+        const pasajero = snapshot.docs[0].data();
+        console.log('Datos pasajero:', pasajero);
+        const nombre = pasajero.perfil?.name || pasajero.name || pasajero.email || '-';
+        const rating = pasajero.rating || '-';
+        console.log('Nombre extraído:', nombre, 'Rating:', rating);
+        setPasajerosMap(prev => ({ 
+          ...prev, 
+          [uidUser]: { nombre, rating }
+        }));
+        return { nombre, rating };
+      }
+      
+      console.log('No se encontró pasajero con UID:', uidUser);
+      return { nombre: '-', rating: '-' };
+    } catch (error) {
+      console.error('Error al cargar pasajero:', error);
+      return { nombre: '-', rating: '-' };
+    }
+  };
 
   useEffect(() => {
     const cargarViajes = async () => {
       setLoading(true);
       try {
-        // Cargar desde ordenes filtrando por uidUser
+        // Cargar desde ordenes filtrando por uidTaxista
         const ordenesCollection = collection(db, 'ordenes');
-        const q = query(ordenesCollection, where('uidUser', '==', pasajeroUID));
+        const q = query(ordenesCollection, where('uidTaxista', '==', conductorUID));
         const snapshot = await getDocs(q);
         
         if (snapshot.docs.length > 0) {
@@ -43,22 +100,40 @@ export const HistorialViajesModal = ({ open, onClose, pasajeroUID }) => {
             return dateB - dateA;
           });
           
-          setViajes(viajesData);
+          // Cargar nombres de pasajeros para todos los viajes
+          const viajesConPasajeros = await Promise.all(
+            viajesData.map(async (viaje) => {
+              // uidUser está en el nivel raíz del documento, no dentro de orden
+              console.log('Viaje:', viaje.id, 'uidUser:', viaje.uidUser);
+              if (viaje.uidUser) {
+                const datosPasajero = await cargarNombrePasajero(viaje.uidUser);
+                console.log('Datos pasajero cargados:', datosPasajero);
+                return {
+                  ...viaje,
+                  pasajeroInfo: datosPasajero
+                };
+              }
+              console.log('Sin uidUser para el viaje:', viaje.id);
+              return { ...viaje, pasajeroInfo: { nombre: '-', rating: '-' } };
+            })
+          );
+          
+          setViajes(viajesConPasajeros);
         } else {
           setViajes([]);
         }
       } catch (error) {
-        console.error('Error al cargar historial de viajes:', error);
+        console.error('Error al cargar historial de viajes del conductor:', error);
         setViajes([]);
       } finally {
         setLoading(false);
       }
     };
 
-    if (open && pasajeroUID) {
+    if (open && conductorUID) {
       cargarViajes();
     }
-  }, [open, pasajeroUID]);
+  }, [open, conductorUID]);
 
   const formatearFecha = (timestamp) => {
     if (!timestamp) return '-';
@@ -108,7 +183,7 @@ export const HistorialViajesModal = ({ open, onClose, pasajeroUID }) => {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ backgroundColor: '#d7171a', color: 'white', fontWeight: 700 }}>
-        📍 Historial de Viajes
+        🚖 Historial de Viajes del Conductor
       </DialogTitle>
       <DialogContent sx={{ p: 2 }}>
         {loading ? (
@@ -117,7 +192,7 @@ export const HistorialViajesModal = ({ open, onClose, pasajeroUID }) => {
           </Box>
         ) : viajes.length === 0 ? (
           <Typography color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
-            No hay viajes registrados para este pasajero
+            No hay viajes registrados para este conductor
           </Typography>
         ) : (
           <TableContainer component={Paper} sx={{ mt: 2 }}>
@@ -127,7 +202,7 @@ export const HistorialViajesModal = ({ open, onClose, pasajeroUID }) => {
                   <TableCell sx={{ fontWeight: 700 }}>Fecha</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Origen</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Destino</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Conductor</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Pasajero</TableCell>
                   <TableCell sx={{ fontWeight: 700 }} align="right">Precio</TableCell>
                   <TableCell sx={{ fontWeight: 700 }} align="center">Estado</TableCell>
                 </TableRow>
@@ -165,10 +240,10 @@ export const HistorialViajesModal = ({ open, onClose, pasajeroUID }) => {
                     <TableCell>
                       <Box>
                         <Typography variant="body2">
-                          {viaje.orden?.conductorNombre || viaje.conductorNombre || '-'}
+                          {viaje.pasajeroInfo?.nombre || '-'}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          ⭐ {viaje.orden?.conductorRating || viaje.conductorRating || '-'}
+                          ⭐ {viaje.pasajeroInfo?.rating || '-'}
                         </Typography>
                       </Box>
                     </TableCell>
