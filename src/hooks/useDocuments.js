@@ -17,7 +17,6 @@ export const useDocuments = () => {
       .getAll()
       .then((data) => {
         readCount.current += data.length; // cuenta cada documento leído
-        console.log("📖 Lecturas acumuladas:", readCount.current);
         setRows(data);
       })
       .finally(() => setLoading(false));
@@ -29,8 +28,6 @@ export const useDocuments = () => {
     rows.forEach((row) => {
       counts[row.id] = (counts[row.id] || 0) + 1;
     });
-
-    console.log("🖥️ Conteo actual de renderizado de filas:", counts);
   }, [rows]);
 
   /* ── CREATE ──────────────────────────────────────── */
@@ -41,7 +38,6 @@ export const useDocuments = () => {
     });
 
     writeCount.current += 1;
-    console.log("✍️ Escrituras acumuladas:", writeCount.current);
 
     setRows((prev) => {
       const newRows = [
@@ -65,7 +61,6 @@ export const useDocuments = () => {
   const update = async (id, data) => {
     await repo.update(id, data);
     writeCount.current += 1;
-    console.log("✍️ Escrituras acumuladas:", writeCount.current);
 
     setRows((prev) =>
       prev.map((r) =>
@@ -91,7 +86,6 @@ export const useDocuments = () => {
     try {
       await repo.update(id, { activo: nuevoValor });
       writeCount.current += 1;
-      console.log("✍️ Escrituras acumuladas:", writeCount.current);
     } catch (e) {
       setRows((prev) =>
         prev.map((r) =>
@@ -106,7 +100,6 @@ export const useDocuments = () => {
   const remove = async (id) => {
     await repo.remove(id);
     deleteCount.current += 1;
-    console.log("🗑️ Eliminaciones acumuladas:", deleteCount.current);
 
     setRows((prev) =>
       prev

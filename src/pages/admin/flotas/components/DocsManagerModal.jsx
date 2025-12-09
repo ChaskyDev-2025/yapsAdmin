@@ -125,7 +125,6 @@ export const DocsManagerModal = ({
           if (typeof docs === 'object' && !Array.isArray(docs)) {
             // Convertir de objeto a array: {slug: {id: docId}} -> [{slug, id, nombre}]
             const docsArray = Object.entries(docs).map(([slug, docInfo]) => {
-              console.log('Convirtiendo documento de objeto a array:', { ciudad, slug, docInfo });
               return {
                 slug,
                 id: docInfo.id || docInfo,
@@ -140,7 +139,6 @@ export const DocsManagerModal = ({
         }
       });
       
-      console.log('SelectedTemplates inicializado correctamente:', initialized);
       setSelectedTemplates(initialized);
     } else {
       setSelectedTemplates({});
@@ -458,17 +456,7 @@ export const DocsManagerModal = ({
                           const docSlug = generateDocSlug(tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id);
                           const docsEnCiudad = selectedTemplates[ciudad] || [];
                           const isSelected = Array.isArray(docsEnCiudad) 
-                            ? docsEnCiudad.some(item => {
-                                const match = item.slug === docSlug;
-                                if (!match) {
-                                  console.log('Comparando slugs:', {
-                                    template: docSlug,
-                                    saved: item.slug,
-                                    match
-                                  });
-                                }
-                                return match;
-                              })
+                            ? docsEnCiudad.some(item => item.slug === docSlug)
                             : false;
                           const docName = tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id;
                           

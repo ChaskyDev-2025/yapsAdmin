@@ -100,19 +100,24 @@ export default function ModalDerecho({ userId, setDocActivo }) {
         try {
           if (!cancel) {
             // Convertir los documentos a items para mostrar
-            const items = documentosDelTrabajador.map((docName, index) => ({
-              id: index,
-              nombre: docName,
-              estado: "asignada",
-              url: "#",
-              preview: null,
-            }));
+            // Los documentos pueden ser strings o objetos (después de ser procesados)
+            const items = documentosDelTrabajador.map((docName, index) => {
+              const nombreDoc = typeof docName === 'string' ? docName : (docName?.nombre || 'Documento');
+              const estadoDoc = typeof docName === 'string' ? "asignada" : (docName?.estado || "asignada");
+              
+              return {
+                id: index,
+                nombre: nombreDoc,
+                estado: estadoDoc,
+                url: "#",
+                preview: null,
+              };
+            });
 
             setDocs(items);
             setCargando(false);
           }
         } catch (error) {
-          console.error("Error procesando documentos:", error);
           if (!cancel) {
             setDocs([]);
             setCargando(false);

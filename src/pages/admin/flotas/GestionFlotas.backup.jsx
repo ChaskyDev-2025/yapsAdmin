@@ -148,7 +148,6 @@ const GestionFlotas = () => {
   };
 
   const uploadImageToStorage = async (file, flotaId) => {
-    console.log("Usuario authenticado:", auth.currentUser);
     if (!auth.currentUser) {
       throw new Error ("Debes estar autenticado para subir imagenes")
     }
@@ -160,12 +159,10 @@ const GestionFlotas = () => {
 
       //subir archivo
       const snapshot = await uploadBytes(storageRef, file);
-      console.log("Imagen subida", snapshot);
-
+      
       //obtener URL de descarga
       const dowloadURL = await getDownloadURL(snapshot.ref);
-      console.log("URL obtenida:", dowloadURL);
-
+      
       return dowloadURL;
     }catch (error) {
       console.error("Error sunbiendo imagen:" , error);
@@ -267,16 +264,12 @@ const GestionFlotas = () => {
       if (imageFile) {
         const flotaId = editMode ? currentFlota.id : `temp_${Date.now()}`;
         imageUrl = await uploadImageToStorage(imageFile, flotaId);
-        console.log("Nueva imagen subida:", imageUrl);
       }
     
       // Obtener datos del primer administrador seleccionado
       const primerAdminUid = formData.uidPropietarios[0];
-      console.log('UID del primer admin:', primerAdminUid);
-      console.log('Lista de administradores:', administradores);
       
       const adminSeleccionado = administradores.find(a => a.uid === primerAdminUid);
-      console.log('Admin seleccionado:', adminSeleccionado);
       
       if (!adminSeleccionado) {
         showAlert("No se encontró el administrador seleccionado", "error");
@@ -291,8 +284,6 @@ const GestionFlotas = () => {
         correo: adminSeleccionado.email || adminSeleccionado.correo || "",
         contrasena: adminSeleccionado.password || adminSeleccionado.contrasena || "",
       };
-
-      console.log('Perfil flota a guardar:', perfilFlota);
 
       if (editMode && currentFlota) {
         // Actualizar flota existente
@@ -324,7 +315,6 @@ const GestionFlotas = () => {
         showAlert("Flota actualizada exitosamente", "success");
       } else {
         // Crear nueva flota
-        console.log('Creando nueva flota...');
         const nuevaFlotaRef = await addDoc(collection(db, "flotas"), {
           nombre: formData.nombre,
           imageUrl: imageUrl || "",
@@ -341,11 +331,8 @@ const GestionFlotas = () => {
           updatedAt: serverTimestamp(),
         });
 
-        console.log('Flota creada con ID:', nuevaFlotaRef.id);
-
         // Actualizar flotaId en los usuarios seleccionados con el ID de la nueva flota
         for (const uid of formData.uidPropietarios) {
-          console.log('Actualizando flotaId para usuario:', uid);
           const userRef = doc(db, "users", uid);
           await updateDoc(userRef, {
             flotaId: nuevaFlotaRef.id,
@@ -353,7 +340,6 @@ const GestionFlotas = () => {
           });
         }
 
-        console.log('Proceso completado');
         showAlert("Flota creada exitosamente", "success");
       }
       

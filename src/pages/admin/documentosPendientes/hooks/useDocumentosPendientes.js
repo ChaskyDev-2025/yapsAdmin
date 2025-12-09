@@ -28,9 +28,14 @@ export const useDocumentosPendientes = (userFlotaId) => {
         }))
         .filter((t) => {
           const docs = t.documentos || [];
+          // Si documentos es un array de strings, siempre mostrar (todos son "pendientes")
+          // Si es array de objetos, filtrar por estado
           return (
             t.role === "driver" &&
-            docs.some((d) => d.estado !== "aprobado" && d.estado !== "rechazado")
+            (docs.length > 0 && (
+              typeof docs[0] === 'string' || 
+              docs.some((d) => d.estado !== "aprobado" && d.estado !== "rechazado")
+            ))
           );
         });
       setTrabajadores(data);

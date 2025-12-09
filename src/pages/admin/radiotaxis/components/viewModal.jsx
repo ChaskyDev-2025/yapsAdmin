@@ -88,7 +88,7 @@ export default function ViewModal({ open, doc, onClose, onSaveEstado }) {
         }}
       >
         <DialogTitle sx={{ flexGrow: 1, p: 0, fontWeight: 700 }}>
-          {doc?.nombre || "Documento"}
+          {typeof doc?.nombre === 'string' ? doc.nombre : 'Documento'}
         </DialogTitle>
 
         <Tooltip title={`Estado: ${meta.label}`}>
@@ -181,7 +181,7 @@ export default function ViewModal({ open, doc, onClose, onSaveEstado }) {
                 <Box
                   component="img"
                   src={images[idx].url}
-                  alt={`${doc?.nombre || "Documento"} - ${images[idx].key}`}
+                  alt={`${typeof doc?.nombre === 'string' ? doc.nombre : 'Documento'} - ${images[idx].key}`}
                   onError={() => setImgError(true)}
                   sx={{ maxWidth: "100%", maxHeight: "60vh", objectFit: "contain", borderRadius: 1 }}
                 />
@@ -292,7 +292,7 @@ export default function ViewModal({ open, doc, onClose, onSaveEstado }) {
             <Stack spacing={1}>
               {Object.entries(doc.data).map(([key, value]) => (
                 <Typography key={key} variant="body2" sx={{ fontSize: 15 }}>
-                  <b>{key}:</b> {String(value)}
+                  <b>{key}:</b> {typeof value === 'object' ? JSON.stringify(value) : String(value)}
                 </Typography>
               ))}
             </Stack>

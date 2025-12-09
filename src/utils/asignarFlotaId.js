@@ -18,12 +18,6 @@ export const asignarFlotaIdAlUsuarioActual = async (flotaId) => {
       flotaId: flotaId
     });
     
-    console.log("✅ flotaId asignado exitosamente");
-    console.log("📧 Usuario:", user.email);
-    console.log("🆔 UID:", user.uid);
-    console.log("🏢 FlotaId:", flotaId);
-    console.log("🔄 Recarga la página para ver los cambios");
-    
     return true;
   } catch (error) {
     console.error("❌ Error al asignar flotaId:", error);
@@ -45,14 +39,7 @@ export const verificarFlotaIdDelUsuario = async () => {
   
   const userDoc = await getDoc(doc(db, "users", user.uid));
   
-  if (userDoc.exists()) {
-    const userData = userDoc.data();
-    console.log("👤 Información del usuario:");
-    console.log("  📧 Email:", user.email);
-    console.log("  🆔 UID:", user.uid);
-    console.log("  👔 Rol:", userData.role);
-    console.log("  🏢 FlotaId:", userData.flotaId || "❌ NO ASIGNADO");
-  } else {
+  if (!userDoc.exists()) {
     console.error("❌ No se encontró el documento del usuario");
   }
 };

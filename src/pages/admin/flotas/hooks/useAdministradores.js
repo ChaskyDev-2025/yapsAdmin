@@ -31,7 +31,6 @@ export const useAdministradores = (flotas = []) => {
         };
       });
       
-      console.log('📊 Administradores cargados:', adminsList);
       setAdministradores(adminsList);
     } catch (error) {
       console.error("Error al obtener administradores:", error);

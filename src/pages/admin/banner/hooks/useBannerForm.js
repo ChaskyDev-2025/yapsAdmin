@@ -15,7 +15,6 @@ export default function useBannerForm() {
   // Maneja cambio de archivo y arma preview
   const onChangeInput = useCallback((e) => {
     const f = e.target.files?.[0];
-    console.log("HOOK ▶️ archivo seleccionado:", f?.name, f?.size, f?.type);
     if (!f) return;
     setFile(f);
 
@@ -28,7 +27,6 @@ export default function useBannerForm() {
 
   // Guardar: sube la imagen y crea registro en Firestore
   const save = useCallback(async () => {
-    console.log("HOOK ▶️ save() llamado. file:", file?.name, file?.size);
     if (!file) throw new Error("Debes seleccionar una imagen antes de guardar");
 
     setSaving(true);
@@ -36,7 +34,6 @@ export default function useBannerForm() {
 
     try {
       const banner = await createBanner(file); // sube a Storage y crea doc
-      console.log("HOOK ✅ createBanner() devolvió:", banner);
       return banner; // { id, imagen, estado }
     } catch (err) {
       console.error("[hook] ❌ save() error:", err?.code || err?.message, err);

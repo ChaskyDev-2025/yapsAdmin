@@ -58,8 +58,6 @@ export const agregarHistorialRecarga = async (uid, { estado = "recarga", monto }
       // Si el documento no existe, usamos setDoc para crearlo
       await setDoc(historialRef, historialData);
     }
-
-    console.log("Historial de recarga agregado correctamente");
   } catch (e) {
     console.error("Error al agregar al historial:", e);
   }

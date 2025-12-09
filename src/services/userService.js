@@ -8,10 +8,7 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
  * El documento en Firestore usa el mismo UID de Authentication
  */
 export async function createAdminUser(userData) {
-  let currentUser = auth.currentUser; // Guardar referencia al usuario actual (SuperAdmin)
-  
   try {
-    console.log("🔧 Creando usuario en Authentication...");
     
     // 1. Crear usuario en Firebase Authentication
     const userCredential = await createUserWithEmailAndPassword(
@@ -21,7 +18,6 @@ export async function createAdminUser(userData) {
     );
     
     const uid = userCredential.user.uid;
-    console.log("✅ Usuario creado en Auth con UID:", uid);
     
     // 2. Crear documento en Firestore usando el UID como ID del documento
     await setDoc(doc(db, "users", uid), {
@@ -35,8 +31,6 @@ export async function createAdminUser(userData) {
       createdBy: userData.createdBy || null,
     });
     
-    console.log("✅ Documento creado en Firestore:", `users/${uid}`);
-    
     // 3. Agregar el usuario a la flota si se especificó
     if (userData.flotaId) {
       try {
@@ -44,7 +38,6 @@ export async function createAdminUser(userData) {
         await updateDoc(flotaRef, {
           uidPropietarios: arrayUnion(uid),
         });
-        console.log("✅ Usuario agregado a uidPropietarios de la flota");
       } catch (error) {
         console.warn("⚠️ No se pudo agregar usuario a la flota:", error);
         // No lanzar error, continuar aunque falle esta operación
@@ -144,7 +137,6 @@ export async function updateUser(userId, userData) {
           await updateDoc(oldFlotaRef, {
             uidPropietarios: arrayRemove(userId),
           });
-          console.log("✅ Usuario removido de flota anterior");
         } catch (error) {
           console.warn("⚠️ No se pudo remover usuario de flota anterior:", error);
         }
@@ -156,7 +148,6 @@ export async function updateUser(userId, userData) {
         await updateDoc(newFlotaRef, {
           uidPropietarios: arrayUnion(userId),
         });
-        console.log("✅ Usuario agregado a nueva flota");
       } catch (error) {
         console.warn("⚠️ No se pudo agregar usuario a nueva flota:", error);
       }
@@ -174,13 +165,11 @@ export async function updateUser(userId, userData) {
  */
 export async function deleteUser(userId) {
   try {
-    console.log("🗑️ Eliminando usuario:", userId); // Debug
     const userRef = doc(db, "users", userId);
     await updateDoc(userRef, {
       active: false,
       deletedAt: new Date().toISOString(),
     });
-    console.log("✅ Usuario marcado como inactivo"); // Debug
     return { success: true };
   } catch (error) {
     console.error("❌ Error eliminando usuario:", error);
@@ -215,7 +204,6 @@ export async function syncAdminToFlota(userId, newFlotaId, oldFlotaId = null) {
         await updateDoc(oldFlotaRef, {
           uidPropietarios: arrayRemove(userId),
         });
-        console.log("✅ Usuario removido de flota anterior:", oldFlotaId);
       } catch (error) {
         console.warn("⚠️ Error removiendo usuario de flota anterior:", error);
       }
@@ -228,7 +216,6 @@ export async function syncAdminToFlota(userId, newFlotaId, oldFlotaId = null) {
         await updateDoc(newFlotaRef, {
           uidPropietarios: arrayUnion(userId),
         });
-        console.log("✅ Usuario agregado a flota:", newFlotaId);
         return { success: true };
       } catch (error) {
         console.error("❌ Error agregando usuario a flota:", error);

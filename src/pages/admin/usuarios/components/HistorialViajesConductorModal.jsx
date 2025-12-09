@@ -27,9 +27,7 @@ export const HistorialViajesConductorModal = ({ open, onClose, conductorUID }) =
 
   // Cargar datos del pasajero
   const cargarNombrePasajero = async (uidUser) => {
-    console.log('Buscando pasajero con UID:', uidUser);
     if (pasajerosMap[uidUser]) {
-      console.log('Pasajero encontrado en caché:', pasajerosMap[uidUser]);
       return pasajerosMap[uidUser];
     }
     
@@ -39,12 +37,9 @@ export const HistorialViajesConductorModal = ({ open, onClose, conductorUID }) =
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        console.log('Pasajero encontrado por ID');
         const pasajero = docSnap.data();
-        console.log('Datos pasajero:', pasajero);
         const nombre = pasajero.perfil?.name || pasajero.name || pasajero.email || '-';
         const rating = pasajero.rating || '-';
-        console.log('Nombre extraído:', nombre, 'Rating:', rating);
         setPasajerosMap(prev => ({ 
           ...prev, 
           [uidUser]: { nombre, rating }
@@ -53,19 +48,14 @@ export const HistorialViajesConductorModal = ({ open, onClose, conductorUID }) =
       }
       
       // Si no está por ID, buscar por campo uid
-      console.log('Buscando por campo uid en pasajeros');
       const pasajerosCollection = collection(db, 'pasajeros');
       const q = query(pasajerosCollection, where('uid', '==', uidUser));
       const snapshot = await getDocs(q);
       
-      console.log('Documentos encontrados:', snapshot.docs.length);
-      
       if (snapshot.docs.length > 0) {
         const pasajero = snapshot.docs[0].data();
-        console.log('Datos pasajero:', pasajero);
         const nombre = pasajero.perfil?.name || pasajero.name || pasajero.email || '-';
         const rating = pasajero.rating || '-';
-        console.log('Nombre extraído:', nombre, 'Rating:', rating);
         setPasajerosMap(prev => ({ 
           ...prev, 
           [uidUser]: { nombre, rating }
@@ -73,7 +63,6 @@ export const HistorialViajesConductorModal = ({ open, onClose, conductorUID }) =
         return { nombre, rating };
       }
       
-      console.log('No se encontró pasajero con UID:', uidUser);
       return { nombre: '-', rating: '-' };
     } catch (error) {
       console.error('Error al cargar pasajero:', error);
@@ -104,16 +93,13 @@ export const HistorialViajesConductorModal = ({ open, onClose, conductorUID }) =
           const viajesConPasajeros = await Promise.all(
             viajesData.map(async (viaje) => {
               // uidUser está en el nivel raíz del documento, no dentro de orden
-              console.log('Viaje:', viaje.id, 'uidUser:', viaje.uidUser);
               if (viaje.uidUser) {
                 const datosPasajero = await cargarNombrePasajero(viaje.uidUser);
-                console.log('Datos pasajero cargados:', datosPasajero);
                 return {
                   ...viaje,
                   pasajeroInfo: datosPasajero
                 };
               }
-              console.log('Sin uidUser para el viaje:', viaje.id);
               return { ...viaje, pasajeroInfo: { nombre: '-', rating: '-' } };
             })
           );
