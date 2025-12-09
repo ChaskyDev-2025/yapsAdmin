@@ -304,12 +304,14 @@ export const FlotaFormDialog = ({
               {ciudadSeleccionadaServicios && serviciosPorCiudad[ciudadSeleccionadaServicios] && (
                 <Stack spacing={1.5}>
                   {formData.servicios && formData.servicios[ciudadSeleccionadaServicios]?.length > 0 && (
-                    <Box sx={{ p: 1.5, bgcolor: "#f5f5f5", borderRadius: 1, maxHeight: "120px", overflowY: "auto" }}>
+                      <Box sx={{ p: 1.5, bgcolor: "#f5f5f5", borderRadius: 1, maxHeight: "120px", overflowY: "auto" }}>
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                        {Object.entries(formData.servicios[ciudadSeleccionadaServicios] || {}).map(([slug, servicio]) => (
+                        {Object.entries(formData.servicios[ciudadSeleccionadaServicios] || {}).map(([slug, servicio]) => {
+                          const nombreServicio = servicio.servicio || servicio.nombre_visible || servicio.nombre;
+                          return (
                           <Chip
                             key={slug}
-                            label={`${servicio.servicio} - ${servicio.categoria}`}
+                            label={`${nombreServicio} - ${servicio.categoria}`}
                             size="small"
                             onDelete={() => {
                               const serviciosActualizados = {
@@ -331,7 +333,8 @@ export const FlotaFormDialog = ({
                               fontWeight: 600,
                             }}
                           />
-                        ))}
+                        );
+                        })}
                       </Box>
                     </Box>
                   )}
@@ -349,10 +352,19 @@ export const FlotaFormDialog = ({
                         serviciosSlugsSeleccionados.forEach(slug => {
                           const servicioObj = serviciosPorCiudad[ciudadSeleccionadaServicios].find(s => s.id === slug);
                           if (servicioObj) {
-                            serviciosCompletos[slug] = {
-                              servicio: servicioObj.servicio || servicioObj.nombre,
+                            const nombreValue = servicioObj.servicio || servicioObj.nombre_visible || servicioObj.nombre;
+                            const servicioGuardar = {
                               categoria: servicioObj.categoria
                             };
+                            // Guardar con el mismo campo que tiene en Firestore
+                            if (servicioObj._nombreField === 'servicio' || servicioObj.hasOwnProperty('servicio')) {
+                              servicioGuardar.servicio = nombreValue;
+                            } else if (servicioObj._nombreField === 'nombre_visible' || servicioObj.hasOwnProperty('nombre_visible')) {
+                              servicioGuardar.nombre_visible = nombreValue;
+                            } else {
+                              servicioGuardar.nombre = nombreValue;
+                            }
+                            serviciosCompletos[slug] = servicioGuardar;
                           }
                         });
                         
@@ -366,7 +378,7 @@ export const FlotaFormDialog = ({
                       renderValue={(selected) => `${selected.length} servicio(s)`}
                     >
                       {serviciosPorCiudad[ciudadSeleccionadaServicios].map((servicio) => {
-                        const nombreServicio = servicio.nombre || servicio.id;
+                        const nombreServicio = servicio.servicio || servicio.nombre_visible || servicio.nombre || servicio.id;
                         return (
                           <MenuItem key={servicio.id} value={servicio.id}>
                             {nombreServicio}
@@ -409,26 +421,28 @@ export const FlotaFormDialog = ({
 
               {ciudadSeleccionadaDocumentos && documentosPorCiudad[ciudadSeleccionadaDocumentos] && (
                 <Stack spacing={1.5}>
-                  {formData.documentos?.length > 0 && (
+                  {formData.documentos && formData.documentos[ciudadSeleccionadaDocumentos] && Object.keys(formData.documentos[ciudadSeleccionadaDocumentos]).length > 0 && (
                     <Box sx={{ p: 1.5, bgcolor: "#f5f5f5", borderRadius: 1, maxHeight: "120px", overflowY: "auto" }}>
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                        {formData.documentos.map((docId) => {
-                          let doc = null;
-                          for (const c in documentosPorCiudad) {
-                            const found = documentosPorCiudad[c]?.find(d => d.id === docId);
-                            if (found) {
-                              doc = found;
-                              break;
-                            }
-                          }
-                          const label = doc?.titulo || doc?.screenTitle || docId;
+                        {Object.entries(formData.documentos[ciudadSeleccionadaDocumentos] || {}).map(([slug, docId]) => {
+                          const label = slug;
                           return (
                             <Chip
-                              key={docId}
+                              key={slug}
                               label={label}
                               size="small"
                               onDelete={() => {
-                                onFormDataChange({ ...formData, documentos: formData.documentos.filter(d => d !== docId) });
+                                const docsActualizados = {
+                                  ...formData.documentos,
+                                  [ciudadSeleccionadaDocumentos]: Object.fromEntries(
+                                    Object.entries(formData.documentos[ciudadSeleccionadaDocumentos]).filter(([s]) => s !== slug)
+                                  )
+                                };
+                                // Si no hay más documentos en esta ciudad, remover la ciudad
+                                if (Object.keys(docsActualizados[ciudadSeleccionadaDocumentos]).length === 0) {
+                                  delete docsActualizados[ciudadSeleccionadaDocumentos];
+                                }
+                                onFormDataChange({ ...formData, documentos: docsActualizados });
                               }}
                               sx={{
                                 bgcolor: "#d7171a",
@@ -446,17 +460,41 @@ export const FlotaFormDialog = ({
                     <InputLabel>Seleccionar Documentos</InputLabel>
                     <Select
                       multiple
-                      value={formData.documentos || []}
-                      onChange={(e) => onFormDataChange({ ...formData, documentos: e.target.value })}
+                      value={Object.keys(formData.documentos?.[ciudadSeleccionadaDocumentos] || {})}
+                      onChange={(e) => {
+                        const docsSeleccionados = e.target.value;
+                        const docsCompletos = {};
+                        
+                        docsSeleccionados.forEach(slug => {
+                          const docObj = documentosPorCiudad[ciudadSeleccionadaDocumentos].find(d => {
+                            const docSlug = d.titulo || d.screenTitle || d.nombre || d.id;
+                            return docSlug.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_') === slug;
+                          });
+                          if (docObj) {
+                            docsCompletos[slug] = {
+                              id: docObj.id
+                            };
+                          }
+                        });
+                        
+                        const docsActualizados = {
+                          ...formData.documentos,
+                          [ciudadSeleccionadaDocumentos]: docsCompletos
+                        };
+                        onFormDataChange({ ...formData, documentos: docsActualizados });
+                      }}
                       input={<OutlinedInput label="Seleccionar Documentos" />}
                       renderValue={(selected) => `${selected.length} documento(s)`}
                     >
                       {documentosPorCiudad[ciudadSeleccionadaDocumentos]?.filter(doc => {
-                        return !formData.documentos?.includes(doc.id);
+                        const docSlug = doc.titulo || doc.screenTitle || doc.nombre || doc.id;
+                        const slug = docSlug.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_');
+                        return !formData.documentos?.[ciudadSeleccionadaDocumentos]?.[slug];
                       }).map((doc) => {
-                        const nombreDoc = doc.titulo || doc.screenTitle || doc.id;
+                        const nombreDoc = doc.titulo || doc.screenTitle || doc.nombre || doc.id;
+                        const docSlug = nombreDoc.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_');
                         return (
-                          <MenuItem key={doc.id} value={doc.id}>
+                          <MenuItem key={doc.id} value={docSlug}>
                             {nombreDoc}
                           </MenuItem>
                         );

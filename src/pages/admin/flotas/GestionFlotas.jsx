@@ -138,7 +138,7 @@ const GestionFlotas = () => {
         otrosDocumentos: flota.documentosFlota?.otrosDocumentos || [],
         uidPropietarios: flota.uidPropietarios || [],
         servicios: typeof flota.servicios === 'object' && !Array.isArray(flota.servicios) ? flota.servicios : {},
-        documentos: flota.documentos || [],
+        documentos: typeof flota.documentos === 'object' && !Array.isArray(flota.documentos) ? flota.documentos : {},
         habilitado: flota.habilitado !== undefined ? flota.habilitado : true,
       });
       setImagePreview(flota.imageUrl || null);
@@ -155,8 +155,8 @@ const GestionFlotas = () => {
         fotoNit: "",
         otrosDocumentos: [],
         uidPropietarios: [],
-        servicios: [],
-        documentos: [],
+        servicios: {},
+        documentos: {},
         habilitado: true,
       });
       setImagePreview(null);
@@ -367,37 +367,31 @@ const GestionFlotas = () => {
     if (!selectedFlotaForDocs) return;
     
     try {
-      // templatesSelected es un array de IDs (strings)
-      const documentIds = Array.isArray(templatesSelected) 
-        ? templatesSelected 
-        : [];
-
-      // Validar que no estén duplicados
-      const uniqueIds = [...new Set(documentIds)];
-      
-      if (uniqueIds.length === 0) {
-        showSnackbar('Por favor selecciona al menos un documento', 'warning');
-        return;
-      }
-
+      // templatesSelected ahora es un objeto con estructura: { ciudad: { slug: { id: "..." } } }
+      // Permitir vacío para eliminar todos los documentos
       const flotaRef = doc(db, 'flotas', selectedFlotaForDocs.id);
 
-      // Actualizar con los nuevos documentos (estructura nueva: flota.documentos)
+      // Si templatesSelected está vacío, guardar objeto vacío o eliminar el campo
+      const documentosAGuardar = (templatesSelected && typeof templatesSelected === 'object' && Object.keys(templatesSelected).length > 0) 
+        ? templatesSelected 
+        : {};
+
+      // Actualizar con los nuevos documentos (estructura nueva: flota.documentos por departamento)
       await updateDoc(flotaRef, {
-        documentos: uniqueIds,
+        documentos: documentosAGuardar,
         updatedAt: serverTimestamp(),
       });
 
       setSelectedFlotaForDocs({
         ...selectedFlotaForDocs,
-        documentos: uniqueIds,
+        documentos: documentosAGuardar,
       });
       
       await fetchFlotas();
-      showSnackbar('Documentos asignados correctamente', 'success');
+      showSnackbar('Documentos actualizados correctamente', 'success');
     } catch (error) {
       console.error('Error asignando plantillas a la flota:', error);
-      showSnackbar('Error al asignar plantillas: ' + error.message, 'error');
+      showSnackbar('Error al actualizar documentos: ' + error.message, 'error');
     }
   };
 

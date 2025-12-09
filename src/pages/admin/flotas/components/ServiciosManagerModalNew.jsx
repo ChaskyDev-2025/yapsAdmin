@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -45,51 +45,60 @@ export const ServiciosManagerModalNew = ({
     }
   }, [open, flota]);
 
-  const handleSelectServicio = (servicio) => {
+  const handleSelectServicio = useCallback((servicio) => {
     setServiciosSeleccionados((prev) => {
-      const serviciosPorDept = { ...prev };
-      
-      if (!serviciosPorDept[ciudadSeleccionada]) {
-        serviciosPorDept[ciudadSeleccionada] = {};
-      }
-
       const slug = servicio.id;
+      const deptServicios = prev[ciudadSeleccionada] || {};
       
-      if (serviciosPorDept[ciudadSeleccionada][slug]) {
+      if (deptServicios[slug]) {
         // Ya existe, eliminarlo
-        delete serviciosPorDept[ciudadSeleccionada][slug];
+        const nuevosDept = { ...deptServicios };
+        delete nuevosDept[slug];
+        
+        if (Object.keys(nuevosDept).length === 0) {
+          const nuevoPrev = { ...prev };
+          delete nuevoPrev[ciudadSeleccionada];
+          return nuevoPrev;
+        }
+        return { ...prev, [ciudadSeleccionada]: nuevosDept };
       } else {
-        // Agregarlo con solo servicio y categoria
-        serviciosPorDept[ciudadSeleccionada][slug] = {
-          servicio: servicio.servicio || servicio.nombre,
-          categoria: servicio.categoria
+        // Agregarlo con el campo original que tiene el servicio
+        const nombreValue = servicio.servicio || servicio.nombre_visible || servicio.nombre;
+        const servicioObj = { categoria: servicio.categoria };
+        
+        if (servicio._nombreField === 'servicio' || servicio.hasOwnProperty('servicio')) {
+          servicioObj.servicio = nombreValue;
+        } else if (servicio._nombreField === 'nombre_visible' || servicio.hasOwnProperty('nombre_visible')) {
+          servicioObj.nombre_visible = nombreValue;
+        } else {
+          servicioObj.nombre = nombreValue;
+        }
+        
+        return { 
+          ...prev, 
+          [ciudadSeleccionada]: { ...deptServicios, [slug]: servicioObj } 
         };
       }
-
-      // Remover departamento si no tiene servicios
-      if (Object.keys(serviciosPorDept[ciudadSeleccionada]).length === 0) {
-        delete serviciosPorDept[ciudadSeleccionada];
-      }
-
-      return serviciosPorDept;
     });
-  };
+  }, [ciudadSeleccionada]);
 
-  const handleRemoveServicio = (ciudad, servicioSlug) => {
+  const handleRemoveServicio = useCallback((ciudad, servicioSlug) => {
     setServiciosSeleccionados((prev) => {
-      const serviciosPorDept = { ...prev };
+      const deptServicios = prev[ciudad];
+      if (!deptServicios) return prev;
       
-      if (serviciosPorDept[ciudad]) {
-        delete serviciosPorDept[ciudad][servicioSlug];
-        
-        if (Object.keys(serviciosPorDept[ciudad]).length === 0) {
-          delete serviciosPorDept[ciudad];
-        }
+      const nuevosDept = { ...deptServicios };
+      delete nuevosDept[servicioSlug];
+      
+      if (Object.keys(nuevosDept).length === 0) {
+        const nuevoPrev = { ...prev };
+        delete nuevoPrev[ciudad];
+        return nuevoPrev;
       }
-
-      return serviciosPorDept;
+      
+      return { ...prev, [ciudad]: nuevosDept };
     });
-  };
+  }, []);
 
   const handleSave = () => {
     if (onSaveServicios) {
@@ -98,11 +107,31 @@ export const ServiciosManagerModalNew = ({
     onClose();
   };
 
-  // Contar total de servicios asignados
-  const totalServicios = Object.values(serviciosSeleccionados).reduce(
-    (sum, obj) => sum + (typeof obj === 'object' && !Array.isArray(obj) ? Object.keys(obj).length : 0),
-    0
-  );
+  // Agrupar servicios por categoría para la ciudad seleccionada
+  const serviciosPorCategoria = useMemo(() => {
+    if (!ciudadSeleccionada || !serviciosPorCiudad[ciudadSeleccionada]) {
+      return {};
+    }
+
+    const agrupados = {};
+    serviciosPorCiudad[ciudadSeleccionada].forEach(servicio => {
+      const categoria = servicio.categoria || "Sin categoría";
+      if (!agrupados[categoria]) {
+        agrupados[categoria] = [];
+      }
+      agrupados[categoria].push(servicio);
+    });
+
+    return agrupados;
+  }, [serviciosPorCiudad, ciudadSeleccionada]);
+
+  // Contar total de servicios asignados (memoizado)
+  const totalServicios = useMemo(() => {
+    return Object.values(serviciosSeleccionados).reduce(
+      (sum, obj) => sum + (typeof obj === 'object' && !Array.isArray(obj) ? Object.keys(obj).length : 0),
+      0
+    );
+  }, [serviciosSeleccionados]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -162,10 +191,12 @@ export const ServiciosManagerModalNew = ({
                     📌 {ciudad}
                   </Typography>
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, pl: 1 }}>
-                    {Object.entries(servicios || {}).map(([slug, servicio]) => (
+                    {Object.entries(servicios || {}).map(([slug, servicio]) => {
+                      const nombreServicio = servicio.servicio || servicio.nombre_visible || servicio.nombre;
+                      return (
                       <Chip
                         key={slug}
-                        label={`${servicio.servicio} - ${servicio.categoria}`}
+                        label={`${nombreServicio} - ${servicio.categoria}`}
                         onDelete={() => handleRemoveServicio(ciudad, slug)}
                         sx={{
                           bgcolor: "#d7171a",
@@ -175,7 +206,8 @@ export const ServiciosManagerModalNew = ({
                           "& .MuiChip-deleteIcon": { color: "white" },
                         }}
                       />
-                    ))}
+                    );
+                    })}
                   </Box>
                 </Box>
               ))}
@@ -196,72 +228,79 @@ export const ServiciosManagerModalNew = ({
                 Servicios disponibles en {ciudadSeleccionada}
               </Typography>
 
-              <Stack spacing={1.5}>
-                {serviciosPorCiudad[ciudadSeleccionada].map((servicio) => {
-                    const isSelected = !!serviciosSeleccionados[ciudadSeleccionada]?.[servicio.id];
+              <Stack spacing={2.5}>
+                {Object.keys(serviciosPorCategoria).sort().map((categoria) => (
+                  <Box key={categoria}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        fontFamily: "Mulish, sans-serif",
+                        fontWeight: 700,
+                        color: "#d7171a",
+                        mb: 1,
+                        fontSize: "0.95rem",
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {categoria}
+                    </Typography>
+                    <Stack spacing={1}>
+                      {serviciosPorCategoria[categoria].map((servicio) => {
+                        const isSelected = !!serviciosSeleccionados[ciudadSeleccionada]?.[servicio.id];
 
-                    return (
-                      <Box
-                        key={servicio.id}
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          p: 1.5,
-                          borderRadius: 1,
-                          border: "1px solid #e0e0e0",
-                          "&:hover": {
-                            bgcolor: "rgba(215, 23, 26, 0.05)",
-                            borderColor: "#d7171a",
-                          },
-                          bgcolor: isSelected ? "rgba(215, 23, 26, 0.1)" : "transparent",
-                        }}
-                      >
-                        <Box>
-                          <Typography
+                        return (
+                          <Box
+                            key={servicio.id}
                             sx={{
-                              fontFamily: "Mulish, sans-serif",
-                              fontWeight: 500,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              p: 1.5,
+                              borderRadius: 1,
+                              border: "1px solid #e0e0e0",
+                              "&:hover": {
+                                bgcolor: "rgba(215, 23, 26, 0.05)",
+                                borderColor: "#d7171a",
+                              },
+                              bgcolor: isSelected ? "rgba(215, 23, 26, 0.1)" : "transparent",
                             }}
                           >
-                            {servicio.servicio || servicio.nombre}
-                          </Typography>
-                          {servicio.categoria && (
                             <Typography
                               sx={{
                                 fontFamily: "Mulish, sans-serif",
-                                fontSize: "0.85rem",
-                                color: "#999",
+                                fontWeight: 500,
+                                flex: 1,
                               }}
                             >
-                              {servicio.categoria}
+                              {servicio.servicio || servicio.nombre_visible || servicio.nombre}
                             </Typography>
-                          )}
-                        </Box>
-                        <Button
-                          size="small"
-                          variant={isSelected ? "contained" : "outlined"}
-                          onClick={() => handleSelectServicio(servicio)}
-                          sx={{
-                            ...(isSelected && {
-                              bgcolor: "#d7171a",
-                              "&:hover": { bgcolor: "#b01117" },
-                            }),
-                          }}
-                        >
-                          {isSelected ? (
-                            <>
-                              <CheckIcon fontSize="small" sx={{ mr: 0.5 }} />
-                              Asignado
-                            </>
-                          ) : (
-                            "Asignar"
-                          )}
-                        </Button>
-                      </Box>
-                    );
-                  })}
-                </Stack>
+                            <Button
+                              size="small"
+                              variant={isSelected ? "contained" : "outlined"}
+                              onClick={() => handleSelectServicio(servicio)}
+                              sx={{
+                                ...(isSelected && {
+                                  bgcolor: "#d7171a",
+                                  "&:hover": { bgcolor: "#b01117" },
+                                }),
+                              }}
+                            >
+                              {isSelected ? (
+                                <>
+                                  <CheckIcon fontSize="small" sx={{ mr: 0.5 }} />
+                                  Asignado
+                                </>
+                              ) : (
+                                "Asignar"
+                              )}
+                            </Button>
+                          </Box>
+                        );
+                      })}
+                    </Stack>
+                  </Box>
+                ))}
+              </Stack>
             </Box>
           )}
         </Box>

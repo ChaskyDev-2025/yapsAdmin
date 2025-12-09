@@ -76,8 +76,9 @@ export const useServicios = () => {
                 .map(([key, value]) => ({
                   id: key,
                   nombre: key,
-                  nombre_visible: value.nombre_visible || value.servicio || key,
                   ...value,
+                  // Detectar qué campo de nombre usa este servicio
+                  _nombreField: value.hasOwnProperty('servicio') ? 'servicio' : value.hasOwnProperty('nombre_visible') ? 'nombre_visible' : 'nombre',
                 }));
               return { dept, servicios };
             } else {

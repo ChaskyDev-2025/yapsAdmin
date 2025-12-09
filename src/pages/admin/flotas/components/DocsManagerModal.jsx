@@ -1,5 +1,5 @@
 // src/pages/admin/flotas/components/DocsManagerModal.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -31,10 +31,45 @@ export const DocsManagerModal = ({
 }) => {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [templates, setTemplates] = useState([]);
-  const [selectedTemplates, setSelectedTemplates] = useState([]);
+  const [selectedTemplates, setSelectedTemplates] = useState({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [ciudadSeleccionada, setCiudadSeleccionada] = useState("");
+
+  // Función para generar slug basado en el nombre del documento
+  const generateDocSlug = (docName) => {
+    return docName
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+      .replace(/[^a-z0-9\s]/g, '') // Remover caracteres especiales
+      .trim()
+      .replace(/\s+/g, '_'); // Reemplazar espacios con guiones bajos
+  };
+
+  // Función para extraer la categoría del documento basada en su nombre
+  const getDocCategory = (doc) => {
+    const nombre = (doc.titulo || doc.screenTitle || doc.nombre || '').toLowerCase();
+    
+    // Palabras clave para categorías
+    if (nombre.includes('foto') || nombre.includes('image') || nombre.includes('imagen')) {
+      return 'Documentos de Identidad';
+    }
+    if (nombre.includes('licencia') || nombre.includes('conductor') || nombre.includes('cdla')) {
+      return 'Licencia';
+    }
+    if (nombre.includes('seguro') || nombre.includes('poliza') || nombre.includes('responsabilidad')) {
+      return 'Seguros';
+    }
+    if (nombre.includes('registro') || nombre.includes('tarjeta') || nombre.includes('rtv')) {
+      return 'Registro y Documentación';
+    }
+    if (nombre.includes('circulacion') || nombre.includes('soat')) {
+      return 'Circulación';
+    }
+    
+    return 'Otros';
+  };
 
   // Función para cargar templates
   const fetchTemplates = async () => {
@@ -74,11 +109,16 @@ export const DocsManagerModal = ({
     fetchTemplates();
   }, []);
 
-  // Verificar si todos los documentos están asignados
-  useEffect(() => {
-    if (open && templates && typeof templates === 'object') {
-      const assignedCount = flota?.documentos?.length || 0;
-      // Contar total de documentos en todas las ciudades
+  // Calcular mensaje de estado (memoizado)
+  const mensaje = useMemo(() => {
+    if (open && flota?.documentos && typeof flota.documentos === 'object') {
+      let totalAssigned = 0;
+      for (const ciudad in flota.documentos) {
+        if (typeof flota.documentos[ciudad] === 'object' && !Array.isArray(flota.documentos[ciudad])) {
+          totalAssigned += Object.keys(flota.documentos[ciudad]).length;
+        }
+      }
+      
       let totalCount = 0;
       for (const ciudad in templates) {
         const docs = templates[ciudad];
@@ -88,68 +128,90 @@ export const DocsManagerModal = ({
       }
       
       if (totalCount > 0) {
-        if (assignedCount === totalCount) {
-          setMessage({
+        if (totalAssigned === totalCount) {
+          return {
             type: 'success',
-            text: `✓ Todos los ${assignedCount} documentos disponibles están asignados`
-          });
-        } else if (assignedCount > 0) {
-          setMessage({
+            text: `✓ Todos los ${totalAssigned} documentos disponibles están asignados`
+          };
+        } else if (totalAssigned > 0) {
+          return {
             type: 'info',
-            text: `${assignedCount} de ${totalCount} documentos asignados`
-          });
-        } else {
-          setMessage(null);
+            text: `${totalAssigned} de ${totalCount} documentos asignados`
+          };
         }
       }
     }
+    return null;
   }, [open, flota?.documentos, templates]);
+
+  // Establecer el mensaje
+  useEffect(() => {
+    setMessage(mensaje);
+  }, [mensaje]);
 
   useEffect(() => {
     // Precargar selección si la flota ya tiene documentos asignados
-    const assigned = flota?.documentos || [];
-    setSelectedTemplates(assigned);
+    if (flota?.documentos && typeof flota.documentos === 'object' && !Array.isArray(flota.documentos)) {
+      // Filtrar índices numéricos como "0", mantener solo ciudades válidas
+      const docsLimpios = {};
+      for (const key in flota.documentos) {
+        if (isNaN(Number(key))) { // Solo agregar si la key no es un número
+          docsLimpios[key] = flota.documentos[key];
+        }
+      }
+      setSelectedTemplates(docsLimpios);
+    } else {
+      setSelectedTemplates({});
+    }
   }, [flota, open]);
 
-  // Función para buscar el nombre y ciudad de un documento por su slug o ID
+  // Obtener información del documento por slug o ID
   const getDocInfo = (docIdentifier) => {
-    if (!templates || typeof templates !== 'object') return { name: docIdentifier, ciudad: null };
+    if (!templates || typeof templates !== 'object') return { nombre: docIdentifier, ciudad: null };
     
     // Buscar en todas las ciudades
     for (const ciudad in templates) {
       const docs = templates[ciudad];
       if (Array.isArray(docs)) {
         const found = docs.find(t => {
-          const slug = generateDocumentSlug(t.titulo || t.screenTitle || t.nombre || t.id);
+          const slug = generateDocSlug(t.titulo || t.screenTitle || t.nombre || t.id);
           return slug === docIdentifier || t.id === docIdentifier;
         });
         if (found) {
           return {
-            name: found.titulo || found.screenTitle || found.nombre || docIdentifier,
+            nombre: found.titulo || found.screenTitle || found.nombre || docIdentifier,
             ciudad
           };
         }
       }
     }
-    return { name: docIdentifier, ciudad: null };
+    return { nombre: docIdentifier, ciudad: null };
   };
 
-  // Función para buscar el nombre de un documento por su ID
-  const getDocName = (docId) => {
-    const info = getDocInfo(docId);
-    return info.name;
+  const getDocName = (docIdentifier) => {
+    const info = getDocInfo(docIdentifier);
+    return info.nombre;
   };
 
-  // Generar un identificador único basado en el nombre del documento (ej: envios_vagoneta)
-  const generateDocumentSlug = (docName) => {
-    return docName
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Remover acentos
-      .replace(/[^a-z0-9\s]/g, '') // Remover caracteres especiales
-      .trim()
-      .replace(/\s+/g, '_'); // Reemplazar espacios con guiones bajos
-  };
+  // Handler optimizado para seleccionar/deseleccionar documentos
+  const handleToggleDoc = useCallback((ciudad, docSlug, tpl, isSelected) => {
+    const updated = { ...selectedTemplates };
+    if (!updated[ciudad]) {
+      updated[ciudad] = {};
+    }
+    
+    if (isSelected) {
+      delete updated[ciudad][docSlug];
+      if (Object.keys(updated[ciudad]).length === 0) {
+        delete updated[ciudad];
+      }
+    } else {
+      updated[ciudad][docSlug] = {
+        id: tpl.id
+      };
+    }
+    setSelectedTemplates(updated);
+  }, []);
 
   return (
     <>
@@ -190,19 +252,16 @@ export const DocsManagerModal = ({
               "&:hover": { borderColor: "#115293", bgcolor: "rgba(25,118,210,0.04)" },
             }}
           >
-            {(flota?.documentos?.length || 0) > 0 ? 'Agregar más documentos' : 'Asignar Plantilla'}
+            {Object.keys(selectedTemplates).length > 0 ? 'Agregar más documentos' : 'Asignar Plantilla'}
           </Button>
         </Box>
 
-        {(flota?.documentos && Array.isArray(flota.documentos) && flota.documentos.length > 0) ? (
+        {(flota?.documentos && typeof flota.documentos === 'object' && !Array.isArray(flota.documentos) && Object.keys(flota.documentos).length > 0) ? (
           <Box>
             {CIUDADES.map(ciudad => {
-              const docsEnCiudad = flota.documentos.filter(docId => {
-                const info = getDocInfo(docId);
-                return info.ciudad === ciudad;
-              });
+              const docsEnCiudad = flota.documentos[ciudad] || {};
               
-              if (docsEnCiudad.length === 0) return null;
+              if (typeof docsEnCiudad !== 'object' || !docsEnCiudad || Object.keys(docsEnCiudad).length === 0) return null;
               
               return (
                 <Box key={ciudad} sx={{ mb: 2 }}>
@@ -219,15 +278,21 @@ export const DocsManagerModal = ({
                     📍 {ciudad}
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', pl: 1 }}>
-                    {docsEnCiudad.map((docIdentifier, i) => {
-                      const docName = getDocName(docIdentifier);
+                    {Object.entries(docsEnCiudad).map(([slug, docId]) => {
+                      const docName = getDocName(slug) || slug;
                       return (
                         <Chip 
-                          key={docIdentifier || i} 
+                          key={slug} 
                           label={docName} 
                           color="primary"
                           onDelete={() => {
-                            const updated = flota.documentos.filter(d => d !== docIdentifier);
+                            const updated = { ...flota.documentos };
+                            delete updated[ciudad][slug];
+                            if (Object.keys(updated[ciudad]).length === 0) {
+                              delete updated[ciudad];
+                            }
+                            // Actualizar estado local también
+                            setSelectedTemplates(updated);
                             if (onAssignTemplates) onAssignTemplates(updated);
                           }}
                         />
@@ -306,6 +371,16 @@ export const DocsManagerModal = ({
               const docsEnCiudad = templates[ciudad] || [];
               if (docsEnCiudad.length === 0) return null;
               
+              // Agrupar documentos por categoría
+              const docsPorCategoria = {};
+              docsEnCiudad.forEach(doc => {
+                const categoria = getDocCategory(doc);
+                if (!docsPorCategoria[categoria]) {
+                  docsPorCategoria[categoria] = [];
+                }
+                docsPorCategoria[categoria].push(doc);
+              });
+
               return (
                 <Box key={ciudad} sx={{ mb: 3 }}>
                   <Typography 
@@ -314,53 +389,83 @@ export const DocsManagerModal = ({
                       fontFamily: 'Mulish, sans-serif', 
                       fontWeight: 700,
                       color: '#d7171a',
-                      mb: 1,
+                      mb: 2,
                       borderBottom: '1px solid #ddd',
                       pb: 1
                     }}
                   >
                     📍 {ciudad}
                   </Typography>
-                  {docsEnCiudad.map((tpl) => {
-                    const docSlug = generateDocumentSlug(tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id);
-                    const isSelected = selectedTemplates.includes(docSlug);
-                    const docName = tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id;
-                    return (
-                      <Box 
-                        key={tpl.id} 
-                        sx={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'space-between', 
-                          py: 0.8,
-                          pl: 1,
-                          borderRadius: '4px',
-                          '&:hover': { bgcolor: 'rgba(215, 23, 26, 0.05)' }
+                  
+                  {Object.keys(docsPorCategoria).sort().map((categoria) => (
+                    <Box key={categoria} sx={{ mb: 2.5 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontFamily: 'Mulish, sans-serif',
+                          fontWeight: 600,
+                          color: '#555',
+                          mb: 1,
+                          fontSize: '0.9rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
                         }}
                       >
-                        <Typography sx={{ fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>{docName}</Typography>
-                        <Button 
-                          size="small" 
-                          variant={isSelected ? 'contained' : 'outlined'} 
-                          onClick={() => {
-                            if (isSelected) {
-                              setSelectedTemplates(prev => prev.filter(id => id !== docSlug));
-                            } else {
-                              setSelectedTemplates(prev => [...prev, docSlug]);
-                            }
-                          }}
-                          sx={{
-                            ...(isSelected && {
-                              bgcolor: '#d7171a',
-                              '&:hover': { bgcolor: '#b01117' }
-                            })
-                          }}
-                        >
-                          {isSelected ? <><CheckIcon fontSize="small" sx={{ mr: .5 }} />Seleccionado</> : 'Seleccionar'}
-                        </Button>
+                        {categoria}
+                      </Typography>
+                      
+                      <Box sx={{ pl: 1 }}>
+                        {docsPorCategoria[categoria].map((tpl) => {
+                          const docSlug = generateDocSlug(tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id);
+                          const isSelected = selectedTemplates[ciudad]?.[docSlug] !== undefined;
+                          const docName = tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id;
+                          
+                          return (
+                            <Box 
+                              key={tpl.id} 
+                              sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'space-between', 
+                                py: 1,
+                                px: 1.5,
+                                mb: 0.5,
+                                borderRadius: '4px',
+                                border: '1px solid #f0f0f0',
+                                '&:hover': { 
+                                  bgcolor: 'rgba(215, 23, 26, 0.05)',
+                                  borderColor: '#d7171a'
+                                },
+                                bgcolor: isSelected ? 'rgba(215, 23, 26, 0.08)' : 'transparent'
+                              }}
+                            >
+                              <Typography sx={{ fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>{docName}</Typography>
+                              <Button 
+                                size="small" 
+                                variant={isSelected ? 'contained' : 'outlined'} 
+                                onClick={() => handleToggleDoc(ciudad, docSlug, tpl, isSelected)}
+                                sx={{
+                                  ...(isSelected && {
+                                    bgcolor: '#d7171a',
+                                    '&:hover': { bgcolor: '#b01117' }
+                                  })
+                                }}
+                              >
+                                {isSelected ? (
+                                  <>
+                                    <CheckIcon fontSize="small" sx={{ mr: 0.5 }} />
+                                    Asignado
+                                  </>
+                                ) : (
+                                  'Asignar'
+                                )}
+                              </Button>
+                            </Box>
+                          );
+                        })}
                       </Box>
-                    );
-                  })}
+                    </Box>
+                  ))}
                 </Box>
               );
             })
