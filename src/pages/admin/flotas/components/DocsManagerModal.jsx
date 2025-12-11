@@ -198,33 +198,7 @@ export const DocsManagerModal = ({
     setMessage(mensaje);
   }, [mensaje]);
 
-  // Obtener información del documento por slug o ID
-  const getDocInfo = (docIdentifier) => {
-    if (!templates || typeof templates !== 'object') return { nombre: docIdentifier, ciudad: null };
-    
-    // Buscar en todas las ciudades
-    for (const ciudad in templates) {
-      const docs = templates[ciudad];
-      if (Array.isArray(docs)) {
-        const found = docs.find(t => {
-          const slug = generateDocSlug(t.titulo || t.screenTitle || t.nombre || t.id);
-          return slug === docIdentifier || t.id === docIdentifier;
-        });
-        if (found) {
-          return {
-            nombre: found.titulo || found.screenTitle || found.nombre || docIdentifier,
-            ciudad
-          };
-        }
-      }
-    }
-    return { nombre: docIdentifier, ciudad: null };
-  };
 
-  const getDocName = (docIdentifier) => {
-    const info = getDocInfo(docIdentifier);
-    return info.nombre;
-  };
 
   // Handler optimizado para seleccionar/deseleccionar documentos
   const handleToggleDoc = useCallback((ciudad, categoria, docSlug, tpl, isSelected) => {
@@ -363,7 +337,7 @@ export const DocsManagerModal = ({
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', pl: 1 }}>
                           {Object.entries(docsEnCategoria).map(([slug, docInfo]) => {
-                            const docName = getDocName(slug) || slug;
+                            const docName = docInfo?.nombre || slug.replace(/_/g, ' ');
                             return (
                               <Chip 
                                 key={slug} 
