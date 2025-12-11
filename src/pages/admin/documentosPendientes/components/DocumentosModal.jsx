@@ -14,6 +14,13 @@ import {
   IconButton,
   Card,
   CardContent,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Tooltip,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../../../../data/firebase/firebase";
@@ -22,6 +29,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import PersonIcon from "@mui/icons-material/Person";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
+import HourglassBottomIcon from "@mui/icons-material/HourglassBottom";
+import CancelIcon from "@mui/icons-material/Cancel";
 
 const DocumentosModal = ({
   open,
@@ -37,12 +46,27 @@ const DocumentosModal = ({
   });
   const [documentoActivo, setDocumentoActivo] = useState(null);
   const [documentos, setDocumentos] = useState([]);
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [documentosAprobados, setDocumentosAprobados] = useState(false);
 
   // Procesar documentos al abrir el modal
   useEffect(() => {
     if (selectedTrabajador?.documentos) {
+      // Obtener documentos (puede ser array o objeto con índices numéricos)
+      let docsArray = [];
+      
+      if (Array.isArray(selectedTrabajador.documentos)) {
+        docsArray = selectedTrabajador.documentos;
+      } else {
+        // Es un objeto, extraer solo los documentos (ignorar documentos_aprobados)
+        docsArray = Object.keys(selectedTrabajador.documentos)
+          .filter(key => !isNaN(Number(key))) // Solo índices numéricos
+          .sort((a, b) => Number(a) - Number(b))
+          .map(key => selectedTrabajador.documentos[key]);
+      }
+      
       // Los documentos pueden ser strings o objetos
-      const docsProcessed = selectedTrabajador.documentos.map((doc, index) => {
+      const docsProcessed = docsArray.map((doc, index) => {
         if (typeof doc === 'string') {
           // Si es string, convertir a objeto
           return {
@@ -65,6 +89,12 @@ const DocumentosModal = ({
       // Mostrar TODOS los documentos (no filtrar)
       setDocumentos(docsProcessed);
       setDocumentoActivo(null);
+      
+      // Cargar estado documentos_aprobados si existe
+      const estadoDocAprobados = typeof selectedTrabajador.documentos === 'object' && !Array.isArray(selectedTrabajador.documentos)
+        ? selectedTrabajador.documentos.documentos_aprobados || false
+        : false;
+      setDocumentosAprobados(estadoDocAprobados);
     }
   }, [selectedTrabajador, open]);
 
@@ -158,6 +188,97 @@ const DocumentosModal = ({
     }
   };
 
+  const handleChangeEstado = async (trabajadorId, docIndex, nuevoEstado) => {
+    try {
+      const trabajadorRef = doc(db, "trabajadores", trabajadorId);
+      const trabajadorSnap = await getDoc(trabajadorRef);
+      const docs = trabajadorSnap.data().documentos || [];
+      
+      // Actualizar el documento en el índice correcto
+      if (typeof docs[docIndex] === 'string') {
+        docs[docIndex] = {
+          nombre: docs[docIndex],
+          estado: nuevoEstado,
+        };
+      } else {
+        docs[docIndex].estado = nuevoEstado;
+      }
+
+      // Agregar timestamps según el estado
+      if (nuevoEstado === "aprobado") {
+        docs[docIndex].aprobadoEn = new Date().toISOString();
+      } else if (nuevoEstado === "rechazado") {
+        docs[docIndex].rechazadoEn = new Date().toISOString();
+      }
+
+      await updateDoc(trabajadorRef, { documentos: docs });
+      
+      // Actualizar lista local
+      const updatedDocs = documentos.map((d, i) => {
+        if (i === docIndex) {
+          const updated = { ...d, estado: nuevoEstado };
+          if (nuevoEstado === "aprobado") {
+            updated.aprobadoEn = new Date().toISOString();
+          } else if (nuevoEstado === "rechazado") {
+            updated.rechazadoEn = new Date().toISOString();
+          }
+          return updated;
+        }
+        return d;
+      });
+      setDocumentos(updatedDocs);
+      
+      setSnackbar({
+        open: true,
+        message: `Documento cambió a ${nuevoEstado}`,
+        severity: "success",
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Error al cambiar estado",
+        severity: "error",
+      });
+    }
+  };
+
+  // Manejar cambio de documentos_aprobados
+  const handleToggleDocumentosAprobados = async (event) => {
+    const nuevoValor = event.target.checked;
+    
+    try {
+      const trabajadorRef = doc(db, "trabajadores", selectedTrabajador.id);
+      
+      // Actualizar dentro del objeto documentos
+      const docsActualizados = {
+        ...selectedTrabajador.documentos,
+        documentos_aprobados: nuevoValor,
+      };
+      
+      await updateDoc(trabajadorRef, {
+        documentos: docsActualizados,
+      });
+      
+      setDocumentosAprobados(nuevoValor);
+      
+      setSnackbar({
+        open: true,
+        message: nuevoValor ? "Documentos marcados como aprobados" : "Documentos marcados como no aprobados",
+        severity: "success",
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Error al actualizar estado de documentos",
+        severity: "error",
+      });
+    }
+  };
+
+  // Verificar si todos los documentos están aprobados
+  const todosAprobados = documentos.length > 0 && documentos.every(doc => doc.estado === "aprobado");
+  const puedeHabilitarSwitch = todosAprobados;
+
   if (!selectedTrabajador) return null;
 
   const docActive = documentoActivo !== null ? documentos[documentoActivo] : null;
@@ -249,17 +370,17 @@ const DocumentosModal = ({
                         key={idx}
                         sx={{
                           p: 1.5,
-                          cursor: isPendiente ? "pointer" : "default",
-                          opacity: isPendiente ? 1 : 0.6,
-                          border: documentoActivo === idx && isPendiente ? "2px solid #d7171a" : "1px solid #e0e0e0",
-                          bgcolor: documentoActivo === idx && isPendiente ? "rgba(215, 23, 26, 0.05)" : isAprobado ? "rgba(76, 175, 80, 0.05)" : isRechazado ? "rgba(244, 67, 54, 0.05)" : "white",
+                          cursor: "pointer",
+                          opacity: 1,
+                          border: documentoActivo === idx ? "2px solid #d7171a" : "1px solid #e0e0e0",
+                          bgcolor: documentoActivo === idx ? "rgba(215, 23, 26, 0.05)" : isAprobado ? "rgba(76, 175, 80, 0.05)" : isRechazado ? "rgba(244, 67, 54, 0.05)" : "white",
                           transition: "all 0.2s",
-                          "&:hover": isPendiente ? {
+                          "&:hover": {
                             boxShadow: 2,
                             borderColor: "#d7171a",
-                          } : {},
+                          },
                         }}
-                        onClick={() => isPendiente && setDocumentoActivo(idx)}
+                        onClick={() => setDocumentoActivo(idx)}
                       >
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <Typography variant="body2" sx={{ fontWeight: 500, color: isRechazado ? "error.main" : "inherit" }}>
@@ -336,12 +457,42 @@ const DocumentosModal = ({
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
                       {docActive.nombre || `Documento`}
                     </Typography>
-                    <Chip
-                      label={docActive.estado === "aprobado" ? "Aprobado" : docActive.estado === "rechazado" ? "Rechazado" : "Pendiente de revisión"}
-                      size="small"
-                      color={docActive.estado === "aprobado" ? "success" : docActive.estado === "rechazado" ? "error" : "warning"}
-                      sx={{ fontWeight: 600, mb: 2 }}
-                    />
+                    <Tooltip title="Click para cambiar estado">
+                      <Chip
+                        label={docActive.estado === "aprobado" ? "Aprobado" : docActive.estado === "rechazado" ? "Rechazado" : "Pendiente de revisión"}
+                        size="small"
+                        color={docActive.estado === "aprobado" ? "success" : docActive.estado === "rechazado" ? "error" : "warning"}
+                        sx={{ fontWeight: 600, mb: 2, cursor: "pointer" }}
+                        onClick={(e) => setMenuAnchor(e.currentTarget)}
+                      />
+                    </Tooltip>
+                    <Menu
+                      anchorEl={menuAnchor}
+                      open={Boolean(menuAnchor)}
+                      onClose={() => setMenuAnchor(null)}
+                    >
+                      <MenuItem onClick={() => {
+                        handleChangeEstado(selectedTrabajador.id, docActive.index, "pendiente");
+                        setMenuAnchor(null);
+                      }}>
+                        <ListItemIcon><HourglassBottomIcon sx={{ fontSize: 20 }} /></ListItemIcon>
+                        <ListItemText>Pendiente</ListItemText>
+                      </MenuItem>
+                      <MenuItem onClick={() => {
+                        handleChangeEstado(selectedTrabajador.id, docActive.index, "aprobado");
+                        setMenuAnchor(null);
+                      }}>
+                        <ListItemIcon><CheckCircleIcon sx={{ fontSize: 20 }} /></ListItemIcon>
+                        <ListItemText>Aprobado</ListItemText>
+                      </MenuItem>
+                      <MenuItem onClick={() => {
+                        handleChangeEstado(selectedTrabajador.id, docActive.index, "rechazado");
+                        setMenuAnchor(null);
+                      }}>
+                        <ListItemIcon><CancelIcon sx={{ fontSize: 20 }} /></ListItemIcon>
+                        <ListItemText>Rechazado</ListItemText>
+                      </MenuItem>
+                    </Menu>
                     {docActive.estado === "aprobado" && docActive.aprobadoEn && (
                       <Typography variant="caption" color="success.main" display="block" sx={{ mb: 1 }}>
                         <strong>Aprobado:</strong> {new Date(docActive.aprobadoEn).toLocaleDateString()}
@@ -359,45 +510,10 @@ const DocumentosModal = ({
                     )}
                   </Card>
 
-                  {/* Acciones - Solo si está pendiente */}
-                  {docActive.estado === "pendiente" && (
-                    <Stack spacing={1}>
-                      <Button
-                        fullWidth
-                        variant="contained"
-                        startIcon={<CheckCircleIcon />}
-                        onClick={() =>
-                          handleApproveDocument(selectedTrabajador.id, docActive.index)
-                        }
-                        sx={{
-                          bgcolor: "#4caf50",
-                          color: "white",
-                          fontFamily: "Mulish, sans-serif",
-                          fontWeight: 600,
-                          "&:hover": { bgcolor: "#45a049" },
-                        }}
-                      >
-                        Aprobar
-                      </Button>
-                      <Button
-                        fullWidth
-                        variant="outlined"
-                        startIcon={<CloseIcon />}
-                        onClick={() =>
-                          handleRejectDocument(selectedTrabajador.id, docActive.index)
-                        }
-                        sx={{
-                          color: "#d7171a",
-                          borderColor: "#d7171a",
-                          fontFamily: "Mulish, sans-serif",
-                          fontWeight: 600,
-                          "&:hover": { bgcolor: "rgba(215, 23, 26, 0.04)" },
-                        }}
-                      >
-                        Rechazar
-                      </Button>
-                    </Stack>
-                  )}
+                  {/* Acciones - Cambiar estado desde el Chip */}
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 2, textAlign: "center" }}>
+                    Haz click en el estado (chip) arriba para cambiar el estado del documento
+                  </Typography>
                 </Stack>
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 5 }}>
@@ -408,7 +524,27 @@ const DocumentosModal = ({
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2 }}>
+        <DialogActions sx={{ px: 3, py: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Tooltip 
+            title={!puedeHabilitarSwitch ? "Todos los documentos deben estar aprobados" : ""}
+            arrow
+          >
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={documentosAprobados && puedeHabilitarSwitch}
+                  onChange={handleToggleDocumentosAprobados}
+                  disabled={!puedeHabilitarSwitch}
+                  color="primary"
+                />
+              }
+              label={
+                <Typography sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                  {puedeHabilitarSwitch && documentosAprobados ? "✓ Documentos Aprobados" : "Documentos No Aprobados"}
+                </Typography>
+              }
+            />
+          </Tooltip>
           <Button onClick={onClose} variant="contained">
             Cerrar
           </Button>

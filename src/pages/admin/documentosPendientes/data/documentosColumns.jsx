@@ -48,9 +48,31 @@ export const getDocumentosColumns = (onViewDocuments) => [
     sortable: false,
     filterable: false,
     renderCell: (params) => {
-      const docsPendientes = (params.row.documentos || []).filter(
-        (d) => d.estado !== "aprobado" && d.estado !== "rechazado"
-      );
+      const docsPendientes = (() => {
+        const docs = params.row.documentos || [];
+        
+        // Convertir a array si es un objeto
+        let docsArray = [];
+        if (Array.isArray(docs)) {
+          docsArray = docs;
+        } else if (typeof docs === 'object' && docs !== null) {
+          // Es un objeto, extraer todos los valores que no sean booleanos (documentos_aprobados)
+          docsArray = Object.keys(docs)
+            .filter(key => docs[key] && typeof docs[key] !== 'boolean')
+            .map(key => docs[key]);
+        }
+        
+        // Filtrar documentos pendientes
+        // Si son strings, todos son pendientes
+        // Si son objetos, filtrar por estado
+        return docsArray.filter((d) => {
+          if (typeof d === 'string') {
+            return true; // Los strings son siempre pendientes
+          }
+          return d && typeof d === 'object' && d.estado !== "aprobado" && d.estado !== "rechazado";
+        });
+      })();
+      
       return (
         <Chip
           label={`${docsPendientes.length} pendiente${docsPendientes.length !== 1 ? "s" : ""}`}

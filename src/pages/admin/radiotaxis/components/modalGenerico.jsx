@@ -52,7 +52,7 @@ export default function DetalleModal({ open, onClose, rowData }) {
         open={open}
         onClose={onClose}
         fullWidth
-        maxWidth="md"
+        maxWidth="xl"
         PaperProps={{ sx: { borderRadius: 3, p: 0, bgcolor: "#fafafa" } }}
       >
         {/* Encabezado */}
@@ -65,13 +65,12 @@ export default function DetalleModal({ open, onClose, rowData }) {
         <Divider />
 
         {/* Contenido a dos columnas */}
-        <DialogContent dividers sx={{ p: 0 }}>
-          <Box sx={{ display: "flex" }}>
+        <DialogContent dividers sx={{ p: 0, overflow: "hidden" }}>
+          <Box sx={{ display: "flex", height: "100%", gap: 0 }}>
             <ModalIzquierdo rowData={rowData} />
             <Divider orientation="vertical" flexItem />
             <ModalDerecho
               userId={rowData.firebaseId}   // 👈 importante
-              setDocActivo={setDocActivo}
             />
           </Box>
         </DialogContent>

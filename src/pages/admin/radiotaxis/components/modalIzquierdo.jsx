@@ -29,7 +29,7 @@ export default function ModalIzquierdo({ rowData }) {
 
   if (!rowData) return null;
   return (
-    <Box sx={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
+    <Box sx={{ width: 350, display: "flex", justifyContent: "center", alignItems: "flex-start", pt: 3, overflow: "auto" }}>
       <Box
         sx={{
           width: 280,

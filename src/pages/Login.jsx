@@ -7,7 +7,7 @@ import { loginWithEmail, mapFirebaseError } from "../services/authService"; // �
 const Login = () => {
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("");       // 👈 controlados
+  const [email, setEmail] = useState("");       // controlados
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -17,7 +17,7 @@ const Login = () => {
     setError("");
     setSubmitting(true);
     try {
-      await loginWithEmail(email.trim(), password); // 👈 Firebase real
+      await loginWithEmail(email.trim(), password); // Firebase real
       navigate("/admin/dashboard", { replace: true });
     } catch (err) {
       setError(mapFirebaseError(err?.code));

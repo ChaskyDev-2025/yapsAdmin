@@ -1,236 +1,170 @@
-import { Typography, Box, Grid, Card, CardContent } from "@mui/material";
+import React from "react";
+import { useDashboardMetrics } from "./hooks/useDashboardMetrics";
 import {
   DirectionsCar,
   People,
   Description,
   CheckCircle,
-  AccountBalanceWallet,
-  TrendingUp,
   Notifications,
+  LocalTaxi,
+  AssignmentTurnedIn,
+  WarningAmber,
+  CheckCircleOutline,
+  CancelOutlined,
 } from "@mui/icons-material";
-import { useDashboardMetrics } from "./hooks/useDashboardMetrics";
 
 const Dashboard = () => {
-  const metricas = {
-    radiotaxis: { total: 145, activos: 132, inactivos: 13 },
-    documentos: { pendientes: 28, aprobados: 412, rechazados: 15 },
-    onboarding: { completados: 95, pendientes: 12 },
-    finanzas: { saldoTotal: 45230.5, recargasHoy: 12, ingresosMes: 125400 },
-    actividad: { nuevosHoy: 8, usuariosActivos: 234, alertas: 5 },
-  };
-  const { totalUsuarios, cargando } = useDashboardMetrics();
+  const { metricas, cargando } = useDashboardMetrics();
 
-  // Componente para las tarjetas principales (style similar a la imagen)
-  const StatCard = ({ title, value, icon: Icon, color }) => (
-    <Card
-      elevation={0}
-      sx={{
-        background: `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`,
-        borderRadius: 2,
-        color: "white",
-        p: 2.5,
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        minHeight: 140,
-        position: "relative",
-        overflow: "hidden",
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          right: -20,
-          top: -20,
-          width: 120,
-          height: 120,
-          backgroundColor: "rgba(255,255,255,0.1)",
-          borderRadius: "50%",
-        },
-      }}
-    >
-      <Box sx={{ zIndex: 1 }}>
-        <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
-          {title}
-        </Typography>
-        <Typography variant="h4" sx={{ fontWeight: 800 }}>
-          {value}
-        </Typography>
-      </Box>
-      <Box
-        sx={{
-          zIndex: 1,
-          backgroundColor: "rgba(255,255,255,0.2)",
-          borderRadius: 2,
-          p: 1.5,
+  // Componente reutilizable para tarjetas de estadísticas
+  const StatCard = ({ title, value, icon: Icon, color }) => {
+    const getGradient = (baseColor) => {
+      if (baseColor === "#d7171a") return "linear-gradient(135deg, #d7171a 0%, #a01214 100%)";
+      if (baseColor === "#000000") return "linear-gradient(135deg, #1f2937 0%, #000000 100%)";
+      if (baseColor === "#484848") return "linear-gradient(135deg, #6b7280 0%, #374151 100%)";
+      return baseColor;
+    };
+
+    return (
+      <div
+        style={{
+          background: getGradient(color),
+          borderRadius: "12px",
+          color: "white",
+          padding: "24px",
           display: "flex",
+          justifyContent: "space-between",
           alignItems: "center",
-          justifyContent: "center",
+          height: "140px",
+          width: "100%",
+          boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
         }}
       >
-        <Icon sx={{ fontSize: 40, color: "white" }} />
-      </Box>
-    </Card>
-  );
-
-  // Componente para los gráficos (placeholder)
-  const ChartPlaceholder = ({ title }) => (
-    <Card elevation={0} sx={{ borderRadius: 2, border: "1px solid #e0e0e0" }}>
-      <CardContent sx={{ p: 3 }}>
-        <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-          {title}
-        </Typography>
-        <Box
-          sx={{
-            height: 280,
-            backgroundColor: "#f9f9f9",
-            borderRadius: 1,
+        <div style={{ flex: 1 }}>
+          <p style={{ opacity: 0.9, marginBottom: "8px", fontSize: "14px", fontWeight: 500 }}>
+            {title}
+          </p>
+          <h3 style={{ fontWeight: "bold", fontSize: "36px", margin: 0 }}>{value}</h3>
+        </div>
+        <div
+          style={{
+            backgroundColor: "rgba(255,255,255,0.15)",
+            borderRadius: "10px",
+            padding: "12px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            border: "2px dashed #ddd",
+            minWidth: "60px",
+            minHeight: "60px",
+            flexShrink: 0,
+            backdropFilter: "blur(10px)",
           }}
         >
-          <Typography color="text.secondary">Espacio para gráfico</Typography>
-        </Box>
-      </CardContent>
-    </Card>
+          <Icon style={{ fontSize: 32, color: "white" }} />
+        </div>
+      </div>
+    );
+  };
+
+  // Componente reutilizable para grillas de tarjetas
+  const CardGrid = ({ children, columns = 4 }) => (
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${columns}, 1fr)`, gap: "16px", marginBottom: "24px" }}>
+      {children}
+    </div>
   );
 
+  // Componente reutilizable para items de resumen
+  const SummaryItem = ({ label, value, color }) => (
+    <div style={{ textAlign: "center", background: `linear-gradient(135deg, ${color}15 0%, ${color}08 100%)`, padding: "16px", borderRadius: "10px" }}>
+      <p style={{ fontSize: "12px", color: "#6b7280", marginBottom: "8px" }}>{label}</p>
+      <h4 style={{ fontSize: "30px", fontWeight: "bold", color, margin: 0 }}>
+        {value}
+      </h4>
+    </div>
+  );
+
+  // Componente reutilizable para tarjetas de resumen
+  const SummaryCard = ({ title, titleColor, items }) => (
+    <div style={{ backgroundColor: "white", borderRadius: "12px", border: "1px solid #e5e7eb", padding: "24px", boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)" }}>
+      <h3 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "16px", background: titleColor, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", margin: "0 0 16px 0" }}>
+        {title}
+      </h3>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
+        {items.map((item, idx) => (
+          <SummaryItem key={idx} label={item.label} value={item.value} color={item.color} />
+        ))}
+      </div>
+    </div>
+  );
+
+  if (cargando) {
+    return (
+      <div style={{ padding: "24px", backgroundColor: "#f3f4f6", minHeight: "100vh", width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ color: "#6b7280" }}>Cargando datos del dashboard...</p>
+      </div>
+    );
+  }
+
   return (
-    <Box sx={{ p: 3, backgroundColor: "#fafafa", minHeight: "100vh", width: "100%" }}>
-      <Box sx={{ maxWidth: 1600, mx: "auto" }}>
+    <div style={{ padding: "24px", backgroundColor: "#f3f4f6", minHeight: "100vh", width: "100%" }}>
+      <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
         {/* Encabezado */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" sx={{ fontWeight: 900, mb: 1 }}>
+        <div style={{ marginBottom: "32px" }}>
+          <h1 style={{ fontSize: "36px", fontWeight: "900", marginBottom: "8px", color: "#111827" }}>
             Panel de Control
-          </Typography>
-          <Typography color="text.secondary">
+          </h1>
+          <p style={{ color: "#6b7280" }}>
             Aquí puedes visualizar las métricas principales del sistema.
-          </Typography>
-        </Box>
+          </p>
+        </div>
 
         {/* FILA 1: 4 Tarjetas principales */}
-        <Grid container spacing={2} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={6} lg={3}>
-            <StatCard
-              title="Completados"
-              value={metricas.onboarding.completados}
-              icon={CheckCircle}
-              color="#4caf50"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={6} lg={3}>
-            <StatCard
-              title="Cancelados"
-              value={metricas.radiotaxis.inactivos}
-              icon={Notifications}
-              color="#f44336"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={6} lg={3}>
-            <StatCard
-              title="Comisiones Total"
-              value={`Bs. ${(metricas.finanzas.ingresosMes / 10).toLocaleString("es-PE", { maximumFractionDigits: 2 })}`}
-              icon={AccountBalanceWallet}
-              color="#9c27b0"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={6} lg={3}>
-            <StatCard
-              title="Recargas Total"
-              value={`Bs. ${metricas.finanzas.saldoTotal.toLocaleString("es-PE", { maximumFractionDigits: 2 })}`}
-              icon={TrendingUp}
-              color="#00bcd4"
-            />
-          </Grid>
-        </Grid>
+        <CardGrid columns={4}>
+          <StatCard title="Total de Radiotaxis" value={metricas.radiotaxis.total} icon={DirectionsCar} color="#d7171a" />
+          <StatCard title="Radiotaxis Activos" value={metricas.radiotaxis.activos} icon={CheckCircle} color="#000000" />
+          <StatCard title="Total de Usuarios" value={metricas.usuarios.totalPasajeros} icon={People} color="#484848" />
+          <StatCard title="Alertas Pendientes" value={metricas.actividad.alertas} icon={WarningAmber} color="#d7171a" />
+        </CardGrid>
 
-        {/* FILA 2: Gráficos principales */}
-        <Grid container spacing={2.5} sx={{ mb: 4 }}>
-          <Grid item xs={12} md={6}>
-            <ChartPlaceholder title="Comparativa Mensual: Viajes e Ingresos" />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <ChartPlaceholder title="Tendencia de Viajes por Mes" />
-          </Grid>
-        </Grid>
+        {/* FILA 2: Métricas de Solicitudes */}
+        <CardGrid columns={4}>
+          <StatCard title="Solicitudes Completadas" value={metricas.solicitudes.completadas} icon={CheckCircleOutline} color="#000000" />
+          <StatCard title="Solicitudes Canceladas" value={metricas.solicitudes.canceladas} icon={CancelOutlined} color="#d7171a" />
+          <StatCard title="Solicitudes Pendientes" value={metricas.solicitudes.pendientes} icon={Notifications} color="#484848" />
+          <StatCard title="Total de Solicitudes" value={metricas.solicitudes.total} icon={AssignmentTurnedIn} color="#000000" />
+        </CardGrid>
 
-        {/* FILA 3: Resumen y más gráficos */}
-        <Grid container spacing={2.5}>
-          <Grid item xs={12} md={6}>
-            <Card elevation={0} sx={{ borderRadius: 2, border: "1px solid #e0e0e0" }}>
-              <CardContent sx={{ p: 3 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-                  Estado Actual de Viajes
-                </Typography>
-                <Box
-                  sx={{
-                    height: 250,
-                    backgroundColor: "#f9f9f9",
-                    borderRadius: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    border: "2px dashed #ddd",
-                  }}
-                >
-                  <Box sx={{ textAlign: "center" }}>
-                    <Typography color="text.secondary" sx={{ mb: 2 }}>
-                      Gráfico circular
-                    </Typography>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        gap: 2,
-                        justifyContent: "center",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <Box sx={{ textAlign: "center" }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Completados
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontSize: 24,
-                            fontWeight: 700,
-                            color: "#4caf50",
-                          }}
-                        >
-                          {metricas.onboarding.completados}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          50% del total
-                        </Typography>
-                      </Box>
-                      <Box sx={{ textAlign: "center" }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Cancelados
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontSize: 24,
-                            fontWeight: 700,
-                            color: "#f44336",
-                          }}
-                        >
-                          {metricas.radiotaxis.inactivos}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          50% del total
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <ChartPlaceholder title="Análisis Adicional" />
-          </Grid>
-        </Grid>
-      </Box>
-    </Box>
+        {/* FILA 3: Métricas de Órdenes y Documentos */}
+        <CardGrid columns={4}>
+          <StatCard title="Total de Órdenes" value={metricas.ordenes.total} icon={LocalTaxi} color="#d7171a" />
+          <StatCard title="Órdenes Completadas" value={metricas.ordenes.completadas} icon={CheckCircle} color="#000000" />
+          <StatCard title="Documentos Aprobados" value={metricas.documentos.aprobados} icon={Description} color="#484848" />
+          <StatCard title="Documentos Pendientes" value={metricas.documentos.pendientes} icon={Description} color="#d7171a" />
+        </CardGrid>
+
+        {/* FILA 4: Resumen de Usuarios y Órdenes */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "20px" }}>
+          <SummaryCard
+            title="👥 Actividad de Usuarios"
+            titleColor="linear-gradient(135deg, #d7171a 0%, #a01214 100%)"
+            items={[
+              { label: "Nuevos Hoy", value: metricas.usuarios.nuevosHoy, color: "#d7171a" },
+              { label: "Esta Semana", value: metricas.usuarios.nuevosEstaSemana, color: "#000000" },
+              { label: "Activos", value: metricas.actividad.usuariosActivos, color: "#484848" },
+            ]}
+          />
+          <SummaryCard
+            title="📊 Resumen de Órdenes"
+            titleColor="linear-gradient(135deg, #1f2937 0%, #000000 100%)"
+            items={[
+              { label: "Completadas", value: metricas.ordenes.completadas, color: "#000000" },
+              { label: "Canceladas", value: metricas.ordenes.canceladas, color: "#d7171a" },
+              { label: "Precio Promedio", value: `Bs. ${metricas.ordenes.promedioCosto.toFixed(2)}`, color: "#484848" },
+            ]}
+          />
+        </div>
+      </div>
+    </div>
   );
 };
 

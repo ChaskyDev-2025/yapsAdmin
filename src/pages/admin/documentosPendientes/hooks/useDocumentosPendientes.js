@@ -28,15 +28,27 @@ export const useDocumentosPendientes = (userFlotaId) => {
         }))
         .filter((t) => {
           const docs = t.documentos || [];
+          
+          // Obtener solo los documentos reales
+          let docsReales = [];
+          
+          if (Array.isArray(docs)) {
+            // Es un array: filtrar valores que no sean booleanos
+            docsReales = docs.filter(d => d && typeof d !== 'boolean');
+          } else if (typeof docs === 'object' && docs !== null) {
+            // Es un objeto: extraer valores que no sean booleanos
+            docsReales = Object.keys(docs)
+              .filter(key => docs[key] && typeof docs[key] !== 'boolean')
+              .map(key => docs[key]);
+          }
+          
           // Si documentos es un array de strings, siempre mostrar (todos son "pendientes")
           // Si es array de objetos, filtrar por estado
-          return (
-            t.role === "driver" &&
-            (docs.length > 0 && (
-              typeof docs[0] === 'string' || 
-              docs.some((d) => d.estado !== "aprobado" && d.estado !== "rechazado")
-            ))
-          );
+          const tieneDocs = docsReales.length > 0;
+          const todosPendientes = typeof docsReales[0] === 'string' || 
+            docsReales.some((d) => d && d.estado !== "aprobado" && d.estado !== "rechazado");
+          
+          return tieneDocs && todosPendientes;
         });
       setTrabajadores(data);
       setLoading(false);

@@ -23,6 +23,8 @@ const CIUDADES = [
   "Oruro", "Potosí", "Tarija", "Pando", "Beni"
 ];
 
+const CATEGORIAS_SERVICIO = ["Viajes", "Envios"];
+
 export const DocsManagerModal = ({
   open,
   onClose,
@@ -35,6 +37,7 @@ export const DocsManagerModal = ({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [ciudadSeleccionada, setCiudadSeleccionada] = useState("");
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState("Viajes");
 
   // Función para generar slug basado en el nombre del documento
   const generateDocSlug = (docName) => {
@@ -118,24 +121,29 @@ export const DocsManagerModal = ({
     if (flota?.documentos && typeof flota.documentos === 'object' && !Array.isArray(flota.documentos)) {
       const initialized = {};
       
-      // Iterar sobre las ciudades en flota.documentos
-      Object.entries(flota.documentos).forEach(([ciudad, docs]) => {
-        // Ignorar índices numéricos (artefactos de serialización)
-        if (isNaN(Number(ciudad))) {
-          if (typeof docs === 'object' && !Array.isArray(docs)) {
-            // Convertir de objeto a array: {slug: {id: docId}} -> [{slug, id, nombre}]
-            const docsArray = Object.entries(docs).map(([slug, docInfo]) => {
-              return {
-                slug,
-                id: docInfo.id || docInfo,
-                nombre: docInfo.nombre || slug.replace(/_/g, ' ')
-              };
-            });
-            initialized[ciudad] = docsArray;
-          } else if (Array.isArray(docs)) {
-            // Ya está en formato array, usarlo directo
-            initialized[ciudad] = docs;
-          }
+      // Nueva estructura: ciudad -> categoría -> documentos
+      Object.entries(flota.documentos).forEach(([ciudad, ciudadDocs]) => {
+        if (isNaN(Number(ciudad)) && typeof ciudadDocs === 'object' && !Array.isArray(ciudadDocs)) {
+          initialized[ciudad] = {};
+          
+          // Iterar sobre categorías de servicio
+          Object.entries(ciudadDocs).forEach(([categoria, docs]) => {
+            if (CATEGORIAS_SERVICIO.includes(categoria)) {
+              if (typeof docs === 'object' && !Array.isArray(docs)) {
+                // Convertir de objeto a array: {slug: {id, nombre}} -> [{slug, id, nombre}]
+                const docsArray = Object.entries(docs).map(([slug, docInfo]) => {
+                  return {
+                    slug,
+                    id: docInfo.id || docInfo,
+                    nombre: docInfo.nombre || slug.replace(/_/g, ' ')
+                  };
+                });
+                initialized[ciudad][categoria] = docsArray;
+              } else if (Array.isArray(docs)) {
+                initialized[ciudad][categoria] = docs;
+              }
+            }
+          });
         }
       });
       
@@ -150,8 +158,13 @@ export const DocsManagerModal = ({
     if (open && flota?.documentos && typeof flota.documentos === 'object') {
       let totalAssigned = 0;
       for (const ciudad in flota.documentos) {
-        if (typeof flota.documentos[ciudad] === 'object' && !Array.isArray(flota.documentos[ciudad])) {
-          totalAssigned += Object.keys(flota.documentos[ciudad]).length;
+        const ciudadDocs = flota.documentos[ciudad];
+        if (typeof ciudadDocs === 'object' && !Array.isArray(ciudadDocs)) {
+          for (const categoria in ciudadDocs) {
+            if (typeof ciudadDocs[categoria] === 'object' && !Array.isArray(ciudadDocs[categoria])) {
+              totalAssigned += Object.keys(ciudadDocs[categoria]).length;
+            }
+          }
         }
       }
       
@@ -214,35 +227,44 @@ export const DocsManagerModal = ({
   };
 
   // Handler optimizado para seleccionar/deseleccionar documentos
-  const handleToggleDoc = useCallback((ciudad, docSlug, tpl, isSelected) => {
+  const handleToggleDoc = useCallback((ciudad, categoria, docSlug, tpl, isSelected) => {
     setSelectedTemplates(prevState => {
       const updated = JSON.parse(JSON.stringify(prevState));
       
       // Inicializar la ciudad si no existe
       if (!updated[ciudad]) {
-        updated[ciudad] = [];
+        updated[ciudad] = {};
       }
       
-      // Siempre usar array para múltiples documentos
-      if (!Array.isArray(updated[ciudad])) {
-        // Convertir de objeto antiguo a array
-        updated[ciudad] = [];
+      // Inicializar la categoría si no existe
+      if (!updated[ciudad][categoria]) {
+        updated[ciudad][categoria] = [];
+      }
+      
+      // Asegurar que es un array
+      if (!Array.isArray(updated[ciudad][categoria])) {
+        updated[ciudad][categoria] = [];
       }
       
       if (isSelected) {
         // Remover del array
-        updated[ciudad] = updated[ciudad].filter(item => item.slug !== docSlug);
+        updated[ciudad][categoria] = updated[ciudad][categoria].filter(item => item.slug !== docSlug);
       } else {
         // Agregar al array
-        updated[ciudad].push({
+        updated[ciudad][categoria].push({
           slug: docSlug,
           id: tpl.id,
           nombre: tpl.titulo || tpl.screenTitle || tpl.nombre
         });
       }
       
-      // Limpiar ciudad si el array está vacío
-      if (updated[ciudad].length === 0) {
+      // Limpiar categoría si está vacía
+      if (updated[ciudad][categoria].length === 0) {
+        delete updated[ciudad][categoria];
+      }
+      
+      // Limpiar ciudad si está vacía
+      if (Object.keys(updated[ciudad]).length === 0) {
         delete updated[ciudad];
       }
       
@@ -301,41 +323,72 @@ export const DocsManagerModal = ({
               if (typeof docsEnCiudad !== 'object' || !docsEnCiudad || Object.keys(docsEnCiudad).length === 0) return null;
               
               return (
-                <Box key={ciudad} sx={{ mb: 2 }}>
+                <Box key={ciudad} sx={{ mb: 3 }}>
                   <Typography 
                     variant="subtitle2"
                     sx={{
                       fontFamily: "Mulish, sans-serif",
                       fontWeight: 700,
                       color: '#d7171a',
-                      mb: 1,
-                      fontSize: '0.9rem'
+                      mb: 2,
+                      fontSize: '0.95rem',
+                      borderBottom: '1px solid #ddd',
+                      pb: 1
                     }}
                   >
                     📍 {ciudad}
                   </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', pl: 1 }}>
-                    {Object.entries(docsEnCiudad).map(([slug, docId]) => {
-                      const docName = getDocName(slug) || slug;
-                      return (
-                        <Chip 
-                          key={slug} 
-                          label={docName} 
-                          color="primary"
-                          onDelete={() => {
-                            const updated = { ...flota.documentos };
-                            delete updated[ciudad][slug];
-                            if (Object.keys(updated[ciudad]).length === 0) {
-                              delete updated[ciudad];
-                            }
-                            // Actualizar estado local también
-                            setSelectedTemplates(updated);
-                            if (onAssignTemplates) onAssignTemplates(updated);
+                  
+                  {/* Iterar sobre categorías */}
+                  {CATEGORIAS_SERVICIO.map(categoria => {
+                    const docsEnCategoria = docsEnCiudad[categoria] || {};
+                    
+                    if (typeof docsEnCategoria !== 'object' || !docsEnCategoria || Object.keys(docsEnCategoria).length === 0) return null;
+                    
+                    return (
+                      <Box key={categoria} sx={{ mb: 2, pl: 2 }}>
+                        <Typography 
+                          variant="body2"
+                          sx={{
+                            fontFamily: "Mulish, sans-serif",
+                            fontWeight: 600,
+                            color: '#555',
+                            mb: 1,
+                            fontSize: '0.85rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px'
                           }}
-                        />
-                      );
-                    })}
-                  </Box>
+                        >
+                          🏷️ {categoria}
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', pl: 1 }}>
+                          {Object.entries(docsEnCategoria).map(([slug, docInfo]) => {
+                            const docName = getDocName(slug) || slug;
+                            return (
+                              <Chip 
+                                key={slug} 
+                                label={docName} 
+                                color="primary"
+                                onDelete={() => {
+                                  const updated = JSON.parse(JSON.stringify(flota.documentos));
+                                  delete updated[ciudad][categoria][slug];
+                                  if (Object.keys(updated[ciudad][categoria]).length === 0) {
+                                    delete updated[ciudad][categoria];
+                                  }
+                                  if (Object.keys(updated[ciudad]).length === 0) {
+                                    delete updated[ciudad];
+                                  }
+                                  // Actualizar estado local también
+                                  setSelectedTemplates(updated);
+                                  if (onAssignTemplates) onAssignTemplates(updated);
+                                }}
+                              />
+                            );
+                          })}
+                        </Box>
+                      </Box>
+                    );
+                  })}
                 </Box>
               );
             })}
@@ -358,43 +411,76 @@ export const DocsManagerModal = ({
       <DialogTitle>Asignar Documentos a {flota?.nombre}</DialogTitle>
       <DialogContent>
         {CIUDADES.length > 0 && (
-          <Box sx={{ mb: 2, mt: 1 }}>
-            <Typography
-              variant="subtitle2"
-              sx={{
-                fontFamily: "Mulish, sans-serif",
-                fontWeight: 600,
-                mb: 1,
-              }}
-            >
-              Filtrar por Departamento:
-            </Typography>
-            <Box
-              sx={{
-                display: "flex",
-                gap: 1,
-                flexWrap: "wrap",
-              }}
-            >
-              <Chip
-                label="Todos"
-                onClick={() => setCiudadSeleccionada("")}
-                color={ciudadSeleccionada === "" ? "primary" : "default"}
-                variant={ciudadSeleccionada === "" ? "filled" : "outlined"}
-                sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}
-              />
-              {CIUDADES.map((ciudad) => (
+          <>
+            <Box sx={{ mb: 2, mt: 1 }}>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  fontFamily: "Mulish, sans-serif",
+                  fontWeight: 600,
+                  mb: 1,
+                }}
+              >
+                Filtrar por Departamento:
+              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 1,
+                  flexWrap: "wrap",
+                }}
+              >
                 <Chip
-                  key={ciudad}
-                  label={ciudad}
-                  onClick={() => setCiudadSeleccionada(ciudad)}
-                  color={ciudadSeleccionada === ciudad ? "primary" : "default"}
-                  variant={ciudadSeleccionada === ciudad ? "filled" : "outlined"}
+                  label="Todos"
+                  onClick={() => setCiudadSeleccionada("")}
+                  color={ciudadSeleccionada === "" ? "primary" : "default"}
+                  variant={ciudadSeleccionada === "" ? "filled" : "outlined"}
                   sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}
                 />
-              ))}
+                {CIUDADES.map((ciudad) => (
+                  <Chip
+                    key={ciudad}
+                    label={ciudad}
+                    onClick={() => setCiudadSeleccionada(ciudad)}
+                    color={ciudadSeleccionada === ciudad ? "primary" : "default"}
+                    variant={ciudadSeleccionada === ciudad ? "filled" : "outlined"}
+                    sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}
+                  />
+                ))}
+              </Box>
             </Box>
-          </Box>
+
+            <Box sx={{ mb: 2 }}>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  fontFamily: "Mulish, sans-serif",
+                  fontWeight: 600,
+                  mb: 1,
+                }}
+              >
+                Seleccionar Categoría de Servicio:
+              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 1,
+                  flexWrap: "wrap",
+                }}
+              >
+                {CATEGORIAS_SERVICIO.map((categoria) => (
+                  <Chip
+                    key={categoria}
+                    label={categoria}
+                    onClick={() => setCategoriaSeleccionada(categoria)}
+                    color={categoriaSeleccionada === categoria ? "primary" : "default"}
+                    variant={categoriaSeleccionada === categoria ? "filled" : "outlined"}
+                    sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          </>
         )}
         <Box sx={{ mt: 2 }}>
           {loading ? (
@@ -408,7 +494,7 @@ export const DocsManagerModal = ({
               const docsEnCiudad = templates[ciudad] || [];
               if (docsEnCiudad.length === 0) return null;
               
-              // Agrupar documentos por categoría
+              // Agrupar documentos por categoría de documento
               const docsPorCategoria = {};
               docsEnCiudad.forEach(doc => {
                 const categoria = getDocCategory(doc);
@@ -434,78 +520,82 @@ export const DocsManagerModal = ({
                     📍 {ciudad}
                   </Typography>
                   
-                  {Object.keys(docsPorCategoria).sort().map((categoria) => (
-                    <Box key={categoria} sx={{ mb: 2.5 }}>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontFamily: 'Mulish, sans-serif',
-                          fontWeight: 600,
-                          color: '#555',
-                          mb: 1,
-                          fontSize: '0.9rem',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.5px'
-                        }}
-                      >
-                        {categoria}
-                      </Typography>
-                      
-                      <Box sx={{ pl: 1 }}>
-                        {docsPorCategoria[categoria].map((tpl) => {
-                          const docSlug = generateDocSlug(tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id);
-                          const docsEnCiudad = selectedTemplates[ciudad] || [];
-                          const isSelected = Array.isArray(docsEnCiudad) 
-                            ? docsEnCiudad.some(item => item.slug === docSlug)
-                            : false;
-                          const docName = tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id;
-                          
-                          return (
-                            <Box 
-                              key={tpl.id} 
-                              sx={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'space-between', 
-                                py: 1,
-                                px: 1.5,
-                                mb: 0.5,
-                                borderRadius: '4px',
-                                border: '1px solid #f0f0f0',
-                                '&:hover': { 
-                                  bgcolor: 'rgba(215, 23, 26, 0.05)',
-                                  borderColor: '#d7171a'
-                                },
-                                bgcolor: isSelected ? 'rgba(215, 23, 26, 0.08)' : 'transparent'
-                              }}
-                            >
-                              <Typography sx={{ fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>{docName}</Typography>
-                              <Button 
-                                size="small" 
-                                variant={isSelected ? 'contained' : 'outlined'} 
-                                onClick={() => handleToggleDoc(ciudad, docSlug, tpl, isSelected)}
-                                sx={{
-                                  ...(isSelected && {
-                                    bgcolor: '#d7171a',
-                                    '&:hover': { bgcolor: '#b01117' }
-                                  })
+                  {/* Mostrar solo la categoría de servicio seleccionada */}
+                  <Box sx={{ mb: 2 }}>
+                    {Object.keys(docsPorCategoria).sort().map((categoriaDoc) => (
+                      <Box key={categoriaDoc} sx={{ mb: 2.5 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontFamily: 'Mulish, sans-serif',
+                            fontWeight: 600,
+                            color: '#555',
+                            mb: 1,
+                            fontSize: '0.9rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px'
+                          }}
+                        >
+                          {categoriaDoc}
+                        </Typography>
+                        
+                        <Box sx={{ pl: 1 }}>
+                          {docsPorCategoria[categoriaDoc].map((tpl) => {
+                            const docSlug = generateDocSlug(tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id);
+                            const docsEnCiudad = selectedTemplates[ciudad] || {};
+                            const docsEnCategoria = Array.isArray(docsEnCiudad) ? [] : (docsEnCiudad[categoriaSeleccionada] || []);
+                            const isSelected = Array.isArray(docsEnCategoria) 
+                              ? docsEnCategoria.some(item => item.slug === docSlug)
+                              : false;
+                            const docName = tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id;
+                            
+                            return (
+                              <Box 
+                                key={tpl.id} 
+                                sx={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  justifyContent: 'space-between', 
+                                  py: 1,
+                                  px: 1.5,
+                                  mb: 0.5,
+                                  borderRadius: '4px',
+                                  border: '1px solid #f0f0f0',
+                                  '&:hover': { 
+                                    bgcolor: 'rgba(215, 23, 26, 0.05)',
+                                    borderColor: '#d7171a'
+                                  },
+                                  bgcolor: isSelected ? 'rgba(215, 23, 26, 0.08)' : 'transparent'
                                 }}
                               >
-                                {isSelected ? (
-                                  <>
-                                    <CheckIcon fontSize="small" sx={{ mr: 0.5 }} />
-                                    Asignado
-                                  </>
-                                ) : (
-                                  'Asignar'
-                                )}
-                              </Button>
-                            </Box>
-                          );
-                        })}
+                                <Typography sx={{ fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>{docName}</Typography>
+                                <Button 
+                                  size="small" 
+                                  variant={isSelected ? 'contained' : 'outlined'} 
+                                  onClick={() => handleToggleDoc(ciudad, categoriaSeleccionada, docSlug, tpl, isSelected)}
+                                  sx={{
+                                    ...(isSelected && {
+                                      bgcolor: '#d7171a',
+                                      '&:hover': { bgcolor: '#b01117' }
+                                    })
+                                  }}
+                                >
+                                  {isSelected ? (
+                                    <>
+                                      <CheckIcon fontSize="small" sx={{ mr: 0.5 }} />
+                                      Asignado
+                                    </>
+                                  ) : (
+                                    'Asignar'
+                                  )}
+                                </Button>
+                              </Box>
+                            );
+                          })}
+                        </Box>
                       </Box>
-                    </Box>
-                  ))}
+                    ))}
+                  </Box>
                 </Box>
               );
             })
@@ -516,19 +606,26 @@ export const DocsManagerModal = ({
         <Button onClick={() => setAssignDialogOpen(false)} startIcon={<CloseIcon />}>Cancelar</Button>
         <Button 
           onClick={() => {
-            // Convertir array a objeto para guardado
+            // Convertir array a objeto para guardado con estructura: ciudad -> categoría -> documentos
             const documentosParaGuardar = {};
-            Object.entries(selectedTemplates).forEach(([ciudad, documentos]) => {
-              if (Array.isArray(documentos)) {
+            Object.entries(selectedTemplates).forEach(([ciudad, categoriasObj]) => {
+              if (typeof categoriasObj === 'object' && !Array.isArray(categoriasObj)) {
                 documentosParaGuardar[ciudad] = {};
-                documentos.forEach(doc => {
-                  documentosParaGuardar[ciudad][doc.slug] = { 
-                    id: doc.id,
-                    nombre: doc.nombre 
-                  };
+                Object.entries(categoriasObj).forEach(([categoria, documentos]) => {
+                  if (Array.isArray(documentos)) {
+                    documentosParaGuardar[ciudad][categoria] = {};
+                    documentos.forEach(doc => {
+                      documentosParaGuardar[ciudad][categoria][doc.slug] = { 
+                        id: doc.id,
+                        nombre: doc.nombre 
+                      };
+                    });
+                  } else {
+                    documentosParaGuardar[ciudad][categoria] = documentos;
+                  }
                 });
               } else {
-                documentosParaGuardar[ciudad] = documentos;
+                documentosParaGuardar[ciudad] = categoriasObj;
               }
             });
             

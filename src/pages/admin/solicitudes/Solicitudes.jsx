@@ -29,6 +29,7 @@ import { db } from "../../../data/firebase/firebase";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
 
 const Solicitudes = () => {
@@ -52,6 +53,8 @@ const Solicitudes = () => {
   const [asignadaFlota, setAsignadaFlota] = useState("");
   const [detallesDialogOpen, setDetallesDialogOpen] = useState(false);
   const [solicitudSeleccionada, setSolicitudSeleccionada] = useState(null);
+  const [ofertaDialogOpen, setOfertaDialogOpen] = useState(false);
+  const [solicitudOferta, setSolicitudOferta] = useState(null);
 
   // Cargar solicitudes
   useEffect(() => {
@@ -288,6 +291,18 @@ const Solicitudes = () => {
     setSolicitudSeleccionada(null);
   };
 
+  // Abrir diálogo de oferta
+  const handleVerOferta = (solicitud) => {
+    setSolicitudOferta(solicitud);
+    setOfertaDialogOpen(true);
+  };
+
+  // Cerrar diálogo de oferta
+  const handleCloseOfertaDialog = () => {
+    setOfertaDialogOpen(false);
+    setSolicitudOferta(null);
+  };
+
   // Asignar flota a solicitud
   const handleAsignarFlota = async () => {
     if (!selectedSolicitud || !asignadaFlota) return;
@@ -463,6 +478,16 @@ const Solicitudes = () => {
                       >
                         <VisibilityIcon />
                       </IconButton>
+                      {solicitud.solicitud?.oferta && (
+                        <IconButton
+                          size="small"
+                          onClick={() => handleVerOferta(solicitud)}
+                          sx={{ color: "#ff9800" }}
+                          title="Ver oferta"
+                        >
+                          <AttachMoneyIcon />
+                        </IconButton>
+                      )}
                       {solicitud.estado === "solicitado" && (
                         <>
                           <IconButton
@@ -863,6 +888,69 @@ const Solicitudes = () => {
         </DialogContent>
         <DialogActions sx={{ p: 2, backgroundColor: "#fafafa", borderTop: "1px solid #e0e0e0" }}>
           <Button onClick={handleCloseDetallesDialog} variant="contained" sx={{ backgroundColor: "#d7171a" }}>
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog para ver oferta */}
+      <Dialog open={ofertaDialogOpen} onClose={handleCloseOfertaDialog} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ backgroundColor: "#ff9800", color: "white", fontWeight: "bold" }}>
+          💰 Oferta
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3, backgroundColor: "#fafafa" }}>
+          {solicitudOferta && solicitudOferta.solicitud?.oferta ? (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#ff9800" }}>
+                  Detalles de la Oferta
+                </Typography>
+                
+                {/* Costo Base */}
+                <Box sx={{ mb: 2, p: 1, backgroundColor: "#f9f9f9", borderRadius: 1 }}>
+                  <Typography variant="body2" sx={{ color: "#666" }}>
+                    Costo del Servicio:
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: "bold", color: "#d7171a" }}>
+                    Bs. {solicitudOferta.solicitud.oferta.costo?.toFixed(2) || "0.00"}
+                  </Typography>
+                </Box>
+
+                {/* Campos Adicionales */}
+                {solicitudOferta.solicitud.oferta.campos && Object.keys(solicitudOferta.solicitud.oferta.campos).length > 0 && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1, color: "#333" }}>
+                      Campos Adicionales:
+                    </Typography>
+                    {Object.entries(solicitudOferta.solicitud.oferta.campos).map(([key, value]) => (
+                      <Box key={key} sx={{ display: "flex", justifyContent: "space-between", p: 0.5, backgroundColor: "#f5f5f5", mb: 0.5, borderRadius: 0.5 }}>
+                        <Typography variant="body2">{key}</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                          Bs. {parseFloat(value)?.toFixed(2) || "0.00"}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+
+                {/* Fecha de Oferta */}
+                {solicitudOferta.solicitud.oferta.fechaOferta && (
+                  <Box sx={{ p: 1, backgroundColor: "#f9f9f9", borderRadius: 1 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      <strong>Fecha Oferta:</strong> {new Date(solicitudOferta.solicitud.oferta.fechaOferta).toLocaleDateString()}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          ) : (
+            <Typography color="text.secondary">
+              No hay oferta disponible para esta solicitud
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, backgroundColor: "#fafafa", borderTop: "1px solid #e0e0e0" }}>
+          <Button onClick={handleCloseOfertaDialog} variant="contained" sx={{ backgroundColor: "#ff9800" }}>
             Cerrar
           </Button>
         </DialogActions>

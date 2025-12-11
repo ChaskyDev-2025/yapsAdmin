@@ -30,6 +30,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
 import GenerarOfertaModal from "./components/GenerarOfertaModal";
 
@@ -44,6 +45,7 @@ const SolicitudesAsignadas = () => {
 
   const [solicitudes, setSolicitudes] = useState([]);
   const [conductores, setConductores] = useState([]);
+  const [pasajeros, setPasajeros] = useState([]);
   const [flotaId, setFlotaId] = useState(null);
   const [searchSolicitudes, setSearchSolicitudes] = useState("");
   const [filterEstado, setFilterEstado] = useState("todas");
@@ -56,6 +58,8 @@ const SolicitudesAsignadas = () => {
   const [ofertaModalOpen, setOfertaModalOpen] = useState(false);
   const [solicitudParaOferta, setSolicitudParaOferta] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const [ofertaDialogOpen, setOfertaDialogOpen] = useState(false);
+  const [solicitudOferta, setSolicitudOferta] = useState(null);
 
   // Opciones para filtros y ordenamiento
   const sortOptions = [
@@ -146,6 +150,24 @@ const SolicitudesAsignadas = () => {
     cargarConductores();
   }, [flotaId]);
 
+  // Cargar pasajeros
+  useEffect(() => {
+    const cargarPasajeros = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, "pasajeros"));
+        const data = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setPasajeros(data);
+      } catch (error) {
+        console.error("Error cargando pasajeros:", error);
+      }
+    };
+
+    cargarPasajeros();
+  }, []);
+
   // Funciones auxiliares
   const formatearFecha = (fecha) => {
     if (!fecha) return "-";
@@ -178,6 +200,19 @@ const SolicitudesAsignadas = () => {
       conductorId;
     
     return nombre;
+  };
+
+  // Obtener nombre del usuario que solicita
+  const obtenerNombreUsuario = (uid) => {
+    if (!uid) return "No disponible";
+    
+    // Buscar en pasajeros
+    const pasajero = pasajeros.find(p => p.id === uid);
+    if (pasajero) {
+      return pasajero.perfil?.name || pasajero.name || pasajero.email || "Usuario desconocido";
+    }
+    
+    return "Usuario desconocido";
   };
 
   // Filtrado y ordenamiento
@@ -243,6 +278,18 @@ const SolicitudesAsignadas = () => {
   const handleCloseOfertaModal = () => {
     setOfertaModalOpen(false);
     setSolicitudParaOferta(null);
+  };
+
+  // Abrir diálogo de oferta
+  const handleVerOferta = (solicitud) => {
+    setSolicitudOferta(solicitud);
+    setOfertaDialogOpen(true);
+  };
+
+  // Cerrar diálogo de oferta
+  const handleCloseOfertaDialog = () => {
+    setOfertaDialogOpen(false);
+    setSolicitudOferta(null);
   };
 
   const handleSaveOferta = async (ofertaData) => {
@@ -409,6 +456,16 @@ const SolicitudesAsignadas = () => {
                       >
                         <VisibilityIcon />
                       </IconButton>
+                      {solicitud.solicitud?.oferta && (
+                        <IconButton
+                          size="small"
+                          onClick={() => handleVerOferta(solicitud)}
+                          sx={{ color: "#ff9800" }}
+                          title="Ver oferta"
+                        >
+                          <AttachMoneyIcon />
+                        </IconButton>
+                      )}
                       {solicitud.estado === "asignada" && (
                         <>
                           <IconButton
@@ -528,7 +585,7 @@ const SolicitudesAsignadas = () => {
                   ℹ️ Información General
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid item xs={6}>
+                  <Grid item xs={6} sm={4}>
                     <TextField
                       label="Categoría"
                       value={solicitudSeleccionada.solicitud?.categoria || ""}
@@ -538,7 +595,7 @@ const SolicitudesAsignadas = () => {
                       sx={disabledTextFieldStyles}
                     />
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid item xs={6} sm={4}>
                     <TextField
                       label="Servicio"
                       value={solicitudSeleccionada.solicitud?.servicio || ""}
@@ -548,7 +605,7 @@ const SolicitudesAsignadas = () => {
                       sx={disabledTextFieldStyles}
                     />
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid item xs={6} sm={4}>
                     <TextField
                       label="Estado"
                       value={solicitudSeleccionada.estado || ""}
@@ -558,20 +615,20 @@ const SolicitudesAsignadas = () => {
                       sx={disabledTextFieldStyles}
                     />
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid item xs={6} sm={4}>
                     <TextField
-                      label="Conductor Asignado"
-                      value={obtenerNombreConductor(solicitudSeleccionada.conductor_asignado)}
+                      label="Fecha de Creación"
+                      value={formatearFecha(solicitudSeleccionada.solicitud?.fechaCreacion)}
                       disabled
                       fullWidth
                       size="small"
                       sx={disabledTextFieldStyles}
                     />
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid item xs={6} sm={4}>
                     <TextField
-                      label="Fecha de Creación"
-                      value={formatearFecha(solicitudSeleccionada.solicitud?.fechaCreacion)}
+                      label="Conductor Asignado"
+                      value={obtenerNombreConductor(solicitudSeleccionada.conductor_asignado)}
                       disabled
                       fullWidth
                       size="small"
@@ -702,11 +759,86 @@ const SolicitudesAsignadas = () => {
                   </Grid>
                 </Box>
               )}
+
+              {/* Usuario - Campo completo al final */}
+              <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                <TextField
+                  label="Usuario"
+                  value={obtenerNombreUsuario(solicitudSeleccionada.uidUser || solicitudSeleccionada.solicitud?.uidUser)}
+                  disabled
+                  fullWidth
+                  size="small"
+                  sx={disabledTextFieldStyles}
+                />
+              </Box>
             </Box>
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={handleCloseDetalles} variant="contained" color="primary">
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog para ver oferta */}
+      <Dialog open={ofertaDialogOpen} onClose={handleCloseOfertaDialog} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ backgroundColor: "#ff9800", color: "white", fontWeight: "bold" }}>
+          💰 Oferta
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3, backgroundColor: "#fafafa" }}>
+          {solicitudOferta && solicitudOferta.solicitud?.oferta ? (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#ff9800" }}>
+                  Detalles de la Oferta
+                </Typography>
+                
+                {/* Costo Base */}
+                <Box sx={{ mb: 2, p: 1, backgroundColor: "#f9f9f9", borderRadius: 1 }}>
+                  <Typography variant="body2" sx={{ color: "#666" }}>
+                    Costo del Servicio:
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: "bold", color: "#d7171a" }}>
+                    Bs. {solicitudOferta.solicitud.oferta.costo?.toFixed(2) || "0.00"}
+                  </Typography>
+                </Box>
+
+                {/* Campos Adicionales */}
+                {solicitudOferta.solicitud.oferta.campos && Object.keys(solicitudOferta.solicitud.oferta.campos).length > 0 && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1, color: "#333" }}>
+                      Campos Adicionales:
+                    </Typography>
+                    {Object.entries(solicitudOferta.solicitud.oferta.campos).map(([key, value]) => (
+                      <Box key={key} sx={{ display: "flex", justifyContent: "space-between", p: 0.5, backgroundColor: "#f5f5f5", mb: 0.5, borderRadius: 0.5 }}>
+                        <Typography variant="body2">{key}</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                          Bs. {parseFloat(value)?.toFixed(2) || "0.00"}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+
+                {/* Fecha de Oferta */}
+                {solicitudOferta.solicitud.oferta.fechaOferta && (
+                  <Box sx={{ p: 1, backgroundColor: "#f9f9f9", borderRadius: 1 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      <strong>Fecha Oferta:</strong> {new Date(solicitudOferta.solicitud.oferta.fechaOferta).toLocaleDateString()}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          ) : (
+            <Typography color="text.secondary">
+              No hay oferta disponible para esta solicitud
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCloseOfertaDialog} variant="contained" sx={{ backgroundColor: "#d7171a" }}>
             Cerrar
           </Button>
         </DialogActions>
