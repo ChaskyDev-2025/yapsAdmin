@@ -45,7 +45,13 @@ const Radiotaxis = () => {
     setOpenModal(true);
   };
 
-  const handleToggleHabilitado = async (firebaseId, nuevoEstado) => {
+  const handleToggleHabilitado = async (firebaseId, nuevoEstado, documentosAprobados) => {
+    // Si intenta activar y documentos_aprobados es false, no permitir
+    if (nuevoEstado && !documentosAprobados) {
+      alert("No puede activar este radiotaxi. Los documentos aún no han sido aprobados.");
+      return;
+    }
+
     try {
       const ref = doc(db, "trabajadores", firebaseId);
       await updateDoc(ref, {
@@ -56,6 +62,11 @@ const Radiotaxis = () => {
     } catch (e) {
       console.error("Error al actualizar estado:", e);
     }
+  };
+
+  // Función para verificar si documentos están aprobados
+  const verificarDocumentosAprobados = (documentosObj) => {
+    return documentosObj?.documentos_aprobados === true;
   };
 
   const columns = getRadiotaxisColumns((params) => (
@@ -69,7 +80,7 @@ const Radiotaxis = () => {
         }}
       />
     </Stack>
-  ), handleToggleHabilitado);
+  ), handleToggleHabilitado, verificarDocumentosAprobados);
 
   return (
     <>

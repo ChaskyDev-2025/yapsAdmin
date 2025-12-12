@@ -36,13 +36,15 @@ import PeopleIcon from "@mui/icons-material/People";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import LocalTaxiIcon from "@mui/icons-material/LocalTaxi";
 import HistoryIcon from "@mui/icons-material/History";
+import DescriptionIcon from "@mui/icons-material/Description";
 import { useAuth } from "../../../auth/AuthContext";
 import { getAllUsers, createAdminUser, updateUser, deleteUser, isSuperAdmin } from "../../../services/userService";
-import { collection, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, updateDoc, onSnapshot } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 import { TableToolbar } from "./components/TableToolbar";
 import { HistorialViajesModal } from "./components/HistorialViajesModal";
 import { HistorialViajesConductorModal } from "./components/HistorialViajesConductorModal";
+import DocumentosConductoresViewModal from "./components/DocumentosConductoresViewModal";
 
 const GestionUsuarios = () => {
   const { userRole, user } = useAuth();
@@ -55,6 +57,8 @@ const GestionUsuarios = () => {
   const [pasajeroSeleccionado, setPasajeroSeleccionado] = useState(null);
   const [historialConductorModalOpen, setHistorialConductorModalOpen] = useState(false);
   const [conductorSeleccionado, setConductorSeleccionado] = useState(null);
+  const [documentosConductorModalOpen, setDocumentosConductorModalOpen] = useState(false);
+  const [conductorDocumentosSeleccionado, setConductorDocumentosSeleccionado] = useState(null);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -256,9 +260,60 @@ const GestionUsuarios = () => {
   // Cargar usuarios, pasajeros, trabajadores y flotas
   useEffect(() => {
     loadUsers();
-    loadPasajeros();
-    loadTrabajadores();
-    loadFlotas();
+    
+    // Listener en tiempo real para trabajadores
+    const trabajadoresCollection = collection(db, "trabajadores");
+    const unsubscribeTrabajadores = onSnapshot(
+      trabajadoresCollection,
+      (snapshot) => {
+        const trabajadoresList = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setTrabajadores(trabajadoresList);
+      },
+      (error) => {
+        console.error("Error al escuchar trabajadores:", error);
+      }
+    );
+
+    // Listener en tiempo real para pasajeros
+    const pasajerosCollection = collection(db, "pasajeros");
+    const unsubscribePasajeros = onSnapshot(
+      pasajerosCollection,
+      (snapshot) => {
+        const pasajerosList = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setPasajeros(pasajerosList);
+      },
+      (error) => {
+        console.error("Error al escuchar pasajeros:", error);
+      }
+    );
+
+    // Listener en tiempo real para flotas
+    const flotasCollection = collection(db, "flotas");
+    const unsubscribeFlotas = onSnapshot(
+      flotasCollection,
+      (snapshot) => {
+        const flotasList = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setFlotas(flotasList);
+      },
+      (error) => {
+        console.error("Error al escuchar flotas:", error);
+      }
+    );
+
+    return () => {
+      unsubscribeTrabajadores();
+      unsubscribePasajeros();
+      unsubscribeFlotas();
+    };
   }, []);
 
   const loadUsers = async () => {
@@ -266,50 +321,6 @@ const GestionUsuarios = () => {
     const users = await getAllUsers();
     setUsuarios(users);
     setLoading(false);
-  };
-
-  const loadFlotas = async () => {
-    try {
-      const flotasCollection = collection(db, "flotas");
-      const flotasSnapshot = await getDocs(flotasCollection);
-      const flotasList = flotasSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setFlotas(flotasList);
-    } catch (error) {
-      console.error("Error al cargar flotas:", error);
-    }
-  };
-
-  const loadPasajeros = async () => {
-    try {
-      const pasajerosCollection = collection(db, "pasajeros");
-      const pasajerosSnapshot = await getDocs(pasajerosCollection);
-      const pasajerosList = pasajerosSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setPasajeros(pasajerosList);
-    } catch (error) {
-      console.error("Error al cargar pasajeros:", error);
-    }
-  };
-
-  const loadTrabajadores = async () => {
-    try {
-      // Cargar de la colección "trabajadores" donde están los conductores
-      const trabajadoresCollection = collection(db, "trabajadores");
-      const trabajadoresSnapshot = await getDocs(trabajadoresCollection);
-      const trabajadoresList = trabajadoresSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      
-      setTrabajadores(trabajadoresList);
-    } catch (error) {
-      console.error("Error al cargar conductores:", error);
-    }
   };
 
   const handleOpenDialog = (usuario = null) => {
@@ -356,11 +367,6 @@ const GestionUsuarios = () => {
       return;
     }
 
-    if (!formData.flotaId) {
-      setError("Debes seleccionar una flota");
-      return;
-    }
-
     if (editingUser) {
       // Verificar si es un trabajador (conductor) o un admin
       const isTrabajador = editingUser.perfil; // Los trabajadores tienen el campo perfil
@@ -369,7 +375,7 @@ const GestionUsuarios = () => {
         // Actualizar trabajador en colección "trabajadores"
         try {
           await updateDoc(doc(db, "trabajadores", editingUser.id), {
-            flotaId: formData.flotaId,
+            flotaId: formData.flotaId || null,
             perfil: {
               ...editingUser.perfil,
               name: formData.nombre,
@@ -378,7 +384,6 @@ const GestionUsuarios = () => {
             role: formData.role,
           });
           setSuccess("Conductor actualizado correctamente");
-          loadTrabajadores();
           setTimeout(() => handleCloseDialog(), 1500);
         } catch (error) {
           console.error("Error al actualizar conductor:", error);
@@ -390,7 +395,7 @@ const GestionUsuarios = () => {
           email: formData.email,
           nombre: formData.nombre,
           role: "admin",
-          flotaId: formData.flotaId,
+          flotaId: formData.flotaId || null,
         });
 
         if (result.success) {
@@ -413,7 +418,7 @@ const GestionUsuarios = () => {
         nombre: formData.nombre,
         role: "admin",
         password: formData.password,
-        flotaId: formData.flotaId,
+        flotaId: formData.flotaId || null,
         createdBy: user.uid,
       });
 
@@ -452,7 +457,6 @@ const GestionUsuarios = () => {
     try {
       await deleteDoc(doc(db, "trabajadores", trabajadorId));
       setSuccess("Conductor eliminado correctamente");
-      loadTrabajadores();
       setTimeout(() => setSuccess(""), 3000);
     } catch (error) {
       console.error("Error al eliminar conductor:", error);
@@ -1040,7 +1044,6 @@ const GestionUsuarios = () => {
                                   await updateDoc(ref, {
                                     activo: e.target.checked,
                                   });
-                                  loadTrabajadores();
                                 } catch (err) {
                                   setSnackbar({
                                     open: true,
@@ -1076,6 +1079,18 @@ const GestionUsuarios = () => {
                         />
                       </TableCell>
                       <TableCell>
+                        <Tooltip title="Ver Documentos">
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setConductorDocumentosSeleccionado(trabajador);
+                              setDocumentosConductorModalOpen(true);
+                            }}
+                            sx={{ color: "#1976d2", mr: 1 }}
+                          >
+                            <DescriptionIcon />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip title="Ver Historial de Viajes">
                           <IconButton
                             size="small"
@@ -1163,9 +1178,9 @@ const GestionUsuarios = () => {
             margin="normal"
             value={formData.flotaId}
             onChange={(e) => setFormData({ ...formData, flotaId: e.target.value })}
-            required
+            helperText="Opcional - Puede asignarla después"
           >
-            <MenuItem value="">Seleccionar flota</MenuItem>
+            <MenuItem value="">Sin asignar</MenuItem>
             {flotas.map((flota) => (
               <MenuItem key={flota.id} value={flota.id}>
                 {flota.nombre}
@@ -1224,6 +1239,12 @@ const GestionUsuarios = () => {
         open={historialConductorModalOpen}
         onClose={() => setHistorialConductorModalOpen(false)}
         conductorUID={conductorSeleccionado}
+      />
+
+      <DocumentosConductoresViewModal
+        open={documentosConductorModalOpen}
+        onClose={() => setDocumentosConductorModalOpen(false)}
+        selectedConductor={conductorDocumentosSeleccionado}
       />
     </Box>
   );

@@ -21,9 +21,12 @@ import {
   Tooltip,
   Switch,
   FormControlLabel,
+  TextField,
+  Modal,
 } from "@mui/material";
 import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../../../../data/firebase/firebase";
+import { useAuth } from "../../../../auth/AuthContext";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CloseIcon from "@mui/icons-material/Close";
 import PersonIcon from "@mui/icons-material/Person";
@@ -31,6 +34,7 @@ import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
 import HourglassBottomIcon from "@mui/icons-material/HourglassBottom";
 import CancelIcon from "@mui/icons-material/Cancel";
+import ZoomInIcon from "@mui/icons-material/ZoomIn";
 
 const DocumentosModal = ({
   open,
@@ -39,6 +43,9 @@ const DocumentosModal = ({
   onDocumentApproved,
   onDocumentRejected,
 }) => {
+  const { userRole } = useAuth();
+  const isAdminOrSuperAdmin = userRole === "admin" || userRole === "superadmin";
+  
   const [snackbar, setSnackbar] = React.useState({
     open: false,
     message: "",
@@ -48,53 +55,68 @@ const DocumentosModal = ({
   const [documentos, setDocumentos] = useState([]);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [documentosAprobados, setDocumentosAprobados] = useState(false);
+  const [fotoExpandida, setFotoExpandida] = useState(null); // Para el modal de imagen
+  const [motivoRechazo, setMotivoRechazo] = useState(""); // Para el justificativo de rechazo
+  const [mostrarFormularioRechazo, setMostrarFormularioRechazo] = useState(false);
 
   // Procesar documentos al abrir el modal
   useEffect(() => {
     if (selectedTrabajador?.documentos) {
-      // Obtener documentos (puede ser array o objeto con índices numéricos)
-      let docsArray = [];
+      // Extraer documentos: cada documento es un objeto con fotos, textos, idConfig, etc
+      const docsObj = selectedTrabajador.documentos;
+      const docsArray = [];
       
-      if (Array.isArray(selectedTrabajador.documentos)) {
-        docsArray = selectedTrabajador.documentos;
-      } else {
-        // Es un objeto, extraer solo los documentos (ignorar documentos_aprobados)
-        docsArray = Object.keys(selectedTrabajador.documentos)
-          .filter(key => !isNaN(Number(key))) // Solo índices numéricos
-          .sort((a, b) => Number(a) - Number(b))
-          .map(key => selectedTrabajador.documentos[key]);
-      }
-      
-      // Los documentos pueden ser strings o objetos
-      const docsProcessed = docsArray.map((doc, index) => {
-        if (typeof doc === 'string') {
-          // Si es string, convertir a objeto
-          return {
-            index,
-            nombre: doc,
-            estado: "pendiente",
-            url: null,
-            fecha: null,
-          };
+      // Recorrer todas las claves del objeto documentos
+      Object.keys(docsObj).forEach((key) => {
+        // Ignorar propiedades especiales
+        if (['updatedAt', 'documentosActualizadoEn'].includes(key)) {
+          return;
         }
-        // Si ya es objeto, retornarlo con valores por defecto
-        return {
-          index,
-          nombre: doc.nombre || doc,
-          estado: doc.estado || "pendiente",
-          url: doc.url || null,
-          fecha: doc.fecha || null,
-        };
+        
+        const docData = docsObj[key];
+        
+        // Verificar que sea un objeto con la estructura esperada (fotos, textos, idConfig)
+        if (typeof docData === 'object' && docData !== null && docData.fotos) {
+          // Extraer el título desde textos o usar la clave como nombre
+          const titulo = docData.textos?.titulo || key;
+          const fotos = Array.isArray(docData.fotos) ? docData.fotos : Object.values(docData.fotos || {});
+          
+          // Procesar textos: normalizar a un objeto con claves numéricas
+          let textosProcessed = {};
+          if (docData.textos && typeof docData.textos === 'object') {
+            Object.keys(docData.textos).forEach(textKey => {
+              if (textKey !== 'titulo') {
+                const textItem = docData.textos[textKey];
+                // Si es un objeto con label y valor, guardarlo directamente
+                if (typeof textItem === 'object' && textItem !== null && (textItem.label || textItem.valor)) {
+                  textosProcessed[textKey] = textItem;
+                }
+              }
+            });
+          }
+          
+          docsArray.push({
+            key, // nombre/clave del documento
+            nombre: titulo,
+            estado: docData.estado || "pendiente",
+            fotos: fotos, // Array de fotos
+            textos: textosProcessed, // Textos/campos normalizados
+            textosRaw: docData.textos, // Textos crudos por si acaso
+            idConfig: docData.idConfig,
+            updatedAt: docData.updatedAt,
+            motivoRechazo: docData.motivoRechazo || null, // Guardar motivo de rechazo
+            aprobadoEn: docData.aprobadoEn || null,
+            rechazadoEn: docData.rechazadoEn || null,
+            fecha: docData.updatedAt || docData.fecha,
+          });
+        }
       });
-      // Mostrar TODOS los documentos (no filtrar)
-      setDocumentos(docsProcessed);
+      
+      setDocumentos(docsArray);
       setDocumentoActivo(null);
       
-      // Cargar estado documentos_aprobados si existe
-      const estadoDocAprobados = typeof selectedTrabajador.documentos === 'object' && !Array.isArray(selectedTrabajador.documentos)
-        ? selectedTrabajador.documentos.documentos_aprobados || false
-        : false;
-      setDocumentosAprobados(estadoDocAprobados);
+      // Cargar estado documentos_aprobados desde la raíz del trabajador
+      setDocumentosAprobados(selectedTrabajador.documentos_aprobados || false);
     }
   }, [selectedTrabajador, open]);
 
@@ -147,23 +169,24 @@ const DocumentosModal = ({
     try {
       const trabajadorRef = doc(db, "trabajadores", trabajadorId);
       const trabajadorSnap = await getDoc(trabajadorRef);
-      const docs = trabajadorSnap.data().documentos || [];
+      const docsObj = trabajadorSnap.data().documentos || {};
       
       // Actualizar el documento en el índice correcto
-      if (typeof docs[docIndex] === 'string') {
-        // Si es string, crear un objeto con estado
-        docs[docIndex] = {
-          nombre: docs[docIndex],
+      if (typeof docsObj[docIndex] === 'string') {
+        docsObj[docIndex] = {
+          nombre: docsObj[docIndex],
           estado: "rechazado",
           rechazadoEn: new Date().toISOString(),
         };
       } else {
-        // Si ya es objeto, actualizar
-        docs[docIndex].estado = "rechazado";
-        docs[docIndex].rechazadoEn = new Date().toISOString();
+        docsObj[docIndex].estado = "rechazado";
+        docsObj[docIndex].rechazadoEn = new Date().toISOString();
       }
-
-      await updateDoc(trabajadorRef, { documentos: docs });
+      
+      await updateDoc(trabajadorRef, { 
+        documentos: docsObj,
+        activo: false // Desactivar automáticamente
+      });
       
       // Actualizar lista local - actualizar el documento sin remover
       const updatedDocs = documentos.map((d, i) => 
@@ -174,7 +197,7 @@ const DocumentosModal = ({
       
       setSnackbar({
         open: true,
-        message: "Documento rechazado",
+        message: "Documento rechazado y trabajador desactivado",
         severity: "warning",
       });
 
@@ -188,39 +211,50 @@ const DocumentosModal = ({
     }
   };
 
-  const handleChangeEstado = async (trabajadorId, docIndex, nuevoEstado) => {
+  const handleChangeEstado = async (trabajadorId, docKey, nuevoEstado, motivo = "") => {
     try {
       const trabajadorRef = doc(db, "trabajadores", trabajadorId);
       const trabajadorSnap = await getDoc(trabajadorRef);
-      const docs = trabajadorSnap.data().documentos || [];
+      const docsObj = trabajadorSnap.data().documentos || {};
       
-      // Actualizar el documento en el índice correcto
-      if (typeof docs[docIndex] === 'string') {
-        docs[docIndex] = {
-          nombre: docs[docIndex],
-          estado: nuevoEstado,
-        };
-      } else {
-        docs[docIndex].estado = nuevoEstado;
+      // Actualizar el documento con la clave correcta
+      if (docsObj[docKey]) {
+        docsObj[docKey].estado = nuevoEstado;
+        
+        // Agregar timestamps según el estado
+        if (nuevoEstado === "aprobado") {
+          docsObj[docKey].aprobadoEn = new Date().toISOString();
+          delete docsObj[docKey].motivoRechazo; // Eliminar motivo si se aprueba
+        } else if (nuevoEstado === "rechazado") {
+          docsObj[docKey].rechazadoEn = new Date().toISOString();
+          docsObj[docKey].motivoRechazo = motivo; // Guardar el motivo de rechazo
+        }
       }
 
-      // Agregar timestamps según el estado
-      if (nuevoEstado === "aprobado") {
-        docs[docIndex].aprobadoEn = new Date().toISOString();
-      } else if (nuevoEstado === "rechazado") {
-        docs[docIndex].rechazadoEn = new Date().toISOString();
-      }
+      await updateDoc(trabajadorRef, { documentos: docsObj });
+      
+      // Calcular documentos_aprobados: todos deben estar aprobados
+      const documentosAprobadosValue = Object.keys(docsObj)
+        .filter(key => !['updatedAt', 'documentosActualizadoEn'].includes(key))
+        .filter(key => docsObj[key] && typeof docsObj[key] === 'object' && docsObj[key].fotos)
+        .every(key => docsObj[key].estado === "aprobado");
 
-      await updateDoc(trabajadorRef, { documentos: docs });
+      // Actualizar documentos_aprobados y activo vinculados: activo = documentos_aprobados
+      await updateDoc(trabajadorRef, { 
+        documentos_aprobados: documentosAprobadosValue,
+        activo: documentosAprobadosValue
+      });
       
       // Actualizar lista local
-      const updatedDocs = documentos.map((d, i) => {
-        if (i === docIndex) {
+      const updatedDocs = documentos.map((d) => {
+        if (d.key === docKey) {
           const updated = { ...d, estado: nuevoEstado };
           if (nuevoEstado === "aprobado") {
             updated.aprobadoEn = new Date().toISOString();
+            delete updated.motivoRechazo;
           } else if (nuevoEstado === "rechazado") {
             updated.rechazadoEn = new Date().toISOString();
+            updated.motivoRechazo = motivo;
           }
           return updated;
         }
@@ -234,6 +268,7 @@ const DocumentosModal = ({
         severity: "success",
       });
     } catch (error) {
+      console.error("Error al cambiar estado:", error);
       setSnackbar({
         open: true,
         message: "Error al cambiar estado",
@@ -244,19 +279,24 @@ const DocumentosModal = ({
 
   // Manejar cambio de documentos_aprobados
   const handleToggleDocumentosAprobados = async (event) => {
+    if (!isAdminOrSuperAdmin) {
+      setSnackbar({
+        open: true,
+        message: "Solo admin y superadmin pueden cambiar este estado",
+        severity: "error",
+      });
+      return;
+    }
+    
     const nuevoValor = event.target.checked;
     
     try {
       const trabajadorRef = doc(db, "trabajadores", selectedTrabajador.id);
       
-      // Actualizar dentro del objeto documentos
-      const docsActualizados = {
-        ...selectedTrabajador.documentos,
-        documentos_aprobados: nuevoValor,
-      };
-      
+      // Actualizar documentos_aprobados y activo vinculados: activo = documentos_aprobados
       await updateDoc(trabajadorRef, {
-        documentos: docsActualizados,
+        documentos_aprobados: nuevoValor,
+        activo: nuevoValor
       });
       
       setDocumentosAprobados(nuevoValor);
@@ -416,41 +456,87 @@ const DocumentosModal = ({
             >
               {docActive ? (
                 <Stack spacing={2} sx={{ width: "100%", maxWidth: 380 }}>
-                  {/* Vista previa */}
-                  <Card sx={{ boxShadow: 2 }}>
-                    <Box
-                      sx={{
-                        width: "100%",
-                        height: 280,
-                        bgcolor: "#f5f5f5",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        position: "relative",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {docActive.url ? (
-                        <Box
-                          component="img"
-                          src={docActive.url}
-                          alt={docActive.nombre}
-                          sx={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
+                  {/* Galería de fotos */}
+                  {docActive.fotos && docActive.fotos.length > 0 ? (
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                      {docActive.fotos.map((foto, fotoidx) => (
+                        <Card 
+                          key={fotoidx} 
+                          sx={{ 
+                            boxShadow: 2,
+                            cursor: "pointer",
+                            transition: "transform 0.2s, boxShadow 0.2s",
+                            "&:hover": {
+                              transform: "scale(1.02)",
+                              boxShadow: 4
+                            }
                           }}
-                          onError={(e) => {
-                            e.target.style.display = "none";
-                          }}
-                        />
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          Sin imagen
-                        </Typography>
-                      )}
+                          onClick={() => setFotoExpandida(foto)}
+                        >
+                          <Box
+                            sx={{
+                              width: "100%",
+                              height: 200,
+                              bgcolor: "#f5f5f5",
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              justifyContent: "flex-start",
+                              position: "relative",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {foto.url ? (
+                              <>
+                                <Box
+                                  sx={{
+                                    position: "absolute",
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    background: "linear-gradient(to bottom, rgba(0,0,0,0.3), transparent)",
+                                    p: 1,
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    zIndex: 1,
+                                  }}
+                                >
+                                  <Typography variant="caption" sx={{ fontWeight: 600, color: "white" }}>
+                                    {foto.label || `Foto ${fotoidx + 1}`}
+                                  </Typography>
+                                  <ZoomInIcon sx={{ fontSize: 18, color: "white" }} />
+                                </Box>
+                                <Box
+                                  component="img"
+                                  src={foto.url}
+                                  alt={foto.label}
+                                  sx={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                  }}
+                                  onError={(e) => {
+                                    e.target.style.display = "none";
+                                  }}
+                                />
+                              </>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">
+                                Sin imagen
+                              </Typography>
+                            )}
+                          </Box>
+                        </Card>
+                      ))}
                     </Box>
-                  </Card>
+                  ) : (
+                    <Card sx={{ p: 2, textAlign: "center" }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Sin fotos disponibles
+                      </Typography>
+                    </Card>
+                  )}
 
                   {/* Información del documento */}
                   <Card sx={{ p: 2 }}>
@@ -472,25 +558,27 @@ const DocumentosModal = ({
                       onClose={() => setMenuAnchor(null)}
                     >
                       <MenuItem onClick={() => {
-                        handleChangeEstado(selectedTrabajador.id, docActive.index, "pendiente");
+                        handleChangeEstado(selectedTrabajador.id, docActive.key, "pendiente");
                         setMenuAnchor(null);
                       }}>
                         <ListItemIcon><HourglassBottomIcon sx={{ fontSize: 20 }} /></ListItemIcon>
                         <ListItemText>Pendiente</ListItemText>
                       </MenuItem>
                       <MenuItem onClick={() => {
-                        handleChangeEstado(selectedTrabajador.id, docActive.index, "aprobado");
+                        handleChangeEstado(selectedTrabajador.id, docActive.key, "aprobado");
                         setMenuAnchor(null);
                       }}>
                         <ListItemIcon><CheckCircleIcon sx={{ fontSize: 20 }} /></ListItemIcon>
                         <ListItemText>Aprobado</ListItemText>
                       </MenuItem>
                       <MenuItem onClick={() => {
-                        handleChangeEstado(selectedTrabajador.id, docActive.index, "rechazado");
+                        // Abrir formulario de rechazo en lugar de rechazar directamente
+                        setMotivoRechazo("");
+                        setMostrarFormularioRechazo(true);
                         setMenuAnchor(null);
                       }}>
                         <ListItemIcon><CancelIcon sx={{ fontSize: 20 }} /></ListItemIcon>
-                        <ListItemText>Rechazado</ListItemText>
+                        <ListItemText>Rechazar</ListItemText>
                       </MenuItem>
                     </Menu>
                     {docActive.estado === "aprobado" && docActive.aprobadoEn && (
@@ -499,9 +587,27 @@ const DocumentosModal = ({
                       </Typography>
                     )}
                     {docActive.estado === "rechazado" && docActive.rechazadoEn && (
-                      <Typography variant="caption" color="error.main" display="block" sx={{ mb: 1 }}>
-                        <strong>Rechazado:</strong> {new Date(docActive.rechazadoEn).toLocaleDateString()}
-                      </Typography>
+                      <>
+                        <Typography variant="caption" color="error.main" display="block" sx={{ mb: 1 }}>
+                          <strong>Rechazado:</strong> {new Date(docActive.rechazadoEn).toLocaleDateString()}
+                        </Typography>
+                        {docActive.motivoRechazo && (
+                          <Box sx={{
+                            bgcolor: "rgba(244, 67, 54, 0.1)",
+                            border: "1px solid #f44336",
+                            borderRadius: 1,
+                            p: 1.5,
+                            mb: 1,
+                          }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, display: "block", mb: 0.5, color: "#d32f2f" }}>
+                              Motivo del rechazo:
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: "#666" }}>
+                              {docActive.motivoRechazo}
+                            </Typography>
+                          </Box>
+                        )}
+                      </>
                     )}
                     {docActive.fecha && (
                       <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
@@ -509,6 +615,48 @@ const DocumentosModal = ({
                       </Typography>
                     )}
                   </Card>
+
+                  {/* Campos de texto/información del documento */}
+                  {docActive.textos && Object.keys(docActive.textos).length > 0 && (
+                    <Card sx={{ p: 2, bgcolor: "#f9f9f9" }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
+                        Información Ingresada
+                      </Typography>
+                      <Stack spacing={1.5}>
+                        {Object.keys(docActive.textos)
+                          .sort((a, b) => {
+                            // Ordenar numéricamente si son números, sino alfabéticamente
+                            if (!isNaN(a) && !isNaN(b)) return Number(a) - Number(b);
+                            return a.localeCompare(b);
+                          })
+                          .map((key) => {
+                            const item = docActive.textos[key];
+                            if (!item || typeof item !== 'object') return null;
+                            
+                            const label = item.label || `Campo ${key}`;
+                            const valor = item.valor || "-";
+                            
+                            return (
+                              <Box key={key} sx={{ pb: 1.5, borderBottom: '1px solid #e0e0e0', '&:last-child': { borderBottom: 'none' } }}>
+                                <Typography variant="caption" sx={{ fontWeight: 600, color: "#666", display: "block", mb: 0.5 }}>
+                                  {label}
+                                </Typography>
+                                <Typography variant="body2" sx={{ 
+                                  p: 1, 
+                                  bgcolor: "white", 
+                                  borderRadius: 0.5,
+                                  border: "1px solid #e0e0e0",
+                                  wordBreak: "break-word",
+                                  color: "#333"
+                                }}>
+                                  {valor}
+                                </Typography>
+                              </Box>
+                            );
+                          })}
+                      </Stack>
+                    </Card>
+                  )}
 
                   {/* Acciones - Cambiar estado desde el Chip */}
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 2, textAlign: "center" }}>
@@ -526,7 +674,13 @@ const DocumentosModal = ({
 
         <DialogActions sx={{ px: 3, py: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Tooltip 
-            title={!puedeHabilitarSwitch ? "Todos los documentos deben estar aprobados" : ""}
+            title={
+              !isAdminOrSuperAdmin 
+                ? "Solo admin y superadmin pueden cambiar este estado"
+                : !puedeHabilitarSwitch 
+                ? "Todos los documentos deben estar aprobados" 
+                : ""
+            }
             arrow
           >
             <FormControlLabel
@@ -534,7 +688,7 @@ const DocumentosModal = ({
                 <Switch
                   checked={documentosAprobados && puedeHabilitarSwitch}
                   onChange={handleToggleDocumentosAprobados}
-                  disabled={!puedeHabilitarSwitch}
+                  disabled={!puedeHabilitarSwitch || !isAdminOrSuperAdmin}
                   color="primary"
                 />
               }
@@ -560,6 +714,124 @@ const DocumentosModal = ({
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Modal para ver imagen expandida */}
+      <Modal
+        open={!!fotoExpandida}
+        onClose={() => setFotoExpandida(null)}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1300,
+        }}
+      >
+        <Box
+          sx={{
+            position: "relative",
+            maxWidth: "90vw",
+            maxHeight: "90vh",
+            bgcolor: "white",
+            borderRadius: 2,
+            boxShadow: 24,
+            p: 2,
+          }}
+        >
+          <IconButton
+            onClick={() => setFotoExpandida(null)}
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              bgcolor: "rgba(0, 0, 0, 0.5)",
+              color: "white",
+              "&:hover": { bgcolor: "rgba(0, 0, 0, 0.7)" },
+              zIndex: 1,
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+          {fotoExpandida && (
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+                {fotoExpandida.label}
+              </Typography>
+              <Box
+                component="img"
+                src={fotoExpandida.url}
+                alt={fotoExpandida.label}
+                sx={{
+                  maxWidth: "85%",
+                  maxHeight: "90vh",
+                  objectFit: "contain",
+                }}
+              />
+            </Box>
+          )}
+        </Box>
+      </Modal>
+
+      {/* Modal para rechazar con justificativo */}
+      <Dialog
+        open={mostrarFormularioRechazo}
+        onClose={() => setMostrarFormularioRechazo(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogContent sx={{ pt: 3 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+            Rechazar Documento
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Documento: <strong>{docActive?.nombre}</strong>
+          </Typography>
+          <TextField
+            autoFocus
+            multiline
+            rows={4}
+            fullWidth
+            label="Motivo del rechazo"
+            placeholder="Escriba el motivo por el cual se rechaza este documento..."
+            value={motivoRechazo}
+            onChange={(e) => setMotivoRechazo(e.target.value)}
+            variant="outlined"
+            sx={{ mb: 2 }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button 
+            onClick={() => setMostrarFormularioRechazo(false)}
+            variant="outlined"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={async () => {
+              if (!motivoRechazo.trim()) {
+                setSnackbar({
+                  open: true,
+                  message: "Debe ingresar un motivo de rechazo",
+                  severity: "warning",
+                });
+                return;
+              }
+              
+              await handleChangeEstado(selectedTrabajador.id, docActive.key, "rechazado", motivoRechazo);
+              setMostrarFormularioRechazo(false);
+              setMotivoRechazo("");
+              setSnackbar({
+                open: true,
+                message: "Documento rechazado con justificativo",
+                severity: "success",
+              });
+            }}
+            variant="contained"
+            color="error"
+          >
+            Rechazar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

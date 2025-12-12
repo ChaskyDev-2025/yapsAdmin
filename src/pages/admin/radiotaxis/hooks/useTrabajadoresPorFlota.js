@@ -62,6 +62,8 @@ export function useTrabajadoresPorFlota(flotaId) {
               saldo: "Bs. 0.00",
               estado: "Trabajador",
               activo: trabajador.activo !== false,
+              documentos: trabajador.documentos || {},
+              documentos_aprobados: trabajador.documentos_aprobados || false,
             };
           })
           .filter(Boolean);

@@ -27,28 +27,19 @@ export const useDocumentosPendientes = (userFlotaId) => {
           ...doc.data(),
         }))
         .filter((t) => {
-          const docs = t.documentos || [];
+          const docs = t.documentos || {};
           
-          // Obtener solo los documentos reales
-          let docsReales = [];
+          // Extraer documentos reales (excluyendo documentos_aprobados, updatedAt, etc)
+          const docsReales = Object.keys(docs)
+            .filter(key => {
+              const isExcluded = ['documentos_aprobados', 'updatedAt', 'documentosActualizadoEn'].includes(key);
+              const value = docs[key];
+              const isObject = typeof value === 'object' && value !== null;
+              return !isExcluded && isObject;
+            });
           
-          if (Array.isArray(docs)) {
-            // Es un array: filtrar valores que no sean booleanos
-            docsReales = docs.filter(d => d && typeof d !== 'boolean');
-          } else if (typeof docs === 'object' && docs !== null) {
-            // Es un objeto: extraer valores que no sean booleanos
-            docsReales = Object.keys(docs)
-              .filter(key => docs[key] && typeof docs[key] !== 'boolean')
-              .map(key => docs[key]);
-          }
-          
-          // Si documentos es un array de strings, siempre mostrar (todos son "pendientes")
-          // Si es array de objetos, filtrar por estado
-          const tieneDocs = docsReales.length > 0;
-          const todosPendientes = typeof docsReales[0] === 'string' || 
-            docsReales.some((d) => d && d.estado !== "aprobado" && d.estado !== "rechazado");
-          
-          return tieneDocs && todosPendientes;
+          // Mostrar todos los que tengan documentos (pendientes O completados)
+          return docsReales.length > 0;
         });
       setTrabajadores(data);
       setLoading(false);
@@ -61,11 +52,23 @@ export const useDocumentosPendientes = (userFlotaId) => {
     try {
       const trabajadorRef = doc(db, "trabajadores", trabajadorId);
       const trabajadorSnap = await getDoc(trabajadorRef);
-      const docs = trabajadorSnap.data().documentos || [];
-      docs[docIndex].estado = "aprobado";
-      docs[docIndex].aprobadoEn = new Date().toISOString();
+      const docsObj = trabajadorSnap.data().documentos || {};
+      
+      // Actualizar el documento
+      docsObj[docIndex].estado = "aprobado";
+      docsObj[docIndex].aprobadoEn = new Date().toISOString();
 
-      await updateDoc(trabajadorRef, { documentos: docs });
+      // Verificar si TODOS los documentos están aprobados
+      const todosAprobados = Object.keys(docsObj)
+        .filter(key => isNaN(Number(key))) // excluir documentos_aprobados
+        .every(key => docsObj[key] && docsObj[key].estado === "aprobado");
+
+      docsObj.documentos_aprobados = todosAprobados;
+
+      const updateData = { documentos: docsObj };
+      // Si todos están aprobados, se puede activar automáticamente (opcional)
+      
+      await updateDoc(trabajadorRef, updateData);
       return { success: true, message: "Documento aprobado correctamente" };
     } catch (error) {
       console.error("Error al aprobar documento:", error);
@@ -77,12 +80,19 @@ export const useDocumentosPendientes = (userFlotaId) => {
     try {
       const trabajadorRef = doc(db, "trabajadores", trabajadorId);
       const trabajadorSnap = await getDoc(trabajadorRef);
-      const docs = trabajadorSnap.data().documentos || [];
-      docs[docIndex].estado = "rechazado";
-      docs[docIndex].rechazadoEn = new Date().toISOString();
+      const docsObj = trabajadorSnap.data().documentos || {};
+      
+      docsObj[docIndex].estado = "rechazado";
+      docsObj[docIndex].rechazadoEn = new Date().toISOString();
 
-      await updateDoc(trabajadorRef, { documentos: docs });
-      return { success: true, message: "Documento rechazado" };
+      // Si se rechaza un documento, documentos_aprobados = false
+      docsObj.documentos_aprobados = false;
+
+      await updateDoc(trabajadorRef, { 
+        documentos: docsObj,
+        activo: false // Desactivar automáticamente
+      });
+      return { success: true, message: "Documento rechazado y trabajador desactivado" };
     } catch (error) {
       console.error("Error al rechazar documento:", error);
       return { success: false, message: "Error al rechazar documento" };

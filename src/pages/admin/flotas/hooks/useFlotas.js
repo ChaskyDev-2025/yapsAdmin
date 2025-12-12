@@ -1,6 +1,6 @@
 // src/pages/admin/flotas/hooks/useFlotas.js
 import { useState, useEffect } from "react";
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, deleteField, setDoc } from "firebase/firestore";
 import { db } from "../../../../data/firebase/firebase";
 
 export const useFlotas = () => {
@@ -31,16 +31,62 @@ export const useFlotas = () => {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+    
+    // Crear billetera con saldo y transacciones
+    try {
+      const saldoRef = doc(db, "flotas", nuevaFlotaRef.id, "billetera", "saldo");
+      await setDoc(saldoRef, {
+        monto: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      
+      const transaccionesRef = doc(db, "flotas", nuevaFlotaRef.id, "billetera", "transacciones");
+      await setDoc(transaccionesRef, {
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error("Error al crear billetera:", error);
+    }
+    
     await fetchFlotas();
     return nuevaFlotaRef.id;
   };
 
   const updateFlota = async (flotaId, flotaData) => {
     const flotaRef = doc(db, "flotas", flotaId);
+    
+    // Eliminar solo el campo 'nombre' redundante de documentosFlota
+    const dataToUpdate = { ...flotaData };
+    if (dataToUpdate.documentosFlota) {
+      const { nombre, ...documentosSinNombre } = dataToUpdate.documentosFlota;
+      dataToUpdate.documentosFlota = documentosSinNombre;
+    }
+    
     await updateDoc(flotaRef, {
-      ...flotaData,
+      ...dataToUpdate,
       updatedAt: serverTimestamp(),
     });
+    
+    // Crear billetera con saldo y transacciones si no existe
+    try {
+      const saldoRef = doc(db, "flotas", flotaId, "billetera", "saldo");
+      await setDoc(saldoRef, {
+        monto: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      
+      const transaccionesRef = doc(db, "flotas", flotaId, "billetera", "transacciones");
+      await setDoc(transaccionesRef, {
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch (error) {
+      console.error("Error al crear billetera:", error);
+    }
+    
     await fetchFlotas();
   };
 

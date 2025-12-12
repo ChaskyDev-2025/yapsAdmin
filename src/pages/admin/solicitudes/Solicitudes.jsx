@@ -1,36 +1,18 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  Box,
   Container,
   Paper,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
-  Grid,
 } from "@mui/material";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import CancelIcon from "@mui/icons-material/Cancel";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
+
+// Componentes modulares
+import SolicitudesHeader from "./components/SolicitudesHeader";
+import SolicitudesTable from "./components/SolicitudesTable";
+import AsignarFlotaDialog from "./components/AsignarFlotaDialog";
+import DetallesDialog from "./components/DetallesDialog";
+import OfertaDialog from "./components/OfertaDialog";
 
 const Solicitudes = () => {
   // Estilos para campos deshabilitados
@@ -46,8 +28,6 @@ const Solicitudes = () => {
   const [filterEstado, setFilterEstado] = useState("todas");
   const [sortBySolicitudes, setSortBySolicitudes] = useState("fecha-desc");
   const [flotas, setFlotas] = useState([]);
-  const [usuarios, setUsuarios] = useState([]);
-  const [pasajeros, setPasajeros] = useState([]);
   const [selectedSolicitud, setSelectedSolicitud] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [asignadaFlota, setAsignadaFlota] = useState("");
@@ -105,42 +85,6 @@ const Solicitudes = () => {
     cargarFlotas();
   }, []);
 
-  // Cargar usuarios
-  useEffect(() => {
-    const cargarUsuarios = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, "users"));
-        const data = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setUsuarios(data);
-      } catch (error) {
-        console.error("Error cargando usuarios:", error);
-      }
-    };
-
-    cargarUsuarios();
-  }, []);
-
-  // Cargar pasajeros
-  useEffect(() => {
-    const cargarPasajeros = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, "pasajeros"));
-        const data = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setPasajeros(data);
-      } catch (error) {
-        console.error("Error cargando pasajeros:", error);
-      }
-    };
-
-    cargarPasajeros();
-  }, []);
-
   // Normalizar strings para comparación consistente
   const normalizarTexto = (texto) => {
     if (!texto) return "";
@@ -181,29 +125,7 @@ const Solicitudes = () => {
     
     return flotasDisponibles;
   };
-  const obtenerNombreUsuario = (uid) => {
-    if (!uid) return "No disponible";
-    
-    // Primero busca en pasajeros
-    const pasajero = pasajeros.find(p => p.id === uid);
-    if (pasajero) {
-      return pasajero.perfil?.name || pasajero.nombre || pasajero.email || pasajero.id || "Usuario desconocido";
-    }
-    
-    // Si no encuentra en pasajeros, busca en usuarios
-    const usuario = usuarios.find(u => u.id === uid);
-    if (usuario) {
-      return usuario.nombre || usuario.email || usuario.id || "Usuario desconocido";
-    }
-    
-    // Si no encuentra en ninguno, intenta buscar por email
-    const usuarioEmail = usuarios.find(u => u.email === uid);
-    if (usuarioEmail) {
-      return usuarioEmail.nombre || usuarioEmail.email || "Usuario desconocido";
-    }
-    
-    return uid || "No disponible";
-  };
+
 
   // Filtrar y ordenar solicitudes
   const solicitudesFiltradas = useMemo(() => {
@@ -393,11 +315,10 @@ const Solicitudes = () => {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: "bold", mb: 3 }}>
-          Panel de Solicitudes
-        </Typography>
+    <Container maxWidth="lg" sx={{ py: 3 }}>
+      <Paper elevation={6} sx={{ p: 3, borderRadius: 3 }}>
+        {/* Encabezado */}
+        <SolicitudesHeader />
 
         {/* Toolbar */}
         <TableToolbar
@@ -421,9 +342,9 @@ const Solicitudes = () => {
                 { label: "Solicitado", value: "solicitado" },
                 { label: "Asignada", value: "asignada" },
                 { label: "Rechazada", value: "rechazada" },
-                { label: "Completada", value: "completada" }
-              ]
-            }
+                { label: "Completada", value: "completada" },
+              ],
+            },
           ]}
           filterValue={{ estado: filterEstado }}
           onFilterChange={(filterName, value) => {
@@ -437,524 +358,41 @@ const Solicitudes = () => {
         />
 
         {/* Tabla de solicitudes */}
-        <TableContainer sx={{ mt: 2 }}>
-          <Table>
-            <TableHead sx={{ backgroundColor: "#f5f5f5" }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: "bold" }}>Fecha</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Categoría</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Servicio</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Estado</TableCell>
-                <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>Acciones</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {solicitudesFiltradas.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
-                    <Typography color="textSecondary">No hay solicitudes</Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                solicitudesFiltradas.map((solicitud) => (
-                  <TableRow key={solicitud.id} sx={{ "&:hover": { backgroundColor: "#f9f9f9" } }}>
-                    <TableCell>{formatearFecha(solicitud.solicitud?.fechaCreacion)}</TableCell>
-                    <TableCell>{solicitud.solicitud?.categoria || "-"}</TableCell>
-                    <TableCell>{solicitud.solicitud?.servicio || "-"}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={solicitud.estado}
-                        color={getEstadoColor(solicitud.estado)}
-                        variant="outlined"
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleVerDetalles(solicitud)}
-                        sx={{ color: "#00bcd4" }}
-                        title="Ver detalles"
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                      {solicitud.solicitud?.oferta && (
-                        <IconButton
-                          size="small"
-                          onClick={() => handleVerOferta(solicitud)}
-                          sx={{ color: "#ff9800" }}
-                          title="Ver oferta"
-                        >
-                          <AttachMoneyIcon />
-                        </IconButton>
-                      )}
-                      {solicitud.estado === "solicitado" && (
-                        <>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleOpenDialog(solicitud)}
-                            sx={{ color: "#4caf50" }}
-                            title="Asignar flota"
-                          >
-                            <CheckCircleIcon />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleRechazarSolicitud(solicitud.id)}
-                            sx={{ color: "#d7171a" }}
-                            title="Rechazar"
-                          >
-                            <CancelIcon />
-                          </IconButton>
-                        </>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <SolicitudesTable
+          solicitudesFiltradas={solicitudesFiltradas}
+          onVerDetalles={handleVerDetalles}
+          onVerOferta={handleVerOferta}
+          onAsignarFlota={handleOpenDialog}
+          onRechazar={handleRechazarSolicitud}
+          formatearFecha={formatearFecha}
+          getEstadoColor={getEstadoColor}
+        />
       </Paper>
 
-      {/* Dialog para asignar flota */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Asignar Flota a Solicitud</DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          {selectedSolicitud && (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <TextField
-                label="Categoría"
-                value={selectedSolicitud.solicitud?.categoria || ""}
-                disabled
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Servicio Solicitado"
-                value={selectedSolicitud.solicitud?.servicio || ""}
-                disabled
-                fullWidth
-                size="small"
-              />
-              <FormControl fullWidth size="small">
-                <InputLabel>Seleccionar Flota</InputLabel>
-                <Select
-                  value={asignadaFlota}
-                  label="Seleccionar Flota"
-                  onChange={(e) => setAsignadaFlota(e.target.value)}
-                >
-                  {obtenerFlotasDisponibles(selectedSolicitud.solicitud?.categoria).map(flota => (
-                    <MenuItem key={flota.id} value={flota.id}>
-                      {flota.nombre || flota.id}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancelar</Button>
-          <Button
-            onClick={handleAsignarFlota}
-            variant="contained"
-            sx={{ backgroundColor: "#d7171a" }}
-          >
-            Asignar
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Diálogos */}
+      <AsignarFlotaDialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        selectedSolicitud={selectedSolicitud}
+        asignadaFlota={asignadaFlota}
+        onFlotaChange={setAsignadaFlota}
+        onAsignar={handleAsignarFlota}
+        flotasDisponibles={obtenerFlotasDisponibles(selectedSolicitud?.solicitud?.categoria || "")}
+      />
 
-      {/* Dialog para ver detalles del formulario */}
-      <Dialog open={detallesDialogOpen} onClose={handleCloseDetallesDialog} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ backgroundColor: "#d7171a", color: "white", fontWeight: "bold" }}>
-          Detalles de la Solicitud
-        </DialogTitle>
-        <DialogContent sx={{ pt: 3, backgroundColor: "#fafafa", maxHeight: "80vh", overflow: "auto" }}>
-          {solicitudSeleccionada && (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {/* Información General */}
-              <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                  📋 Información General
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <TextField
-                      label="Categoría"
-                      value={solicitudSeleccionada.solicitud?.categoria || ""}
-                      disabled
-                      fullWidth
-                      size="small"
-                      InputProps={{ 
-                        style: { backgroundColor: "#f5f5f5", color: "#000" },
-                        disabledUnderline: true
-                      }}
-                      InputLabelProps={{ style: { color: "#000" } }}
-                      sx={{
-                        "& .MuiInputBase-input.Mui-disabled": {
-                          color: "#000",
-                          WebkitTextFillColor: "#000"
-                        }
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={6}>
-                    <TextField
-                      label="Servicio"
-                      value={solicitudSeleccionada.solicitud?.servicio || ""}
-                      disabled
-                      fullWidth
-                      size="small"
-                      InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                      InputLabelProps={{ style: { color: "#000" } }}
-                      sx={disabledTextFieldStyles}
-                    />
-                  </Grid>
-                  <Grid item xs={6}>
-                    <TextField
-                      label="Estado"
-                      value={solicitudSeleccionada.estado || ""}
-                      disabled
-                      fullWidth
-                      size="small"
-                      InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                      InputLabelProps={{ style: { color: "#000" } }}
-                      sx={disabledTextFieldStyles}
-                    />
-                  </Grid>
-                  <Grid item xs={6}>
-                    <TextField
-                      label="Fecha de Creación"
-                      value={formatearFecha(solicitudSeleccionada.solicitud?.fechaCreacion )}
-                      disabled
-                      fullWidth
-                      size="small"
-                      InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                      InputLabelProps={{ style: { color: "#000" } }}
-                      sx={disabledTextFieldStyles}
-                    />
-                  </Grid>
-                </Grid>
-              </Box>
+      <DetallesDialog
+        open={detallesDialogOpen}
+        onClose={handleCloseDetallesDialog}
+        solicitudSeleccionada={solicitudSeleccionada}
+        formatearFecha={formatearFecha}
+        disabledTextFieldStyles={disabledTextFieldStyles}
+      />
 
-              {/* Ubicación - Origen y Destino */}
-              {solicitudSeleccionada.solicitud?.origen && (
-                <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                  <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                    📍 Origen
-                  </Typography>
-                  <TextField
-                    label="Dirección"
-                    value={solicitudSeleccionada.solicitud.origen.direccion || ""}
-                    disabled
-                    fullWidth
-                    size="small"
-                    multiline
-                    minRows={3}
-                    InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000", overflow: "auto", whiteSpace: "pre-wrap", wordWrap: "break-word", maxHeight: "150px" } }}
-                    InputLabelProps={{ style: { color: "#000" } }}
-                    sx={{ ...disabledTextFieldStyles, "& .MuiOutlinedInput-root": { overflow: "auto", alignItems: "flex-start", width: "100%" }, "& .MuiInputBase-input": { overflow: "auto !important", width: "100%" } }}
-                  />
-                </Box>
-              )}
-
-              {solicitudSeleccionada.solicitud?.destino && (
-                <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                  <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                    📍 Destino
-                  </Typography>
-                  <TextField
-                    label="Dirección"
-                    value={solicitudSeleccionada.solicitud.destino.direccion || ""}
-                    disabled
-                    fullWidth
-                    size="small"
-                    multiline
-                    minRows={3}
-                    InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000", overflow: "auto", whiteSpace: "pre-wrap", wordWrap: "break-word", maxHeight: "150px" } }}
-                    InputLabelProps={{ style: { color: "#000" } }}
-                    sx={{ ...disabledTextFieldStyles, "& .MuiOutlinedInput-root": { overflow: "auto", alignItems: "flex-start", width: "100%" }, "& .MuiInputBase-input": { overflow: "auto !important", width: "100%" } }}
-                  />
-                </Box>
-              )}
-
-              {solicitudSeleccionada.solicitud?.ubicacion && (
-                <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                  <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                    📍 Ubicación
-                  </Typography>
-                  <TextField
-                    label="Dirección"
-                    value={solicitudSeleccionada.solicitud.ubicacion.direccion || ""}
-                    disabled
-                    fullWidth
-                    size="small"
-                    multiline
-                    minRows={3}
-                    InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000", overflow: "auto", whiteSpace: "pre-wrap", wordWrap: "break-word", maxHeight: "150px" } }}
-                    InputLabelProps={{ style: { color: "#000" } }}
-                    sx={{ ...disabledTextFieldStyles, "& .MuiOutlinedInput-root": { overflow: "auto", alignItems: "flex-start", width: "100%" }, "& .MuiInputBase-input": { overflow: "auto !important", width: "100%" } }}
-                  />
-                </Box>
-              )}
-
-              {/* Detalles específicos por categoría */}
-              {solicitudSeleccionada.solicitud?.detalles && (
-                <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                  <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                    📝 Detalles Adicionales
-                  </Typography>
-                  <Grid container spacing={2}>
-                    {/* Mudanza */}
-                    {solicitudSeleccionada.solicitud.categoria === "mudanza" && (
-                      <>
-                        <Grid item xs={6}>
-                          <TextField
-                            label="Ayudantes"
-                            value={solicitudSeleccionada.solicitud.detalles.ayudantes || ""}
-                            disabled
-                            fullWidth
-                            size="small"
-                            InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                            InputLabelProps={{ style: { color: "#000" } }}
-                            sx={disabledTextFieldStyles}
-                          />
-                        </Grid>
-                        <Grid item xs={6}>
-                          <TextField
-                            label="Piso Origen"
-                            value={solicitudSeleccionada.solicitud.detalles.pisoOrigen || ""}
-                            disabled
-                            fullWidth
-                            size="small"
-                            InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                            InputLabelProps={{ style: { color: "#000" } }}
-                            sx={disabledTextFieldStyles}
-                          />
-                        </Grid>
-                        <Grid item xs={6}>
-                          <TextField
-                            label="Piso Destino"
-                            value={solicitudSeleccionada.solicitud.detalles.pisoDestino || ""}
-                            disabled
-                            fullWidth
-                            size="small"
-                            InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                            InputLabelProps={{ style: { color: "#000" } }}
-                            sx={disabledTextFieldStyles}
-                          />
-                        </Grid>
-                        <Grid item xs={6}>
-                          <TextField
-                            label="¿Ascensor en origen?"
-                            value={solicitudSeleccionada.solicitud.detalles.tieneAscensorOrigen ? "Sí" : "No"}
-                            disabled
-                            fullWidth
-                            size="small"
-                            InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                            InputLabelProps={{ style: { color: "#000" } }}
-                            sx={disabledTextFieldStyles}
-                          />
-                        </Grid>
-                        <Grid item xs={6}>
-                          <TextField
-                            label="¿Ascensor en destino?"
-                            value={solicitudSeleccionada.solicitud.detalles.tieneAscensorDestino ? "Sí" : "No"}
-                            disabled
-                            fullWidth
-                            size="small"
-                            InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                            InputLabelProps={{ style: { color: "#000" } }}
-                            sx={disabledTextFieldStyles}
-                          />
-                        </Grid>
-                        <Grid item xs={6}>
-                          <TextField
-                            label="Hora Programada"
-                            value={solicitudSeleccionada.solicitud.detalles.horaProgramada || ""}
-                            disabled
-                            fullWidth
-                            size="small"
-                            InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                            InputLabelProps={{ style: { color: "#000" } }}
-                            sx={disabledTextFieldStyles}
-                          />
-                        </Grid>
-                        <Grid item xs={12}>
-                          <TextField
-                            label="Fecha Programada"
-                            value={formatearFecha(solicitudSeleccionada.solicitud.detalles.fechaProgramada)}
-                            disabled
-                            fullWidth
-                            size="small"
-                            InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                            InputLabelProps={{ style: { color: "#000" } }}
-                            sx={disabledTextFieldStyles}
-                          />
-                        </Grid>
-                        <Grid item xs={12}>
-                          <TextField
-                            label="Descripción"
-                            value={solicitudSeleccionada.solicitud.detalles.descripcion || ""}
-                            disabled
-                            fullWidth
-                            size="small"
-                            multiline
-                            rows={2}
-                            InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                            InputLabelProps={{ style: { color: "#000" } }}
-                            sx={disabledTextFieldStyles}
-                          />
-                        </Grid>
-                      </>
-                    )}
-
-                    {/* Construcción/Volqueta */}
-                    {solicitudSeleccionada.solicitud.categoria === "construccion" && (
-                      <>
-                        <Grid item xs={6}>
-                          <TextField
-                            label="Duración (horas)"
-                            value={solicitudSeleccionada.solicitud.detalles.duracionHoras || ""}
-                            disabled
-                            fullWidth
-                            size="small"
-                            InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                            InputLabelProps={{ style: { color: "#000" } }}
-                            sx={disabledTextFieldStyles}
-                          />
-                        </Grid>
-                        <Grid item xs={6}>
-                          <TextField
-                            label="Hora de Inicio"
-                            value={solicitudSeleccionada.solicitud.detalles.horaInicio || ""}
-                            disabled
-                            fullWidth
-                            size="small"
-                            InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                            InputLabelProps={{ style: { color: "#000" } }}
-                            sx={disabledTextFieldStyles}
-                          />
-                        </Grid>
-                        <Grid item xs={12}>
-                          <TextField
-                            label="Fecha de Inicio"
-                            value={formatearFecha(solicitudSeleccionada.solicitud.detalles.fechaInicio)}
-                            disabled
-                            fullWidth
-                            size="small"
-                            InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                            InputLabelProps={{ style: { color: "#000" } }}
-                            sx={disabledTextFieldStyles}
-                          />
-                        </Grid>
-                        <Grid item xs={12}>
-                          <TextField
-                            label="Descripción"
-                            value={solicitudSeleccionada.solicitud.detalles.descripcion || ""}
-                            disabled
-                            fullWidth
-                            size="small"
-                            multiline
-                            rows={2}
-                            InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                            InputLabelProps={{ style: { color: "#000" } }}
-                            sx={disabledTextFieldStyles}
-                          />
-                        </Grid>
-                      </>
-                    )}
-                  </Grid>
-                </Box>
-              )}
-
-              {/* Nombre del Usuario */}
-              <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                <TextField
-                  label="Usuario"
-                  value={obtenerNombreUsuario(solicitudSeleccionada.uidUser || solicitudSeleccionada.solicitud?.uidUser)}
-                  disabled
-                  fullWidth
-                  size="small"
-                  InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000" } }}
-                  InputLabelProps={{ style: { color: "#000" } }}
-                  sx={disabledTextFieldStyles}
-                />
-              </Box>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ p: 2, backgroundColor: "#fafafa", borderTop: "1px solid #e0e0e0" }}>
-          <Button onClick={handleCloseDetallesDialog} variant="contained" sx={{ backgroundColor: "#d7171a" }}>
-            Cerrar
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Dialog para ver oferta */}
-      <Dialog open={ofertaDialogOpen} onClose={handleCloseOfertaDialog} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ backgroundColor: "#ff9800", color: "white", fontWeight: "bold" }}>
-          💰 Oferta
-        </DialogTitle>
-        <DialogContent sx={{ pt: 3, backgroundColor: "#fafafa" }}>
-          {solicitudOferta && solicitudOferta.solicitud?.oferta ? (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#ff9800" }}>
-                  Detalles de la Oferta
-                </Typography>
-                
-                {/* Costo Base */}
-                <Box sx={{ mb: 2, p: 1, backgroundColor: "#f9f9f9", borderRadius: 1 }}>
-                  <Typography variant="body2" sx={{ color: "#666" }}>
-                    Costo del Servicio:
-                  </Typography>
-                  <Typography variant="h6" sx={{ fontWeight: "bold", color: "#d7171a" }}>
-                    Bs. {solicitudOferta.solicitud.oferta.costo?.toFixed(2) || "0.00"}
-                  </Typography>
-                </Box>
-
-                {/* Campos Adicionales */}
-                {solicitudOferta.solicitud.oferta.campos && Object.keys(solicitudOferta.solicitud.oferta.campos).length > 0 && (
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1, color: "#333" }}>
-                      Campos Adicionales:
-                    </Typography>
-                    {Object.entries(solicitudOferta.solicitud.oferta.campos).map(([key, value]) => (
-                      <Box key={key} sx={{ display: "flex", justifyContent: "space-between", p: 0.5, backgroundColor: "#f5f5f5", mb: 0.5, borderRadius: 0.5 }}>
-                        <Typography variant="body2">{key}</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-                          Bs. {parseFloat(value)?.toFixed(2) || "0.00"}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                )}
-
-                {/* Fecha de Oferta */}
-                {solicitudOferta.solicitud.oferta.fechaOferta && (
-                  <Box sx={{ p: 1, backgroundColor: "#f9f9f9", borderRadius: 1 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      <strong>Fecha Oferta:</strong> {new Date(solicitudOferta.solicitud.oferta.fechaOferta).toLocaleDateString()}
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </Box>
-          ) : (
-            <Typography color="text.secondary">
-              No hay oferta disponible para esta solicitud
-            </Typography>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ p: 2, backgroundColor: "#fafafa", borderTop: "1px solid #e0e0e0" }}>
-          <Button onClick={handleCloseOfertaDialog} variant="contained" sx={{ backgroundColor: "#ff9800" }}>
-            Cerrar
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <OfertaDialog
+        open={ofertaDialogOpen}
+        onClose={handleCloseOfertaDialog}
+        solicitudOferta={solicitudOferta}
+      />
     </Container>
   );
 };
