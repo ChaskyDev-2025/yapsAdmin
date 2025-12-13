@@ -21,7 +21,6 @@ export const agregarTicketPorViaje = async (userId, userType, viajeTipo = 'Gener
 
     const userData = userSnap.data();
     const ticketsData = userData.tickets || {};
-    const ticketsDetalle = userData.ticketsDetalle || { porViajes: 0, porReferidos: 0, updatedAt: null };
 
     // Inicializar tickets si no existen
     if (!ticketsData[viajeTipo]) {
@@ -32,18 +31,9 @@ export const agregarTicketPorViaje = async (userId, userType, viajeTipo = 'Gener
     ticketsData[viajeTipo] += 1;
     ticketsData.updatedAt = new Date().toISOString();
 
-    // Registrar la fuente del ticket
-    if (fuente === 'viaje') {
-      ticketsDetalle.porViajes = (ticketsDetalle.porViajes || 0) + 1;
-    } else if (fuente === 'referido') {
-      ticketsDetalle.porReferidos = (ticketsDetalle.porReferidos || 0) + 1;
-    }
-    ticketsDetalle.updatedAt = new Date().toISOString();
-
     // Actualizar en Firestore
     await updateDoc(userRef, {
-      tickets: ticketsData,
-      ticketsDetalle: ticketsDetalle
+      tickets: ticketsData
     });
 
     return true;
@@ -147,13 +137,8 @@ export const sincronizarTicketsOrdenes = async () => {
         ticketsConductor.General += 1;
         ticketsConductor.updatedAt = new Date().toISOString();
 
-        const detallesConductor = conductorData.ticketsDetalle || { porViajes: 0, porReferidos: 0, updatedAt: null };
-        detallesConductor.porViajes = (detallesConductor.porViajes || 0) + 1;
-        detallesConductor.updatedAt = new Date().toISOString();
-
         await updateDoc(conductorRef, { 
-          tickets: ticketsConductor,
-          ticketsDetalle: detallesConductor
+          tickets: ticketsConductor
         });
         console.log(`Ticket agregado a conductor ${orden.uidTaxista} (por viaje)`);
 
@@ -164,13 +149,8 @@ export const sincronizarTicketsOrdenes = async () => {
         ticketsPasajero.General += 1;
         ticketsPasajero.updatedAt = new Date().toISOString();
 
-        const detallesPasajero = pasajeroData.ticketsDetalle || { porViajes: 0, porReferidos: 0, updatedAt: null };
-        detallesPasajero.porViajes = (detallesPasajero.porViajes || 0) + 1;
-        detallesPasajero.updatedAt = new Date().toISOString();
-
         await updateDoc(pasajeroRef, { 
-          tickets: ticketsPasajero,
-          ticketsDetalle: detallesPasajero
+          tickets: ticketsPasajero
         });
         console.log(`Ticket agregado a pasajero ${orden.uidUser} (por viaje)`);
 
@@ -305,65 +285,5 @@ export const resetearTicketsOrdenes = async () => {
   } catch (error) {
     console.error('Error en resetearTicketsOrdenes:', error);
     return { reiniciadas: 0, errores: 1, total: 0 };
-  }
-};
-export const inicializarTicketsDetalle = async () => {
-  try {
-    const resultado = {
-      trabajadoresActualizados: 0,
-      pasajerosActualizados: 0,
-      errores: 0
-    };
-
-    // Actualizar trabajadores
-    const trabajadoresRef = collection(db, 'trabajadores');
-    const trabajadoresSnap = await getDocs(trabajadoresRef);
-    
-    for (const doc of trabajadoresSnap.docs) {
-      try {
-        const trabajador = doc.data();
-        if (!trabajador.ticketsDetalle) {
-          await updateDoc(doc.ref, {
-            ticketsDetalle: {
-              porViajes: 0,
-              porReferidos: 0,
-              updatedAt: new Date().toISOString()
-            }
-          });
-          resultado.trabajadoresActualizados++;
-        }
-      } catch (error) {
-        console.error(`Error actualizando trabajador ${doc.id}:`, error);
-        resultado.errores++;
-      }
-    }
-
-    // Actualizar pasajeros
-    const pasajerosRef = collection(db, 'pasajeros');
-    const pasajerosSnap = await getDocs(pasajerosRef);
-    
-    for (const doc of pasajerosSnap.docs) {
-      try {
-        const pasajero = doc.data();
-        if (!pasajero.ticketsDetalle) {
-          await updateDoc(doc.ref, {
-            ticketsDetalle: {
-              porViajes: 0,
-              porReferidos: 0,
-              updatedAt: new Date().toISOString()
-            }
-          });
-          resultado.pasajerosActualizados++;
-        }
-      } catch (error) {
-        console.error(`Error actualizando pasajero ${doc.id}:`, error);
-        resultado.errores++;
-      }
-    }
-
-    return resultado;
-  } catch (error) {
-    console.error('Error en inicializarTicketsDetalle:', error);
-    return { trabajadoresActualizados: 0, pasajerosActualizados: 0, errores: 1 };
   }
 };

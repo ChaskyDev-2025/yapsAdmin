@@ -19,6 +19,7 @@ import ArticleIcon from "@mui/icons-material/Article";
 import DescriptionIcon from "@mui/icons-material/Description";
 import MailIcon from "@mui/icons-material/Mail";
 import AssignmentIcon from "@mui/icons-material/Assignment";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import Navbar          from "../components/Navbar";
 import Footer          from "../components/Footer";
 import Sidebar         from "../components/Sidebar";
@@ -38,6 +39,7 @@ const AdminLayout = () => {
         { path: "/admin/gestion-usuarios", label: "Gestión Usuarios", icon: <SupervisorAccountIcon /> },
         { path: "/admin/solicitudes", label: "Solicitudes", icon: <MailIcon /> },
         { path: "/admin/flotas", label: "Flotas", icon: <DirectionsCarIcon /> },
+        { path: "/admin/billetera", label: "Billetera", icon: <AccountBalanceWalletIcon /> },
         { path: "/admin/servicios", label: "Servicios", icon: <RoomServiceIcon /> },
         { path: "/admin/documentos", label: "Documentos", icon: <ArticleIcon /> },
         { path: "/admin/banners", label: "Banners", icon: <PhotoLibraryIcon /> },
@@ -50,6 +52,7 @@ const AdminLayout = () => {
     return [
       { path: "/admin/dashboard", label: "Inicio", icon: <DashboardIcon /> },
       { path: "/admin/radiotaxis", label: "Radiotaxis", icon: <LocalTaxiIcon /> },
+      { path: "/admin/billetera-flota", label: "Billetera", icon: <AccountBalanceWalletIcon /> },
       { path: "/admin/solicitudes-asignadas", label: "Solicitudes", icon: <AssignmentIcon /> },
       { path: "/admin/documentos-pendientes", label: "Docs Pendientes", icon: <DescriptionIcon /> },
       { path: "/admin/ajustes", label: "Ajustes", icon: <SettingsIcon /> },

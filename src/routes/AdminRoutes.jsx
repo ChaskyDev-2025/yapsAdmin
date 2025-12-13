@@ -3,6 +3,8 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import AdminLayout from "../layouts/AdminLayout";
+import RoleProtectedRoute from "../auth/RoleProtectedRoute";
+import FlotaProtectedRoute from "../auth/FlotaProtectedRoute";
 import Dashboard from "../pages/admin/dashboard/Dashboard";
 import GestionUsuarios from "../pages/admin/usuarios/GestionUsuarios";
 import Radiotaxis from "../pages/admin/radiotaxis/Radiotaxis";
@@ -20,6 +22,9 @@ import Referidos from "../pages/admin/referidos/Referidos";
 import DocumentosPendientes from "../pages/admin/documentosPendientes/DocumentosPendientes";
 import Solicitudes from "../pages/admin/solicitudes/Solicitudes";
 import SolicitudesAsignadas from "../pages/admin/solicitudes-asignadas/SolicitudesAsignadas";
+import Billetera from "../pages/admin/billetera/Billetera";
+import BilleteraFlota from "../pages/admin/billetera/BilleteraFlota";
+import GestionarSolicitudes from "../pages/admin/billetera/GestionarSolicitudes";
 
 const AdminRoutes = () => (
   <Routes>
@@ -43,6 +48,9 @@ const AdminRoutes = () => (
       <Route path="referidos" element={<Referidos />} />
       <Route path="solicitudes" element={<Solicitudes />} />
       <Route path="solicitudes-asignadas" element={<SolicitudesAsignadas />} />
+      <Route path="billetera" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Billetera /></RoleProtectedRoute>} />
+      <Route path="billetera-flota" element={<FlotaProtectedRoute><BilleteraFlota /></FlotaProtectedRoute>} />
+      <Route path="solicitudes-recarga" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><GestionarSolicitudes /></RoleProtectedRoute>} />
     </Route>
   </Routes>
 );

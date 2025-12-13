@@ -25,7 +25,6 @@ import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import HistoryIcon from "@mui/icons-material/History";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
-import { sincronizarTicketsOrdenes, inicializarTicketsDetalle } from "../../../services/referidosService";
 import { obtenerTodosLosCodeigos } from "../../../services/codigosPromoService";
 
 // Componentes modulares
@@ -56,110 +55,102 @@ const Referidos = () => {
   const [selectedPromo, setSelectedPromo] = useState(null);
 
   useEffect(() => {
-    // Inicializar ticketsDetalle y sincronizar automáticamente
+    // Cargar datos en paralelo para optimizar (SOLO LECTURA)
     const inicializar = async () => {
-      await inicializarTicketsDetalle();
-      await sincronizarTicketsOrdenes();
-      fetchReferidos();
-      fetchCodigosPromo();
+      setLoading(true);
+      try {
+        // Ejecutar todas las cargas en paralelo
+        await Promise.all([
+          fetchReferidosData(),
+          fetchCodigosPromo(),
+        ]);
+      } catch (error) {
+        console.error("Error en inicialización:", error);
+      } finally {
+        setLoading(false);
+      }
     };
     
     inicializar();
   }, []);
 
-  const fetchReferidos = async () => {
+  const fetchReferidosData = async () => {
     try {
-      setLoading(true);
-      
-      // Función helper para calcular tickets desde un objeto
-      const parseTickets = (ticketsData) => {
-        if (typeof ticketsData === 'number') {
-          return ticketsData;
-        }
-        if (typeof ticketsData === 'object' && ticketsData !== null) {
-          let total = 0;
-          Object.keys(ticketsData).forEach(key => {
-            if (key !== 'updatedAt' && typeof ticketsData[key] === 'number') {
-              total += ticketsData[key];
-            }
-          });
-          return total;
-        }
-        return 0;
-      };
-      
-      // Cargar pasajeros
-      const pasajerosRef = collection(db, "pasajeros");
-      const pasajerosSnapshot = await getDocs(pasajerosRef);
+      // Cargar pasajeros y trabajadores EN PARALELO (SOLO LECTURA)
+      const [pasajerosSnapshot, trabajadoresSnapshot] = await Promise.all([
+        getDocs(collection(db, "pasajeros")),
+        getDocs(collection(db, "trabajadores")),
+      ]);
+
       const pasajerosMap = {};
       pasajerosSnapshot.docs.forEach((doc) => {
         pasajerosMap[doc.id] = doc.data();
       });
 
-      // Cargar trabajadores
-      const trabajadoresRef = collection(db, "trabajadores");
-      const trabajadoresSnapshot = await getDocs(trabajadoresRef);
-
       let totalReferidos = 0;
       let totalTickets = 0;
 
-      // Cargar TODOS los trabajadores (con y sin código)
-      const data = trabajadoresSnapshot.docs
-        .map((doc) => {
-          const trabajador = doc.data();
-          
-          const referidosCount = trabajador.referidosAplicados?.length || 0;
-          const tickets = parseTickets(trabajador.tickets);
-          const ticketsDetalle = trabajador.ticketsDetalle || { porViajes: 0, porReferidos: 0 };
+      // Procesar trabajadores
+      const data = trabajadoresSnapshot.docs.map((doc) => {
+        const trabajador = doc.data();
+        
+        const referidosCount = trabajador.referidosAplicados?.length || 0;
+        const ticketsCount = typeof trabajador.tickets === 'object' && !Array.isArray(trabajador.tickets)
+          ? Object.values(trabajador.tickets)
+              .filter(v => typeof v === 'number')
+              .reduce((sum, count) => sum + count, 0)
+          : 0;
 
-          totalReferidos += referidosCount;
-          totalTickets += tickets;
+        totalReferidos += referidosCount;
+        totalTickets += ticketsCount;
 
-          return {
-            id: doc.id,
-            nombre: trabajador.perfil?.name || trabajador.nombre || "Sin nombre",
-            email: trabajador.perfil?.email || trabajador.email || "Sin email",
-            codigo: trabajador.codigoReferido || "-",
-            referidos: referidosCount,
-            tickets: tickets,
-            ticketsDetalle: ticketsDetalle,
-            photoUrl: trabajador.perfil?.photoUrl || null,
-            referidosAplicados: trabajador.referidosAplicados || [],
-            pasajerosMap: pasajerosMap,
-            modo: "trabajador",
-            tieneCodigoReferido: !!trabajador.codigoReferido,
-          };
-        });
+        return {
+          id: doc.id,
+          nombre: trabajador.perfil?.name || trabajador.nombre || "Sin nombre",
+          email: trabajador.perfil?.email || trabajador.email || "Sin email",
+          codigo: trabajador.codigoReferido || "-",
+          referidos: referidosCount,
+          tickets: ticketsCount,
+          ticketsMap: trabajador.tickets || {},
+          photoUrl: trabajador.perfil?.photoUrl || null,
+          referidosAplicados: trabajador.referidosAplicados || [],
+          pasajerosMap: pasajerosMap,
+          modo: "trabajador",
+          tieneCodigoReferido: !!trabajador.codigoReferido,
+        };
+      });
 
-      // Cargar TODOS los pasajeros (con y sin código)
-      const dataPasajeros = pasajerosSnapshot.docs
-        .map((doc) => {
-          const pasajero = doc.data();
-          
-          const referidosCount = pasajero.referidosAplicados?.length || 0;
-          const tickets = parseTickets(pasajero.tickets);
-          const ticketsDetalle = pasajero.ticketsDetalle || { porViajes: 0, porReferidos: 0 };
+      // Procesar pasajeros
+      const dataPasajeros = pasajerosSnapshot.docs.map((doc) => {
+        const pasajero = doc.data();
+        
+        const referidosCount = pasajero.referidosAplicados?.length || 0;
+        const ticketsCount = typeof pasajero.tickets === 'object' && !Array.isArray(pasajero.tickets)
+          ? Object.values(pasajero.tickets)
+              .filter(v => typeof v === 'number')
+              .reduce((sum, count) => sum + count, 0)
+          : 0;
 
-          totalReferidos += referidosCount;
-          totalTickets += tickets;
+        totalReferidos += referidosCount;
+        totalTickets += ticketsCount;
 
-          return {
-            id: doc.id,
-            nombre: pasajero.perfil?.name || "Sin nombre",
-            email: pasajero.perfil?.email || "Sin email",
-            codigo: pasajero.codigoReferido || "-",
-            referidos: referidosCount,
-            tickets: tickets,
-            ticketsDetalle: ticketsDetalle,
-            photoUrl: pasajero.perfil?.photoUrl || null,
-            referidosAplicados: pasajero.referidosAplicados || [],
-            pasajerosMap: pasajerosMap,
-            modo: pasajero.modo || "pasajero",
-            tieneCodigoReferido: !!pasajero.codigoReferido,
-          };
-        });
+        return {
+          id: doc.id,
+          nombre: pasajero.perfil?.name || "Sin nombre",
+          email: pasajero.perfil?.email || "Sin email",
+          codigo: pasajero.codigoReferido || "-",
+          referidos: referidosCount,
+          tickets: ticketsCount,
+          ticketsMap: pasajero.tickets || {},
+          photoUrl: pasajero.perfil?.photoUrl || null,
+          referidosAplicados: pasajero.referidosAplicados || [],
+          pasajerosMap: pasajerosMap,
+          modo: pasajero.modo || "pasajero",
+          tieneCodigoReferido: !!pasajero.codigoReferido,
+        };
+      });
 
-      // Combinar y ordenar (primero los que tienen referidos, luego alfabéticamente)
+      // Combinar y ordenar
       const allData = [...data, ...dataPasajeros];
       allData.sort((a, b) => {
         if (b.referidos !== a.referidos) {
@@ -169,7 +160,6 @@ const Referidos = () => {
       });
 
       setReferidosData(allData);
-
       setStats({
         total: allData.length,
         totalReferidos,
@@ -177,8 +167,6 @@ const Referidos = () => {
       });
     } catch (error) {
       console.error("Error al cargar referidos:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -275,12 +263,6 @@ const Referidos = () => {
                           Tickets
                         </TableCell>
                         <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
-                          Por Viajes
-                        </TableCell>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
-                          Por Referidos
-                        </TableCell>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
                           Acciones
                         </TableCell>
                       </TableRow>
@@ -361,34 +343,6 @@ const Referidos = () => {
                               </Typography>
                             </TableCell>
                             <TableCell align="center">
-                              <Tooltip title="Tickets ganados por viajes completados">
-                                <Chip
-                                  label={`${referido.ticketsDetalle?.porViajes || 0}`}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: "#e3f2fd",
-                                    color: "#1976d2",
-                                    fontWeight: 600
-                                  }}
-                                  icon={<HistoryIcon fontSize="small" />}
-                                />
-                              </Tooltip>
-                            </TableCell>
-                            <TableCell align="center">
-                              <Tooltip title="Tickets ganados por códigos referido">
-                                <Chip
-                                  label={`${referido.ticketsDetalle?.porReferidos || 0}`}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: "#f3e5f5",
-                                    color: "#7b1fa2",
-                                    fontWeight: 600
-                                  }}
-                                  icon={<EmojiEventsIcon fontSize="small" />}
-                                />
-                              </Tooltip>
-                            </TableCell>
-                            <TableCell align="center">
                               {referido.tieneCodigoReferido && (
                                 <Tooltip title="Copiar código">
                                   <IconButton
@@ -441,12 +395,6 @@ const Referidos = () => {
                         </TableCell>
                         <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
                           Tickets
-                        </TableCell>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
-                          Por Viajes
-                        </TableCell>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
-                          Por Referidos
                         </TableCell>
                         <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
                           Acciones
@@ -527,34 +475,6 @@ const Referidos = () => {
                               >
                                 {referido.tickets}
                               </Typography>
-                            </TableCell>
-                            <TableCell align="center">
-                              <Tooltip title="Tickets ganados por viajes completados">
-                                <Chip
-                                  label={`${referido.ticketsDetalle?.porViajes || 0}`}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: "#e3f2fd",
-                                    color: "#1976d2",
-                                    fontWeight: 600
-                                  }}
-                                  icon={<HistoryIcon fontSize="small" />}
-                                />
-                              </Tooltip>
-                            </TableCell>
-                            <TableCell align="center">
-                              <Tooltip title="Tickets ganados por códigos referido">
-                                <Chip
-                                  label={`${referido.ticketsDetalle?.porReferidos || 0}`}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: "#f3e5f5",
-                                    color: "#7b1fa2",
-                                    fontWeight: 600
-                                  }}
-                                  icon={<EmojiEventsIcon fontSize="small" />}
-                                />
-                              </Tooltip>
                             </TableCell>
                             <TableCell align="center">
                               {referido.tieneCodigoReferido && (
