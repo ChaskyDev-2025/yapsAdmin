@@ -1,29 +1,19 @@
 import React from "react";
-import { Paper, Box, Avatar, Typography, Alert } from "@mui/material";
+import { Box, Avatar, Typography, Alert } from "@mui/material";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
 
 const DocumentosHeader = ({ nombreFlota, hasFlota, children }) => {
   return (
-    <Paper
-      elevation={6}
-      sx={{
-        p: 3,
-        borderRadius: 3,
-        backgroundColor: "#f9f9f9",
-        mx: "auto",
-        maxWidth: 1400,
-        border: "0.1px solid rgba(146, 144, 144, 1)",
-      }}
-    >
+    <Box>
       <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
         <Avatar sx={{ width: 56, height: 56, bgcolor: "#d7171a", mr: 2 }}>
           <FileCopyIcon sx={{ fontSize: 32 }} />
         </Avatar>
         <Box>
-          <Typography variant="h4" fontWeight="bold" sx={{ fontFamily: "Mulish, sans-serif" }}>
+          <Typography variant="h4" fontWeight="bold" sx={{ fontFamily: "Mulish, sans-serif", color: "#000000" }}>
             {nombreFlota}
           </Typography>
-          <Typography color="text.secondary" sx={{ fontFamily: "Mulish, sans-serif" }}>
+          <Typography color="text.secondary" sx={{ fontFamily: "Mulish, sans-serif", color: "#484848" }}>
             Gestión de documentos pendientes de conductores
           </Typography>
         </Box>
@@ -40,7 +30,7 @@ const DocumentosHeader = ({ nombreFlota, hasFlota, children }) => {
           {children}
         </Box>
       )}
-    </Paper>
+    </Box>
   );
 };
 

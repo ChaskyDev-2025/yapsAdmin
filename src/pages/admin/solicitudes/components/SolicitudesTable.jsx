@@ -28,13 +28,13 @@ const SolicitudesTable = ({
   return (
     <TableContainer component={Paper} sx={{ mt: 2 }}>
       <Table>
-        <TableHead sx={{ backgroundColor: "#f5f5f5" }}>
+        <TableHead sx={{ backgroundColor: "#000000" }}>
           <TableRow>
-            <TableCell sx={{ fontWeight: "bold" }}>Fecha</TableCell>
-            <TableCell sx={{ fontWeight: "bold" }}>Categoría</TableCell>
-            <TableCell sx={{ fontWeight: "bold" }}>Servicio</TableCell>
-            <TableCell sx={{ fontWeight: "bold" }}>Estado</TableCell>
-            <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>Acciones</TableCell>
+            <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Fecha</TableCell>
+            <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Categoría</TableCell>
+            <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Servicio</TableCell>
+            <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Estado</TableCell>
+            <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem", textAlign: "center" }}>Acciones</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -46,7 +46,7 @@ const SolicitudesTable = ({
             </TableRow>
           ) : (
             solicitudesFiltradas.map((solicitud) => (
-              <TableRow key={solicitud.id} sx={{ "&:hover": { backgroundColor: "#f9f9f9" } }}>
+              <TableRow key={solicitud.id} sx={{ "&:hover": { backgroundColor: "#f9f9f9" }, borderBottom: "1px solid #d0d0d0" }}>
                 <TableCell>{formatearFecha(solicitud.solicitud?.fechaCreacion)}</TableCell>
                 <TableCell>{solicitud.solicitud?.categoria || "-"}</TableCell>
                 <TableCell>{solicitud.solicitud?.servicio || "-"}</TableCell>
@@ -62,7 +62,7 @@ const SolicitudesTable = ({
                   <IconButton
                     size="small"
                     onClick={() => onVerDetalles(solicitud)}
-                    sx={{ color: "#00bcd4" }}
+                    sx={{ bgcolor: "#f0f0f0", color: "#d7171a", "&:hover": { bgcolor: "#e8e8e8" } }}
                     title="Ver detalles"
                   >
                     <VisibilityIcon />
@@ -71,7 +71,7 @@ const SolicitudesTable = ({
                     <IconButton
                       size="small"
                       onClick={() => onVerOferta(solicitud)}
-                      sx={{ color: "#ff9800" }}
+                      sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffb3b8" } }}
                       title="Ver oferta"
                     >
                       <AttachMoneyIcon />
@@ -82,7 +82,7 @@ const SolicitudesTable = ({
                       <IconButton
                         size="small"
                         onClick={() => onAsignarFlota(solicitud)}
-                        sx={{ color: "#4caf50" }}
+                        sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffb3b8" } }}
                         title="Asignar flota"
                       >
                         <CheckCircleIcon />
@@ -90,7 +90,7 @@ const SolicitudesTable = ({
                       <IconButton
                         size="small"
                         onClick={() => onRechazar(solicitud.id)}
-                        sx={{ color: "#d7171a" }}
+                        sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcdd2" } }}
                         title="Rechazar"
                       >
                         <CancelIcon />

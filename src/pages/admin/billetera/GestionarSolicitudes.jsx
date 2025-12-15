@@ -11,6 +11,7 @@ import {
   TableRow,
   IconButton,
   Tooltip,
+  Chip,
   CircularProgress,
   Dialog,
   DialogTitle,
@@ -137,16 +138,16 @@ const GestionarSolicitudes = () => {
         Solicitudes de Recarga
       </Typography>
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead sx={{ background: "#f5f5f5" }}>
+      <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
+        <Table stickyHeader>
+          <TableHead sx={{ backgroundColor: "#000000" }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: "bold" }}>Flota</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Monto</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Concepto</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Notas</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Fecha Solicitud</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }} align="center">
+              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Flota</TableCell>
+              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Monto</TableCell>
+              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Concepto</TableCell>
+              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Notas</TableCell>
+              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Fecha Solicitud</TableCell>
+              <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
                 Acciones
               </TableCell>
             </TableRow>
@@ -155,47 +156,57 @@ const GestionarSolicitudes = () => {
             {solicitudes.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
-                  <Typography color="textSecondary">
+                  <Typography color="textSecondary" sx={{ fontFamily: "Mulish, sans-serif" }}>
                     No hay solicitudes pendientes
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
               solicitudes.map((solicitud) => (
-                <TableRow key={`${solicitud.flotaId}-${solicitud.id}`}>
-                  <TableCell sx={{ fontWeight: "500" }}>
+                <TableRow key={`${solicitud.flotaId}-${solicitud.id}`} hover>
+                  <TableCell sx={{ fontWeight: "500", fontFamily: "Mulish, sans-serif" }}>
                     {solicitud.flotaNombre}
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700, color: "#d7171a" }}>
                     ${solicitud.monto.toLocaleString("es-ES", {
                       minimumFractionDigits: 2,
                     })}
                   </TableCell>
-                  <TableCell>{solicitud.concepto}</TableCell>
-                  <TableCell>{solicitud.notas || "-"}</TableCell>
-                  <TableCell>
+                  <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                    <Chip label={solicitud.concepto} size="small" sx={{ bgcolor: "#ffe0e0", color: "#b01217", fontWeight: 600 }} />
+                  </TableCell>
+                  <TableCell sx={{ fontFamily: "Mulish, sans-serif", color: "#666" }}>{solicitud.notas || "-"}</TableCell>
+                  <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                     {solicitud.fechaSolicitud?.toDate?.().toLocaleDateString("es-ES") ||
                       "N/A"}
                   </TableCell>
                   <TableCell align="center">
                     <Tooltip title="Aprobar">
                       <IconButton
-                        color="success"
                         size="small"
                         onClick={() =>
                           handleAbrirDialog(solicitud, "aprobar")
                         }
+                        sx={{
+                          bgcolor: "#ffe0e0",
+                          color: "#d7171a",
+                          "&:hover": { bgcolor: "#ffb3b8" },
+                        }}
                       >
                         <CheckCircleIcon />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Rechazar">
                       <IconButton
-                        color="error"
                         size="small"
                         onClick={() =>
                           handleAbrirDialog(solicitud, "rechazar")
                         }
+                        sx={{
+                          bgcolor: "#ffebee",
+                          color: "#d7171a",
+                          "&:hover": { bgcolor: "#ffcdd2" },
+                        }}
                       >
                         <CancelIcon />
                       </IconButton>

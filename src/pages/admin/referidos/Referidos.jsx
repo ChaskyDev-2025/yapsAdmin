@@ -23,6 +23,7 @@ import {
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import HistoryIcon from "@mui/icons-material/History";
+import TableToolbar from "../usuarios/components/TableToolbar";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 import { obtenerTodosLosCodeigos } from "../../../services/codigosPromoService";
@@ -53,6 +54,24 @@ const Referidos = () => {
   const [codigosPromo, setCodigosPromo] = useState([]);
   const [modalPromoOpen, setModalPromoOpen] = useState(false);
   const [selectedPromo, setSelectedPromo] = useState(null);
+  const [searchTrabajadores, setSearchTrabajadores] = useState("");
+  const [sortByTrabajadores, setSortByTrabajadores] = useState("referidos-desc");
+  const [visibleColumnsTrabajadores, setVisibleColumnsTrabajadores] = useState({
+    ranking: true,
+    usuario: true,
+    codigo: true,
+    referidos: true,
+    acciones: true,
+  });
+  const [searchPasajeros, setSearchPasajeros] = useState("");
+  const [sortByPasajeros, setSortByPasajeros] = useState("referidos-desc");
+  const [visibleColumnsPasajeros, setVisibleColumnsPasajeros] = useState({
+    ranking: true,
+    usuario: true,
+    codigo: true,
+    referidos: true,
+    acciones: true,
+  });
 
   useEffect(() => {
     // Cargar datos en paralelo para optimizar (SOLO LECTURA)
@@ -205,13 +224,14 @@ const Referidos = () => {
   };
 
   return (
-    <Paper elevation={6} sx={{ p: 3, borderRadius: 3, maxWidth: 1400, mx: "auto" }}>
-      {/* Encabezado */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-        <div>
-          <ReferidosHeader />
-        </div>
-      </Box>
+    <Box sx={{ p: 3 }}>
+      <Paper elevation={6} sx={{ p: 3, borderRadius: 2, backgroundColor: "#f9f9f9" }}>
+        {/* Encabezado */}
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+          <div>
+            <ReferidosHeader />
+          </div>
+        </Box>
 
       {/* Estadísticas generales */}
       <StatsGrid stats={stats} loading={loading} />
@@ -227,12 +247,13 @@ const Referidos = () => {
               fontSize: "1rem",
               textTransform: "none",
               minWidth: 180,
+              color: "#484848",
             },
             "& .MuiTab-root.Mui-selected": {
-              color: selectedTab === 0 ? "#1976d2" : "#9c27b0",
+              color: "#d7171a",
             },
             "& .MuiTabs-indicator": {
-              backgroundColor: selectedTab === 0 ? "#1976d2" : "#9c27b0",
+              backgroundColor: "#d7171a",
             },
           }}
         >
@@ -248,21 +269,42 @@ const Referidos = () => {
           {/* TABLA DE TRABAJADORES */}
           {selectedTab === 0 && (
             <Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
+                <Box sx={{ flex: 1 }}>
+                  <TableToolbar
+                    searchValue={searchTrabajadores}
+                    onSearchChange={setSearchTrabajadores}
+                    sortValue={sortByTrabajadores}
+                    onSortChange={setSortByTrabajadores}
+                    sortOptions={[
+                      { label: "↑ Sort by Referidos (ASC)", value: "referidos-asc" },
+                      { label: "↓ Sort by Referidos (DESC)", value: "referidos-desc" },
+                    ]}
+                    visibleColumns={visibleColumnsTrabajadores}
+                    onColumnChange={(col, visible) => setVisibleColumnsTrabajadores(prev => ({ ...prev, [col]: visible }))}
+                    showClearButton={searchTrabajadores !== ""}
+                    onClear={() => {
+                      setSearchTrabajadores("");
+                      setSortByTrabajadores("referidos-desc");
+                    }}
+                  />
+                </Box>
+              </Box>
               {referidosData.filter(r => r.modo === "trabajador").length > 0 ? (
                 <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e0e0e0" }}>
                   <Table>
-                    <TableHead sx={{ bgcolor: "#1976d2" }}>
+                    <TableHead sx={{ backgroundColor: "#000000" }}>
                       <TableRow>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }}>Ranking</TableCell>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }}>Usuario</TableCell>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }}>Código</TableCell>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
+                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Ranking</TableCell>
+                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Usuario</TableCell>
+                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Código</TableCell>
+                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
                           Referidos
                         </TableCell>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
+                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
                           Tickets
                         </TableCell>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
+                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
                           Acciones
                         </TableCell>
                       </TableRow>
@@ -296,7 +338,7 @@ const Referidos = () => {
                                 <Avatar
                                   src={referido.photoUrl}
                                   sx={{
-                                    bgcolor: "#1976d2",
+                                    bgcolor: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
                                     width: 40,
                                     height: 40,
                                   }}
@@ -319,8 +361,8 @@ const Referidos = () => {
                                 sx={{
                                   fontFamily: "monospace",
                                   fontWeight: 700,
-                                  bgcolor: referido.tieneCodigoReferido ? "#c8e6c9" : "#f5f5f5",
-                                  color: referido.tieneCodigoReferido ? "#2e7d32" : "#757575",
+                                  bgcolor: referido.tieneCodigoReferido ? "#ffe0e0" : "#f5f5f5",
+                                  color: referido.tieneCodigoReferido ? "#b01217" : "#757575",
                                 }}
                               />
                             </TableCell>
@@ -328,7 +370,7 @@ const Referidos = () => {
                               <Typography
                                 variant="h6"
                                 fontWeight="bold"
-                                color={referido.referidos > 0 ? "#4caf50" : "#bdbdbd"}
+                                color={referido.referidos > 0 ? "#d7171a" : "#bdbdbd"}
                               >
                                 {referido.referidos}
                               </Typography>
@@ -348,7 +390,7 @@ const Referidos = () => {
                                   <IconButton
                                     onClick={() => copyToClipboard(referido.codigo)}
                                     size="small"
-                                    sx={{ color: "#1976d2", mr: 1 }}
+                                    sx={{ color: "#d7171a", mr: 1 }}
                                   >
                                     <ContentCopyIcon />
                                   </IconButton>
@@ -359,7 +401,7 @@ const Referidos = () => {
                                   <IconButton
                                     onClick={() => handleOpenHistorial(referido)}
                                     size="small"
-                                    sx={{ color: "#1976d2" }}
+                                    sx={{ color: "#d7171a" }}
                                   >
                                     <HistoryIcon />
                                   </IconButton>
@@ -382,21 +424,42 @@ const Referidos = () => {
           {/* TABLA DE PASAJEROS */}
           {selectedTab === 1 && (
             <Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
+                <Box sx={{ flex: 1 }}>
+                  <TableToolbar
+                    searchValue={searchPasajeros}
+                    onSearchChange={setSearchPasajeros}
+                    sortValue={sortByPasajeros}
+                    onSortChange={setSortByPasajeros}
+                    sortOptions={[
+                      { label: "↑ Sort by Referidos (ASC)", value: "referidos-asc" },
+                      { label: "↓ Sort by Referidos (DESC)", value: "referidos-desc" },
+                    ]}
+                    visibleColumns={visibleColumnsPasajeros}
+                    onColumnChange={(col, visible) => setVisibleColumnsPasajeros(prev => ({ ...prev, [col]: visible }))}
+                    showClearButton={searchPasajeros !== ""}
+                    onClear={() => {
+                      setSearchPasajeros("");
+                      setSortByPasajeros("referidos-desc");
+                    }}
+                  />
+                </Box>
+              </Box>
               {referidosData.filter(r => r.modo === "pasajero").length > 0 ? (
                 <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e0e0e0" }}>
                   <Table>
-                    <TableHead sx={{ bgcolor: "#9c27b0" }}>
+                    <TableHead sx={{ backgroundColor: "#000000" }}>
                       <TableRow>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }}>Ranking</TableCell>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }}>Usuario</TableCell>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }}>Código</TableCell>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
+                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Ranking</TableCell>
+                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Usuario</TableCell>
+                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Código</TableCell>
+                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
                           Referidos
                         </TableCell>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
+                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
                           Tickets
                         </TableCell>
-                        <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
+                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
                           Acciones
                         </TableCell>
                       </TableRow>
@@ -430,7 +493,7 @@ const Referidos = () => {
                                 <Avatar
                                   src={referido.photoUrl}
                                   sx={{
-                                    bgcolor: "#9c27b0",
+                                    background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
                                     width: 40,
                                     height: 40,
                                   }}
@@ -453,8 +516,8 @@ const Referidos = () => {
                                 sx={{
                                   fontFamily: "monospace",
                                   fontWeight: 700,
-                                  bgcolor: referido.tieneCodigoReferido ? "#f3e5f5" : "#f5f5f5",
-                                  color: referido.tieneCodigoReferido ? "#9c27b0" : "#757575",
+                                  bgcolor: referido.tieneCodigoReferido ? "#ffe0e0" : "#f5f5f5",
+                                  color: referido.tieneCodigoReferido ? "#b01217" : "#757575",
                                 }}
                               />
                             </TableCell>
@@ -462,7 +525,7 @@ const Referidos = () => {
                               <Typography
                                 variant="h6"
                                 fontWeight="bold"
-                                color={referido.referidos > 0 ? "#4caf50" : "#bdbdbd"}
+                                color={referido.referidos > 0 ? "#d7171a" : "#bdbdbd"}
                               >
                                 {referido.referidos}
                               </Typography>
@@ -482,7 +545,7 @@ const Referidos = () => {
                                   <IconButton
                                     onClick={() => copyToClipboard(referido.codigo)}
                                     size="small"
-                                    sx={{ color: "#9c27b0", mr: 1 }}
+                                    sx={{ color: "#d7171a", mr: 1 }}
                                   >
                                     <ContentCopyIcon />
                                   </IconButton>
@@ -493,7 +556,7 @@ const Referidos = () => {
                                   <IconButton
                                     onClick={() => handleOpenHistorial(referido)}
                                     size="small"
-                                    sx={{ color: "#9c27b0" }}
+                                    sx={{ color: "#d7171a" }}
                                   >
                                     <HistoryIcon />
                                   </IconButton>
@@ -519,7 +582,7 @@ const Referidos = () => {
               <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end" }}>
                 <Button
                   variant="contained"
-                  sx={{ bgcolor: "#4caf50", "&:hover": { bgcolor: "#45a049" } }}
+                  sx={{ background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)", "&:hover": { background: "linear-gradient(135deg, #b01217 0%, #a01012 100%)" } }}
                   onClick={() => {
                     setSelectedPromo(null);
                     setModalPromoOpen(true);
@@ -532,7 +595,7 @@ const Referidos = () => {
               {codigosPromo.length > 0 ? (
                 <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e0e0e0" }}>
                   <Table>
-                    <TableHead sx={{ bgcolor: "#00897b" }}>
+                    <TableHead sx={{ background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)" }}>
                       <TableRow>
                         <TableCell sx={{ color: "white", fontWeight: 700 }}>Código</TableCell>
                         <TableCell sx={{ color: "white", fontWeight: 700 }}>Departamento</TableCell>
@@ -560,8 +623,8 @@ const Referidos = () => {
                               sx={{
                                 fontFamily: "monospace",
                                 fontWeight: 700,
-                                bgcolor: "#e0f2f1",
-                                color: "#00897b",
+                                bgcolor: "#ffe0e0",
+                                color: "#b01217",
                               }}
                             />
                           </TableCell>
@@ -579,8 +642,8 @@ const Referidos = () => {
                             <Chip
                               label={`${codigo.descuentoPorcentaje}%`}
                               sx={{
-                                bgcolor: "#c8e6c9",
-                                color: "#2e7d32",
+                                bgcolor: "#ffe0e0",
+                                color: "#b01217",
                                 fontWeight: 600,
                               }}
                             />
@@ -594,8 +657,8 @@ const Referidos = () => {
                             <Chip
                               label={codigo.activo ? "Activo" : "Inactivo"}
                               sx={{
-                                bgcolor: codigo.activo ? "#c8e6c9" : "#ffcdd2",
-                                color: codigo.activo ? "#2e7d32" : "#c62828",
+                                bgcolor: codigo.activo ? "#ffe0e0" : "#ffcdd2",
+                                color: codigo.activo ? "#b01217" : "#c62828",
                                 fontWeight: 600,
                               }}
                             />
@@ -608,7 +671,7 @@ const Referidos = () => {
                                   setModalPromoOpen(true);
                                 }}
                                 size="small"
-                                sx={{ color: "#00897b" }}
+                                sx={{ color: "#d7171a" }}
                               >
                                 <HistoryIcon />
                               </IconButton>
@@ -617,7 +680,7 @@ const Referidos = () => {
                               <IconButton
                                 onClick={() => copyToClipboard(codigo.codigo)}
                                 size="small"
-                                sx={{ color: "#1976d2" }}
+                                sx={{ color: "#d7171a" }}
                               >
                                 <ContentCopyIcon />
                               </IconButton>
@@ -670,7 +733,8 @@ const Referidos = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </Paper>
+      </Paper>
+    </Box>
   );
 };
 

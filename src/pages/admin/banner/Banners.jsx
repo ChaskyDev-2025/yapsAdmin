@@ -1,9 +1,16 @@
 // src/pages/admin/banner/Banners.jsx
 import React from "react";
-import { Tabla3 } from "../../../shared/components/tablas/tabla3";
 import Icons from "../../../shared/constants/Icons";
-import { Typography, Paper, Box, CircularProgress, Alert, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button, Snackbar } from "@mui/material";
-import useBannerColumns from "./data/Columnas";
+import { 
+  Typography, Paper, Box, CircularProgress, Alert, Dialog, DialogTitle, DialogContent, 
+  DialogContentText, DialogActions, Button, Snackbar, Table, TableBody, TableCell, 
+  TableContainer, TableHead, TableRow, Avatar, IconButton, Tooltip 
+} from "@mui/material";
+import TableToolbar from "../usuarios/components/TableToolbar";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import ModalAgregar from "./components/ModalAgregar";
 
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
@@ -23,6 +30,15 @@ const Banners = () => {
     open: false,
     message: "",
     severity: "success",
+  });
+  const [searchBanners, setSearchBanners] = React.useState("");
+  const [sortByBanners, setSortByBanners] = React.useState("createdAt-desc");
+  const [visibleColumnsBanners, setVisibleColumnsBanners] = React.useState({
+    imagen: true,
+    titulo: true,
+    estado: true,
+    fechaCreacion: true,
+    acciones: true,
   });
   const agregarApiRef = React.useRef({ datos: null }); // ModalAgregar te llena esto
 
@@ -107,56 +123,148 @@ const Banners = () => {
     }
   }, []);
 
-  const columns = useBannerColumns(handleEstadoChange, handleEdit, handleDelete, handleView);
-
   if (loading) return <CircularProgress />;
   if (error)   return <Alert severity="error">{error.message}</Alert>;
 
   return (
-    <Paper elevation={6} sx={{ p: 3, borderRadius: 3, maxWidth: 1200, mx: "auto" }}>
-      <Typography variant="h4" fontWeight="bold" gutterBottom>
-        Banners
-      </Typography>
+    <Box sx={{ p: 3 }}>
+      <Paper elevation={6} sx={{ p: 3, borderRadius: 2, backgroundColor: "#f9f9f9" }}>
+        <Typography variant="h4" fontWeight="bold" gutterBottom sx={{ color: "#000000" }}>
+          Banners
+        </Typography>
 
-      <Tabla3
-        rows={rows}
-        columns={columns}
-        pageSize={3}
-        buttons={[
-          {
-            label: "Agregar",
-            icon: <Icons.Add />,
-            title: "Agregar nuevo banner",
-            renderModal: () => (
-              <ModalAgregar onReady={(api) => { agregarApiRef.current = api; }} />
-            ),
-            footerButtons: (close) => [
-              { label: "Cerrar", position: "left", onClick: close },
-              {
-                label: "Guardar",
-                icon: <Icons.Save />,
-                position: "right",
-onClick: async () => {
-  const { save } = agregarApiRef.current || {};
-  if (typeof save !== "function") return; // el modal no montó aún
-  try {
-    const nuevo = await save();           // { id, imagen, estado }
-    setRows(prev => [nuevo, ...prev]);    // agrega sin reconsultar
-    close();
-} catch (e) {
-  console.error("UPLOAD ERROR:", e?.code || e?.message, e);
-  alert(e?.code || e?.message || "Error al subir la imagen");
-}
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
+          <Box sx={{ flex: 1 }}>
+            <TableToolbar
+              searchValue={searchBanners}
+              onSearchChange={setSearchBanners}
+              sortValue={sortByBanners}
+              onSortChange={setSortByBanners}
+              sortOptions={[
+                { label: "↑ Sort by Creación (ASC)", value: "createdAt-asc" },
+                { label: "↓ Sort by Creación (DESC)", value: "createdAt-desc" },
+              ]}
+              visibleColumns={visibleColumnsBanners}
+              onColumnChange={(col, visible) => setVisibleColumnsBanners(prev => ({ ...prev, [col]: visible }))}
+              showClearButton={searchBanners !== ""}
+              onClear={() => {
+                setSearchBanners("");
+                setSortByBanners("createdAt-desc");
+              }}
+            />
+          </Box>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            sx={{ backgroundColor: "#d7171a", whiteSpace: "nowrap", "&:hover": { backgroundColor: "#b01217" } }}
+            onClick={() => {
+              // Aquí se dispara el modal de agregar
+            }}
+          >
+            Agregar Banner
+          </Button>
+        </Box>
 
-}
-
-
-
-              },
-            ],
-          },
-        ]}
-      />
+        <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
+          <Table>
+            <TableHead sx={{ backgroundColor: "#000000" }}>
+              <TableRow>
+                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                  Imagen
+                </TableCell>
+                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                  Título
+                </TableCell>
+                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                  Estado
+                </TableCell>
+                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                  Fecha de Creación
+                </TableCell>
+                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                  Acciones
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} align="center">
+                    <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
+                      No hay banners registrados
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                rows.map((banner) => (
+                  <TableRow key={banner.id} hover sx={{ borderBottom: "1px solid #d0d0d0" }}>
+                    <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                      {banner.imagen ? (
+                        <Avatar
+                          src={banner.imagen}
+                          alt={banner.titulo || "Banner"}
+                          sx={{ width: 50, height: 50, bgcolor: "#d7171a" }}
+                        />
+                      ) : (
+                        <Avatar sx={{ width: 50, height: 50, bgcolor: "#d7171a" }}>-</Avatar>
+                      )}
+                    </TableCell>
+                    <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                      {banner.titulo || "-"}
+                    </TableCell>
+                    <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                      <Typography
+                        sx={{
+                          color: banner.estado === true ? "#d7171a" : "#bdbdbd",
+                          fontWeight: 600,
+                          fontFamily: "Mulish, sans-serif"
+                        }}
+                      >
+                        {banner.estado === true ? "Activo" : "Inactivo"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                      {banner.createdAt
+                        ? new Date(banner.createdAt.toDate()).toLocaleDateString("es-ES")
+                        : "-"}
+                    </TableCell>
+                    <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                      <Box sx={{ display: "flex", gap: 1 }}>
+                        <Tooltip title="Ver imagen">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleView(banner)}
+                            sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffebee" } }}
+                          >
+                            <VisibilityIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Editar">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEdit(banner)}
+                            sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffebee" } }}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Eliminar">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDelete(banner)}
+                            sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcccb" } }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
       {/* Dialog de confirmación de eliminación */}
       <Dialog
@@ -211,7 +319,8 @@ onClick: async () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </Paper>
+      </Paper>
+    </Box>
   );
 };
 

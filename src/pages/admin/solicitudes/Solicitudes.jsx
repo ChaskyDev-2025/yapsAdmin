@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   Container,
   Paper,
+  Box,
 } from "@mui/material";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
@@ -315,8 +316,8 @@ const Solicitudes = () => {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Paper elevation={6} sx={{ p: 3, borderRadius: 3 }}>
+    <Box sx={{ p: 3 }}>
+      <Paper elevation={6} sx={{ p: 3, borderRadius: 2, backgroundColor: "#f9f9f9" }}>
         {/* Encabezado */}
         <SolicitudesHeader />
 
@@ -393,7 +394,7 @@ const Solicitudes = () => {
         onClose={handleCloseOfertaDialog}
         solicitudOferta={solicitudOferta}
       />
-    </Container>
+    </Box>
   );
 };
 

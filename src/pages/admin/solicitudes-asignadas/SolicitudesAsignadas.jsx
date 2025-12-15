@@ -50,6 +50,14 @@ const SolicitudesAsignadas = () => {
   const [searchSolicitudes, setSearchSolicitudes] = useState("");
   const [filterEstado, setFilterEstado] = useState("todas");
   const [sortBySolicitudes, setSortBySolicitudes] = useState("fecha-desc");
+  const [visibleColumnsSolicitudes, setVisibleColumnsSolicitudes] = useState({
+    categoria: true,
+    servicio: true,
+    fechaCreacion: true,
+    conductor: true,
+    estado: true,
+    acciones: true,
+  });
   const [selectedSolicitud, setSelectedSolicitud] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [asignadoConductor, setAsignadoConductor] = useState("");
@@ -383,10 +391,13 @@ const SolicitudesAsignadas = () => {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h4" sx={{ mb: 3, fontWeight: "bold" }}>
-          Solicitudes Asignadas a Flota
+    <Box sx={{ p: 3 }}>
+      <Paper elevation={6} sx={{ p: 3, borderRadius: 2, backgroundColor: "#f9f9f9" }}>
+        <Typography variant="h4" sx={{ mb: 1, fontWeight: 700, color: "#000000", fontFamily: "Mulish, sans-serif" }}>
+          📋 Solicitudes Asignadas
+        </Typography>
+        <Typography variant="body2" sx={{ color: "#484848", mb: 3, fontFamily: "Mulish, sans-serif" }}>
+          Gestiona las solicitudes de servicio asignadas a tu flota
         </Typography>
 
         <TableToolbar
@@ -402,6 +413,8 @@ const SolicitudesAsignadas = () => {
               setFilterEstado(value);
             }
           }}
+          visibleColumns={visibleColumnsSolicitudes}
+          onColumnChange={(col, visible) => setVisibleColumnsSolicitudes(prev => ({ ...prev, [col]: visible }))}
           showClearButton={searchSolicitudes !== "" || filterEstado !== "todas"}
           onClear={() => {
             setSearchSolicitudes("");
@@ -412,14 +425,51 @@ const SolicitudesAsignadas = () => {
 
         <TableContainer sx={{ mt: 3 }}>
           <Table>
-            <TableHead sx={{ backgroundColor: "#f5f5f5" }}>
+            <TableHead sx={{ backgroundColor: "#000000" }}>
               <TableRow>
-                <TableCell sx={{ fontWeight: "bold" }}>Categoría</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Servicio</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Fecha Creación</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Conductor</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Estado</TableCell>
-                <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>Acciones</TableCell>
+                <TableCell sx={{ 
+                  backgroundColor: "#000000", 
+                  color: "white", 
+                  fontWeight: 700, 
+                  fontFamily: "Mulish, sans-serif", 
+                  fontSize: "0.95rem"
+                }}>Categoría</TableCell>
+                <TableCell sx={{ 
+                  backgroundColor: "#000000", 
+                  color: "white", 
+                  fontWeight: 700, 
+                  fontFamily: "Mulish, sans-serif", 
+                  fontSize: "0.95rem"
+                }}>Servicio</TableCell>
+                <TableCell sx={{ 
+                  backgroundColor: "#000000", 
+                  color: "white", 
+                  fontWeight: 700, 
+                  fontFamily: "Mulish, sans-serif", 
+                  fontSize: "0.95rem"
+                }}>Fecha Creación</TableCell>
+                <TableCell sx={{ 
+                  backgroundColor: "#000000", 
+                  color: "white", 
+                  fontWeight: 700, 
+                  fontFamily: "Mulish, sans-serif", 
+                  fontSize: "0.95rem"
+                }}>Conductor</TableCell>
+                <TableCell sx={{ 
+                  backgroundColor: "#000000", 
+                  color: "white", 
+                  fontWeight: 700, 
+                  fontFamily: "Mulish, sans-serif", 
+                  fontSize: "0.95rem"
+                }}>Estado</TableCell>
+                <TableCell sx={{ 
+                  backgroundColor: "#000000", 
+                  color: "white", 
+                  fontWeight: 700, 
+                  fontFamily: "Mulish, sans-serif", 
+                  fontSize: "0.95rem",
+                  textAlign: "center" 
+                }}>Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -431,20 +481,34 @@ const SolicitudesAsignadas = () => {
                 </TableRow>
               ) : solicitudesFiltradas.length > 0 ? (
                 solicitudesFiltradas.map((solicitud) => (
-                  <TableRow key={solicitud.id} sx={{ "&:hover": { backgroundColor: "#f9f9f9" } }}>
-                    <TableCell>{solicitud.solicitud?.categoria || "-"}</TableCell>
-                    <TableCell>{solicitud.solicitud?.servicio || "-"}</TableCell>
-                    <TableCell>{formatearFecha(solicitud.solicitud?.fechaCreacion)}</TableCell>
-                    <TableCell>{obtenerNombreConductor(solicitud.conductor_asignado)}</TableCell>
+                  <TableRow 
+                    key={solicitud.id} 
+                    sx={{ 
+                      borderBottom: "1px solid #d0d0d0",
+                      "&:hover": { backgroundColor: "#f9f9f9" } 
+                    }}
+                  >
+                    <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>{solicitud.solicitud?.categoria || "-"}</TableCell>
+                    <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>{solicitud.solicitud?.servicio || "-"}</TableCell>
+                    <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>{formatearFecha(solicitud.solicitud?.fechaCreacion)}</TableCell>
+                    <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>{obtenerNombreConductor(solicitud.conductor_asignado)}</TableCell>
                     <TableCell>
                       <Chip
                         label={solicitud.estado}
-                        color={
-                          solicitud.estado === "asignada" ? "warning" :
-                          solicitud.estado === "en_proceso" ? "info" :
-                          solicitud.estado === "completada" ? "success" :
-                          "error"
-                        }
+                        sx={{
+                          backgroundColor: 
+                            solicitud.estado === "asignada" ? "#ffc107" :
+                            solicitud.estado === "ofertado" ? "#2196f3" :
+                            solicitud.estado === "aceptado" ? "#ff9800" :
+                            solicitud.estado === "conductor_asignado" ? "#4caf50" :
+                            solicitud.estado === "en_curso" ? "#2196f3" :
+                            solicitud.estado === "finalizado" ? "#4caf50" :
+                            solicitud.estado === "rechazado" ? "#f44336" :
+                            "#d7171a",
+                          color: "white",
+                          fontWeight: 600,
+                          fontFamily: "Mulish, sans-serif"
+                        }}
                         size="small"
                       />
                     </TableCell>
@@ -453,6 +517,7 @@ const SolicitudesAsignadas = () => {
                         size="small"
                         onClick={() => handleOpenDetalles(solicitud)}
                         title="Ver detalles"
+                        sx={{ color: "#d7171a" }}
                       >
                         <VisibilityIcon />
                       </IconButton>
@@ -472,7 +537,7 @@ const SolicitudesAsignadas = () => {
                             size="small"
                             onClick={() => handleOpenOfertaModal(solicitud)}
                             title="Generar oferta"
-                            color="info"
+                            sx={{ color: "#d7171a" }}
                           >
                             <EditIcon />
                           </IconButton>
@@ -480,7 +545,7 @@ const SolicitudesAsignadas = () => {
                             size="small"
                             onClick={() => handleRechazarSolicitud(solicitud)}
                             title="Rechazar"
-                            color="error"
+                            sx={{ color: "#f44336" }}
                           >
                             <CancelIcon />
                           </IconButton>
@@ -492,7 +557,7 @@ const SolicitudesAsignadas = () => {
                             size="small"
                             onClick={() => handleOpenDialog(solicitud)}
                             title="Asignar conductor"
-                            color="success"
+                            sx={{ color: "#4caf50" }}
                           >
                             <CheckCircleIcon />
                           </IconButton>
@@ -520,9 +585,8 @@ const SolicitudesAsignadas = () => {
             </TableBody>
           </Table>
         </TableContainer>
-      </Paper>
 
-      {/* Diálogo para asignar conductor */}
+        {/* Diálogo para asignar conductor */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>Asignar Conductor</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
@@ -850,7 +914,8 @@ const SolicitudesAsignadas = () => {
         onClose={handleCloseOfertaModal}
         onSave={handleSaveOferta}
       />
-    </Container>
+      </Paper>
+    </Box>
   );
 };
 

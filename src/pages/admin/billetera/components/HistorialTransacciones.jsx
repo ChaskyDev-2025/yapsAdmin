@@ -47,7 +47,7 @@ const HistorialTransacciones = ({ open, onClose, flota, transacciones = [] }) =>
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle
         sx={{
-          background: "#1976d2",
+          background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
           color: "#fff",
           fontWeight: 700,
           display: "flex",

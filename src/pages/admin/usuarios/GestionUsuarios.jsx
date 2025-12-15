@@ -493,7 +493,8 @@ const GestionUsuarios = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+      <Paper elevation={6} sx={{ p: 3, borderRadius: 2, backgroundColor: "#f9f9f9" }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
           Gestión de Usuarios
         </Typography>
@@ -1246,6 +1247,7 @@ const GestionUsuarios = () => {
         onClose={() => setDocumentosConductorModalOpen(false)}
         selectedConductor={conductorDocumentosSeleccionado}
       />
+      </Paper>
     </Box>
   );
 };

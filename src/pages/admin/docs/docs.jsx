@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
 import {
-  Typography, Paper, Stack, Alert, Box, Chip, Tabs, Tab
+  Typography, Paper, Stack, Alert, Box, Chip, Tabs, Tab, Button,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Switch, IconButton, Tooltip
 } from "@mui/material";
 import { Tabla2 }        from "../../../shared/components/tablas/tabla";
-import { Columns }       from "./data/Columns";
 
+import AddIcon           from "@mui/icons-material/Add";
 import EditIcon          from "@mui/icons-material/Edit";
 import DeleteIcon        from "@mui/icons-material/Delete";
 import IconActionButton  from "../../../shared/components/botones/Botones";
@@ -12,6 +13,7 @@ import DocumentoModal    from "./components/modalCrearDocs/DocumentoModal";
 import ModalEditDocs from "./components/modalEditDocs/ModalEditDocs";
 import { useDocuments } from "../../../hooks/useDocuments";
 import { useAuth } from "../../../auth/AuthContext";
+import { TableToolbar } from "../usuarios/components/TableToolbar";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 
@@ -25,6 +27,10 @@ const Documentos = () => {
   const [flotaInfo, setFlotaInfo] = useState(null);
   const [ciudadSeleccionada, setCiudadSeleccionada] = useState("La Paz");
   const isSuperAdmin = !userFlotaId; // SuperAdmin no tiene flotaId
+  
+  // Estados para búsqueda y ordenamiento
+  const [searchDocumentos, setSearchDocumentos] = useState("");
+  const [sortByDocumentos, setSortByDocumentos] = useState("titulo-asc");
   
   /* ── estado del modal ───────────── */
   const { rows, loading, create, update, remove, toggleActivo } = useDocuments();
@@ -126,20 +132,15 @@ const Documentos = () => {
     </Stack>
   ), [remove]);
 
-  const columns = Columns(handleToggleActivo, renderAcciones);
-
   /* ── UI ─────────────────────────── */
   return (
-    <>
+    <Box sx={{ p: 3 }}>
       <Paper
         elevation={6}
         sx={{
           p: 3,
-          borderRadius: 3,
-          backgroundColor: "#f9f9f9",
-          mx: "auto",
-          maxWidth: 1200,
-          border: "0.1px solid rgba(146,144,144,.6)"
+          borderRadius: 2,
+          backgroundColor: "#f9f9f9"
         }}
       >
         <Box sx={{ mb: 3 }}>
@@ -232,17 +233,105 @@ const Documentos = () => {
         </Box>
 
         {/* Tabla con documentos de la ciudad seleccionada */}
-        <Tabla2
-          rows={documentosPorCiudad}
-          columns={columns}
-          height="51vh"
-          pageSize={10}
-          loading={loading}
-          showButton
-          buttonLabel="Crear documento"
-          onButtonClick={handleOpen}
-          onRowClick={handleRowClick}
-        />
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
+          <Box sx={{ flex: 1 }}>
+            <TableToolbar
+              searchValue={searchDocumentos}
+              onSearchChange={setSearchDocumentos}
+              sortOptions={[
+                { label: "↑ Sort by Título (ASC)", value: "titulo-asc" },
+                { label: "↓ Sort by Título (DESC)", value: "titulo-desc" },
+                { label: "↑ Sort by Fecha (ASC)", value: "fecha-asc" },
+                { label: "↓ Sort by Fecha (DESC)", value: "fecha-desc" },
+              ]}
+              sortValue={sortByDocumentos}
+              onSortChange={setSortByDocumentos}
+              filterOptions={[]}
+              visibleColumns={{}}
+              onColumnChange={() => {}}
+              showClearButton={true}
+            />
+          </Box>
+          <Button 
+            variant="contained" 
+            startIcon={<AddIcon />} 
+            onClick={handleOpen}
+            sx={{ backgroundColor: "#d7171a", whiteSpace: "nowrap" }}
+          >
+            Crear Documento
+          </Button>
+        </Box>
+        <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+          <Table stickyHeader>
+            <TableHead sx={{ backgroundColor: "#000000" }}>
+              <TableRow>
+                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>ID</TableCell>
+                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Título</TableCell>
+                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Departamento</TableCell>
+                <TableCell align="center" sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Activo</TableCell>
+                <TableCell align="center" sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {documentosPorCiudad.map((doc) => (
+                <TableRow 
+                  key={doc.firebaseId} 
+                  hover
+                  onClick={() => handleRowClick({ row: doc })}
+                  sx={{ cursor: "pointer", borderBottom: "1px solid #d0d0d0" }}
+                >
+                  <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{doc.numero || "-"}</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontFamily: "Mulish, sans-serif" }}>{doc.titulo}</TableCell>
+                  <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{doc.ciudad}</TableCell>
+                  <TableCell align="center">
+                    <Switch
+                      checked={!!doc.activo}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handleToggleActivo(doc.firebaseId, e.target.checked);
+                      }}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': {
+                          color: '#d7171a',
+                        },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                          backgroundColor: '#d7171a',
+                        },
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Tooltip title="Editar">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDocSeleccionado(doc);
+                          setOpenEdit(true);
+                        }}
+                        sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffb3b8" } }}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Eliminar">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          remove(doc.firebaseId);
+                        }}
+                        sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcdd2" } }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Paper>
 
       {/* Modal separado y reutilizable */}
@@ -258,7 +347,7 @@ const Documentos = () => {
         documento={docSeleccionado}
         onSave={handleUpdate}
       />
-    </>
+    </Box>
   );
 };
 

@@ -728,13 +728,31 @@ const GestionServicios = () => {
   }, [selectedDept]);
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Paper sx={{ p: 3 }}>
+    <Box sx={{ p: 3 }}>
+      <Paper elevation={6} sx={{ p: 3, borderRadius: 2, backgroundColor: "#f9f9f9" }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 3 }}>
           Gestión de Tarifas y Servicios
         </Typography>
 
-        <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)} sx={{ mb: 3 }}>
+        <Tabs 
+          value={tabValue} 
+          onChange={(e, v) => setTabValue(v)} 
+          sx={{ 
+            mb: 3,
+            "& .MuiTab-root": {
+              fontWeight: 600,
+              fontSize: "1rem",
+              textTransform: "none",
+              color: "#484848",
+              "&.Mui-selected": {
+                color: "#d7171a",
+              },
+            },
+            "& .MuiTabs-indicator": {
+              backgroundColor: "#d7171a",
+            },
+          }}
+        >
           <Tab label="Departamentos" />
           <Tab label="Tarifas" />
         </Tabs>
@@ -745,19 +763,19 @@ const GestionServicios = () => {
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
               Estado de Departamentos
             </Typography>
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+            <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
+              <Table stickyHeader>
+                <TableHead sx={{ backgroundColor: '#000000' }}>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Departamento</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>Estado</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>Acciones</TableCell>
+                    <TableCell sx={{ backgroundColor: '#000000', color: 'white', fontWeight: 700, fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>Departamento</TableCell>
+                    <TableCell sx={{ backgroundColor: '#000000', color: 'white', fontWeight: 700, fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem', textAlign: 'center' }}>Estado</TableCell>
+                    <TableCell sx={{ backgroundColor: '#000000', color: 'white', fontWeight: 700, fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem', textAlign: 'center' }}>Acciones</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {DEPARTAMENTOS.map((dept) => (
-                    <TableRow key={dept} sx={{ '&:hover': { backgroundColor: '#f9f9f9' } }}>
-                      <TableCell>
+                    <TableRow key={dept} hover>
+                      <TableCell sx={{ fontFamily: 'Mulish, sans-serif', fontWeight: '500' }}>
                         <Typography sx={{ fontWeight: '500' }}>{dept}</Typography>
                       </TableCell>
                       <TableCell align="center">
@@ -766,8 +784,8 @@ const GestionServicios = () => {
                           px: 2,
                           py: 0.5,
                           borderRadius: 1,
-                          backgroundColor: deptStatus[dept] ? '#e8f5e9' : '#ffebee',
-                          color: deptStatus[dept] ? '#2e7d32' : '#c62828'
+                          backgroundColor: deptStatus[dept] ? '#ffe0e0' : '#ffebee',
+                          color: deptStatus[dept] ? '#b01217' : '#c62828'
                         }}>
                           <Typography variant="body2" sx={{ fontWeight: '600' }}>
                             {deptStatus[dept] ? '✓ Habilitado' : '✗ Deshabilitado'}
@@ -780,7 +798,14 @@ const GestionServicios = () => {
                             <Switch
                               checked={!!deptStatus[dept]}
                               onChange={() => handleToggleDept(dept, deptStatus[dept])}
-                              color="primary"
+                              sx={{
+                                '& .MuiSwitch-switchBase.Mui-checked': {
+                                  color: '#d7171a',
+                                },
+                                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                  backgroundColor: '#d7171a',
+                                },
+                              }}
                               size="small"
                             />
                           }
@@ -859,13 +884,13 @@ const GestionServicios = () => {
 
                 <TableContainer component={Paper} variant="outlined">
                   <Table>
-                    <TableHead>
-                      <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                        {visibleColumnsServicios.categoria && <TableCell>Categoría</TableCell>}
-                        {visibleColumnsServicios.nombre && <TableCell>Servicio</TableCell>}
-                        {visibleColumnsServicios.estado && <TableCell>Estado</TableCell>}
-                        {visibleColumnsServicios.tarifa_base && <TableCell>Tarifa Base</TableCell>}
-                        {visibleColumnsServicios.acciones && <TableCell align="right">Acciones</TableCell>}
+                    <TableHead sx={{ backgroundColor: '#000000' }}>
+                      <TableRow>
+                        {visibleColumnsServicios.categoria && <TableCell sx={{ backgroundColor: '#000000', color: 'white', fontWeight: 700, fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>Categoría</TableCell>}
+                        {visibleColumnsServicios.nombre && <TableCell sx={{ backgroundColor: '#000000', color: 'white', fontWeight: 700, fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>Servicio</TableCell>}
+                        {visibleColumnsServicios.estado && <TableCell sx={{ backgroundColor: '#000000', color: 'white', fontWeight: 700, fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>Estado</TableCell>}
+                        {visibleColumnsServicios.tarifa_base && <TableCell sx={{ backgroundColor: '#000000', color: 'white', fontWeight: 700, fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>Tarifa Base</TableCell>}
+                        {visibleColumnsServicios.acciones && <TableCell align="right" sx={{ backgroundColor: '#000000', color: 'white', fontWeight: 700, fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>Acciones</TableCell>}
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -930,7 +955,7 @@ const GestionServicios = () => {
         onSave={handleSaveService}
         modoPrueba={false}
       />
-    </Container>
+    </Box>
   );
 };
 

@@ -48,6 +48,7 @@ import {
 } from "../../../services/solicitudesRecargaService";
 import ModalAsignarSaldo from "./components/ModalAsignarSaldo";
 import HistorialTransacciones from "./components/HistorialTransacciones";
+import { TableToolbar } from "../usuarios/components/TableToolbar";
 
 const Billetera = () => {
   const [tabValue, setTabValue] = useState(0);
@@ -78,6 +79,12 @@ const Billetera = () => {
     message: "",
     severity: "success",
   });
+
+  // Estados para búsqueda y filtros
+  const [searchFlotas, setSearchFlotas] = useState("");
+  const [sortByFlotas, setSortByFlotas] = useState("nombre-asc");
+  const [searchSolicitudes, setSearchSolicitudes] = useState("");
+  const [sortBySolicitudes, setSortBySolicitudes] = useState("fecha-desc");
 
   const cargarDatos = useCallback(async () => {
     try {
@@ -253,299 +260,349 @@ const Billetera = () => {
   });
 
   return (
-    <Box>
-      {/* Encabezado */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-        <div>
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-            💳 Billetera - Gestión de Saldo
-          </Typography>
-          <Typography variant="body2" sx={{ color: "#666" }}>
-            Control centralizado de recarga de saldo para las flotas
-          </Typography>
-        </div>
-        <Tooltip title="Recargar datos">
-          <IconButton
-            onClick={cargarDatos}
-            disabled={loading}
-            sx={{ bgcolor: "#f5f5f5" }}
+    <Box sx={{ p: 3 }}>
+      {/* Contenedor Principal */}
+      <Paper elevation={6} sx={{ p: 3, borderRadius: 2, backgroundColor: "#f9f9f9" }}>
+        {/* Encabezado */}
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+          <div>
+            <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
+              💳 Billetera - Gestión de Saldo
+            </Typography>
+            <Typography variant="body2" sx={{ color: "#666" }}>
+              Control centralizado de recarga de saldo para las flotas
+            </Typography>
+          </div>
+          <Tooltip title="Recargar datos">
+            <IconButton
+              onClick={cargarDatos}
+              disabled={loading}
+              sx={{ bgcolor: "#f5f5f5" }}
+            >
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
+        {/* Estadísticas */}
+        <Grid container spacing={2} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)" }}>
+              <CardContent>
+                <Typography color="textSecondary" sx={{ color: "#fff", opacity: 0.8 }}>
+                  Saldo Total
+                </Typography>
+                <Typography variant="h5" sx={{ color: "#fff", fontWeight: 700, mt: 1 }}>
+                  ${saldoTotalFormato}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ background: "linear-gradient(135deg, #484848 0%, #2c2c2c 100%)" }}>
+              <CardContent>
+                <Typography color="textSecondary" sx={{ color: "#fff", opacity: 0.8 }}>
+                  Flotas Activas
+                </Typography>
+                <Typography variant="h5" sx={{ color: "#fff", fontWeight: 700, mt: 1 }}>
+                  {estadisticas.flotasActivas}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ background: "linear-gradient(135deg, #000000 0%, #1a1a1a 100%)" }}>
+              <CardContent>
+                <Typography color="textSecondary" sx={{ color: "#fff", opacity: 0.8 }}>
+                  Total de Flotas
+                </Typography>
+                <Typography variant="h5" sx={{ color: "#fff", fontWeight: 700, mt: 1 }}>
+                  {estadisticas.totalFlotas}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ background: "linear-gradient(135deg, #a01012 0%, #7a0c0e 100%)" }}>
+              <CardContent>
+                <Typography color="textSecondary" sx={{ color: "#fff", opacity: 0.8 }}>
+                  Flotas Inactivas
+                </Typography>
+                <Typography variant="h5" sx={{ color: "#fff", fontWeight: 700, mt: 1 }}>
+                  {estadisticas.totalFlotas - estadisticas.flotasActivas}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* Tabs */}
+        <Box sx={{ borderBottom: 2, borderColor: "divider", mt: 4, mb: 3 }}>
+          <Tabs
+            value={tabValue}
+            onChange={(e, newValue) => setTabValue(newValue)}
+            sx={{
+              "& .MuiTab-root": {
+                fontWeight: 600,
+                fontSize: "1rem",
+                textTransform: "none",
+                color: "#484848",
+                "&.Mui-selected": {
+                  color: "#d7171a",
+                },
+              },
+              "& .MuiTabs-indicator": {
+                backgroundColor: "#d7171a",
+              },
+            }}
           >
-            <RefreshIcon />
-          </IconButton>
-        </Tooltip>
-      </Box>
+            <Tab label="💰 Gestión de Flotas" />
+            <Tab label={`📋 Solicitudes Pendientes (${solicitudes.length})`} />
+          </Tabs>
+        </Box>
 
-      {/* Estadísticas */}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: "linear-gradient(135deg, #00897b 0%, #00695c 100%)" }}>
-            <CardContent>
-              <Typography color="textSecondary" sx={{ color: "#fff", opacity: 0.8 }}>
-                Saldo Total
-              </Typography>
-              <Typography variant="h5" sx={{ color: "#fff", fontWeight: 700, mt: 1 }}>
-                ${saldoTotalFormato}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+        {/* Contenido de Solicitudes Pendientes */}
+        {tabValue === 1 && (
+          <>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
+              <Box sx={{ flex: 1 }}>
+                <TableToolbar
+                  searchValue={searchSolicitudes}
+                  onSearchChange={setSearchSolicitudes}
+                  sortOptions={[
+                    { label: "↑ Fecha (Más antigua)", value: "fecha-asc" },
+                    { label: "↓ Fecha (Más reciente)", value: "fecha-desc" },
+                    { label: "↑ Monto (Menor)", value: "monto-asc" },
+                    { label: "↓ Monto (Mayor)", value: "monto-desc" },
+                  ]}
+                  sortValue={sortBySolicitudes}
+                  onSortChange={setSortBySolicitudes}
+                  filterOptions={[]}
+                  visibleColumns={{}}
+                  onColumnChange={() => {}}
+                  showClearButton={true}
+                />
+              </Box>
+            </Box>
+            <Paper elevation={3} sx={{ borderRadius: 2, overflow: "hidden", mb: 4 }}>
+            {solicitudes.length > 0 ? (
+              <TableContainer sx={{ maxHeight: "calc(100vh - 400px)" }}>
+                <Table stickyHeader>
+                  <TableHead sx={{ backgroundColor: "#000000" }}>
+                    <TableRow>
+                      <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Flota</TableCell>
+                      <TableCell align="right" sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                        Monto
+                      </TableCell>
+                      <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Concepto</TableCell>
+                      <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Notas</TableCell>
+                      <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Fecha</TableCell>
+                      <TableCell align="center" sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                        Acciones
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {solicitudes.map((solicitud) => (
+                      <TableRow
+                        key={solicitud.id}
+                        hover
+                        sx={{ borderBottom: "1px solid #d0d0d0" }}
+                      >
+                        <TableCell sx={{ fontWeight: 600, fontFamily: "Mulish, sans-serif" }}>{solicitud.flotaNombre}</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, fontSize: "1.05rem", fontFamily: "Mulish, sans-serif" }}>
+                          <span style={{ color: "#d7171a" }}>
+                            ${solicitud.monto.toLocaleString("es-ES", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </span>
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          <Chip label={solicitud.concepto} size="small" sx={{ bgcolor: "#ffe0e0", color: "#b01217", fontWeight: 600 }} />
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "0.9rem", color: "#666", fontFamily: "Mulish, sans-serif" }}>
+                          {solicitud.notas || "-"}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "0.9rem", fontFamily: "Mulish, sans-serif" }}>
+                          {new Date(solicitud.fechaSolicitud?.toDate?.() || solicitud.fechaSolicitud).toLocaleDateString("es-ES")}
+                        </TableCell>
+                        <TableCell align="center">
+                          <Box sx={{ display: "flex", gap: 0.5, justifyContent: "center" }}>
+                            <Tooltip title="Aprobar">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleAprobarSolicitud(solicitud)}
+                                disabled={processingId === solicitud.id}
+                                sx={{
+                                  bgcolor: "#ffe0e0",
+                                  color: "#d7171a",
+                                  "&:hover": { bgcolor: "#ffb3b8" },
+                                }}
+                              >
+                                <CheckIcon />
+                              </IconButton>
+                            </Tooltip>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)" }}>
-            <CardContent>
-              <Typography color="textSecondary" sx={{ color: "#fff", opacity: 0.8 }}>
-                Flotas Activas
-              </Typography>
-              <Typography variant="h5" sx={{ color: "#fff", fontWeight: 700, mt: 1 }}>
-                {estadisticas.flotasActivas}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+                            <Tooltip title="Rechazar">
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  setSelectedSolicitud(solicitud);
+                                  setRejectDialogOpen(true);
+                                }}
+                                disabled={processingId === solicitud.id}
+                                sx={{
+                                  bgcolor: "#ffebee",
+                                  color: "#d7171a",
+                                  "&:hover": { bgcolor: "#ffcdd2" },
+                                }}
+                              >
+                                <CloseIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            ) : (
+              <Box sx={{ p: 4, textAlign: "center" }}>
+                <Typography variant="body1" color="text.secondary">
+                  ✅ No hay solicitudes pendientes
+                </Typography>
+              </Box>
+            )}
+          </Paper>
+          </>
+        )}
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: "linear-gradient(135deg, #7b1fa2 0%, #6a1b9a 100%)" }}>
-            <CardContent>
-              <Typography color="textSecondary" sx={{ color: "#fff", opacity: 0.8 }}>
-                Total de Flotas
-              </Typography>
-              <Typography variant="h5" sx={{ color: "#fff", fontWeight: 700, mt: 1 }}>
-                {estadisticas.totalFlotas}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: "linear-gradient(135deg, #d32f2f 0%, #c62828 100%)" }}>
-            <CardContent>
-              <Typography color="textSecondary" sx={{ color: "#fff", opacity: 0.8 }}>
-                Flotas Inactivas
-              </Typography>
-              <Typography variant="h5" sx={{ color: "#fff", fontWeight: 700, mt: 1 }}>
-                {estadisticas.totalFlotas - estadisticas.flotasActivas}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Tabs */}
-      <Box sx={{ borderBottom: 2, borderColor: "divider", mt: 4, mb: 3 }}>
-        <Tabs
-          value={tabValue}
-          onChange={(e, newValue) => setTabValue(newValue)}
-          sx={{
-            "& .MuiTab-root": {
-              fontWeight: 600,
-              fontSize: "1rem",
-              textTransform: "none",
-            },
-          }}
-        >
-          <Tab label={`📋 Solicitudes Pendientes (${solicitudes.length})`} />
-          <Tab label="💰 Gestión de Flotas" />
-        </Tabs>
-      </Box>
-
-      {/* Contenido de Solicitudes */}
-      {tabValue === 0 && (
-        <Paper elevation={3} sx={{ borderRadius: 2, overflow: "hidden", mb: 4 }}>
-          {solicitudes.length > 0 ? (
+        {/* Contenido de Gestión de Flotas */}
+        {tabValue === 0 && (
+          <>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
+              <Box sx={{ flex: 1 }}>
+                <TableToolbar
+                  searchValue={searchFlotas}
+                  onSearchChange={setSearchFlotas}
+                  sortOptions={[
+                    { label: "↑ Nombre (A-Z)", value: "nombre-asc" },
+                    { label: "↓ Nombre (Z-A)", value: "nombre-desc" },
+                    { label: "↑ Saldo (Menor)", value: "saldo-asc" },
+                    { label: "↓ Saldo (Mayor)", value: "saldo-desc" },
+                  ]}
+                  sortValue={sortByFlotas}
+                  onSortChange={setSortByFlotas}
+                  filterOptions={[]}adfsdfsfsdfsfff
+                  visibleColumns={{}}
+                  onColumnChange={() => {}}
+                  showClearButton={true}
+                />
+              </Box>
+            </Box>
+            <Paper elevation={3} sx={{ borderRadius: 2, overflow: "hidden" }}>
             <TableContainer sx={{ maxHeight: "calc(100vh - 400px)" }}>
               <Table stickyHeader>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: "#f5f5f5" }}>
-                    <TableCell sx={{ fontWeight: 700, fontSize: "1rem" }}>Flota</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: "1rem" }}>
-                      Monto
+                <TableHead sx={{ backgroundColor: "#000000" }}>
+                  <TableRow>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Flota</TableCell>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Contacto</TableCell>
+                    <TableCell align="right" sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                      Saldo Actual
                     </TableCell>
-                    <TableCell sx={{ fontWeight: 700, fontSize: "1rem" }}>Concepto</TableCell>
-                    <TableCell sx={{ fontWeight: 700, fontSize: "1rem" }}>Notas</TableCell>
-                    <TableCell sx={{ fontWeight: 700, fontSize: "1rem" }}>Fecha</TableCell>
-                    <TableCell align="center" sx={{ fontWeight: 700, fontSize: "1rem" }}>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Estado</TableCell>
+                    <TableCell align="center" sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
                       Acciones
                     </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {solicitudes.map((solicitud) => (
-                    <TableRow
-                      key={solicitud.id}
-                      sx={{
-                        "&:hover": { bgcolor: "#f9f9f9" },
-                        borderBottom: "1px solid #eee",
-                      }}
-                    >
-                      <TableCell sx={{ fontWeight: 600 }}>{solicitud.flotaNombre}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700, fontSize: "1.05rem" }}>
-                        <span style={{ color: "#00897b" }}>
-                          ${solicitud.monto.toLocaleString("es-ES", {
-                            minimumFractionDigits: 2,
-                          })}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Chip label={solicitud.concepto} size="small" />
-                      </TableCell>
-                      <TableCell sx={{ fontSize: "0.9rem", color: "#666" }}>
-                        {solicitud.notas || "-"}
-                      </TableCell>
-                      <TableCell sx={{ fontSize: "0.9rem" }}>
-                        {new Date(solicitud.fechaSolicitud?.toDate?.() || solicitud.fechaSolicitud).toLocaleDateString("es-ES")}
-                      </TableCell>
-                      <TableCell align="center">
-                        <Box sx={{ display: "flex", gap: 0.5, justifyContent: "center" }}>
-                          <Tooltip title="Aprobar">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleAprobarSolicitud(solicitud)}
-                              disabled={processingId === solicitud.id}
-                              sx={{
-                                bgcolor: "#e8f5e9",
-                                color: "#00897b",
-                                "&:hover": { bgcolor: "#c8e6c9" },
-                              }}
-                            >
-                              <CheckIcon />
-                            </IconButton>
-                          </Tooltip>
+                {flotas.map((flota) => (
+                  <TableRow
+                    key={flota.id}
+                    hover
+                    sx={{ borderBottom: "1px solid #d0d0d0" }}
+                  >
+                    <TableCell sx={{ fontWeight: 600, fontFamily: "Mulish, sans-serif" }}>{flota.nombre}</TableCell>
+                    <TableCell sx={{ fontSize: "0.9rem", color: "#666", fontFamily: "Mulish, sans-serif" }}>
+                      {flota.contacto || flota.email || "-"}
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: "1.05rem", fontFamily: "Mulish, sans-serif" }}>
+                      <span style={{ color: "#d7171a" }}>
+                        ${(flota.saldo || 0).toLocaleString("es-ES", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={flota.estado === "activa" ? "Activa" : "Inactiva"}
+                        size="small"
+                        sx={{
+                          bgcolor: flota.estado === "activa" ? "#d7171a" : "#bdbdbd",
+                          color: "#fff",
+                          fontWeight: 600,
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Box sx={{ display: "flex", gap: 0.5, justifyContent: "center" }}>
+                        <Tooltip title="Asignar Saldo (+)">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleAbrirModal(flota, "deposito")}
+                            sx={{
+                              bgcolor: "#ffe0e0",
+                              color: "#d7171a",
+                              "&:hover": { bgcolor: "#ffb3b8" },
+                            }}
+                          >
+                            <AddIcon />
+                          </IconButton>
+                        </Tooltip>
 
-                          <Tooltip title="Rechazar">
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                setSelectedSolicitud(solicitud);
-                                setRejectDialogOpen(true);
-                              }}
-                              disabled={processingId === solicitud.id}
-                              sx={{
-                                bgcolor: "#ffebee",
-                                color: "#d32f2f",
-                                "&:hover": { bgcolor: "#ffcdd2" },
-                              }}
-                            >
-                              <CloseIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          ) : (
-            <Box sx={{ p: 4, textAlign: "center" }}>
-              <Typography variant="body1" color="text.secondary">
-                ✅ No hay solicitudes pendientes
-              </Typography>
-            </Box>
-          )}
-        </Paper>
-      )}
+                        <Tooltip title="Retirar Saldo (-)">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleAbrirModal(flota, "retiro")}
+                            sx={{
+                              bgcolor: "#ffebee",
+                              color: "#d7171a",
+                              "&:hover": { bgcolor: "#ffcdd2" },
+                            }}
+                          >
+                            <RemoveIcon />
+                          </IconButton>
+                        </Tooltip>
 
-      {/* Contenido de Gestión de Flotas */}
-      {tabValue === 1 && (
-        <Paper elevation={3} sx={{ borderRadius: 2, overflow: "hidden" }}>
-          <TableContainer sx={{ maxHeight: "calc(100vh - 400px)" }}>
-            <Table stickyHeader>
-            <TableHead>
-              <TableRow sx={{ bgcolor: "#f5f5f5" }}>
-                <TableCell sx={{ fontWeight: 700, fontSize: "1rem" }}>Flota</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: "1rem" }}>Contacto</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, fontSize: "1rem" }}>
-                  Saldo Actual
-                </TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: "1rem" }}>Estado</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 700, fontSize: "1rem" }}>
-                  Acciones
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {flotas.map((flota) => (
-                <TableRow
-                  key={flota.id}
-                  sx={{
-                    "&:hover": { bgcolor: "#f9f9f9" },
-                    borderBottom: "1px solid #eee",
-                  }}
-                >
-                  <TableCell sx={{ fontWeight: 600 }}>{flota.nombre}</TableCell>
-                  <TableCell sx={{ fontSize: "0.9rem", color: "#666" }}>
-                    {flota.contacto || flota.email || "-"}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700, fontSize: "1.05rem" }}>
-                    <span style={{ color: "#00897b" }}>
-                      ${(flota.saldo || 0).toLocaleString("es-ES", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={flota.estado === "activa" ? "Activa" : "Inactiva"}
-                      size="small"
-                      sx={{
-                        bgcolor: flota.estado === "activa" ? "#4caf50" : "#bdbdbd",
-                        color: "#fff",
-                        fontWeight: 600,
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell align="center">
-                    <Box sx={{ display: "flex", gap: 0.5, justifyContent: "center" }}>
-                      <Tooltip title="Asignar Saldo (+)">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleAbrirModal(flota, "deposito")}
-                          sx={{
-                            bgcolor: "#e8f5e9",
-                            color: "#00897b",
-                            "&:hover": { bgcolor: "#c8e6c9" },
-                          }}
-                        >
-                          <AddIcon />
-                        </IconButton>
-                      </Tooltip>
-
-                      <Tooltip title="Retirar Saldo (-)">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleAbrirModal(flota, "retiro")}
-                          sx={{
-                            bgcolor: "#ffebee",
-                            color: "#d32f2f",
-                            "&:hover": { bgcolor: "#ffcdd2" },
-                          }}
-                        >
-                          <RemoveIcon />
-                        </IconButton>
-                      </Tooltip>
-
-                      <Tooltip title="Ver Historial">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleAbrirHistorial(flota)}
-                          sx={{
-                            bgcolor: "#e3f2fd",
-                            color: "#1976d2",
-                            "&:hover": { bgcolor: "#bbdefb" },
-                          }}
-                        >
-                          <HistoryIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        </Paper>
-      )}
+                        <Tooltip title="Ver Historial">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleAbrirHistorial(flota)}
+                            sx={{
+                              bgcolor: "#f5f5f5",
+                              color: "#d7171a",
+                              "&:hover": { bgcolor: "#e0e0e0" },
+                            }}
+                          >
+                            <HistoryIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          </Paper>
+          </>
+        )}
+      </Paper>
 
       {/* Dialog para rechazar */}
       <Dialog open={rejectDialogOpen} onClose={() => setRejectDialogOpen(false)}>

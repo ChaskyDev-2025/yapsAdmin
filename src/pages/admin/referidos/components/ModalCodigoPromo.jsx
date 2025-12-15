@@ -132,7 +132,7 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
       <DialogTitle 
         sx={{ 
           fontWeight: 700, 
-          bgcolor: "#00897b", 
+          background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)", 
           color: "white",
           display: "flex",
           justifyContent: "space-between",
@@ -162,7 +162,7 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
 
         <Box>
           {/* Sección 1: Información General */}
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#00897b", mb: 2.5, fontSize: "0.95rem" }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)", backgroundClip: "text", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", mb: 2.5, fontSize: "0.95rem" }}>
             📋 Información General
           </Typography>
 
@@ -193,12 +193,12 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
                   sx={{
                     mt: 0.5,
                     textTransform: "none",
-                    borderColor: "#00897b",
-                    color: "#00897b",
+                    borderColor: "#d7171a",
+                    color: "#d7171a",
                     whiteSpace: "nowrap",
                     "&:hover": {
-                      borderColor: "#00897b",
-                      bgcolor: "rgba(0, 137, 123, 0.04)",
+                      borderColor: "#d7171a",
+                      bgcolor: "#ffe0e0",
                     },
                     "&:disabled": {
                       borderColor: "#ccc",
@@ -260,7 +260,7 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
           <Divider sx={{ my: 3 }} />
 
           {/* Sección 2: Descuentos */}
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#00897b", mb: 2.5, fontSize: "0.95rem" }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)", backgroundClip: "text", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", mb: 2.5, fontSize: "0.95rem" }}>
             💰 Descuentos
           </Typography>
 
@@ -308,7 +308,7 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
           <Divider sx={{ my: 3 }} />
 
           {/* Sección 3: Límites de Uso */}
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#00897b", mb: 2.5, fontSize: "0.95rem" }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)", backgroundClip: "text", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", mb: 2.5, fontSize: "0.95rem" }}>
             📊 Límites de Uso
           </Typography>
 
@@ -359,7 +359,7 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
           <Divider sx={{ my: 3 }} />
 
           {/* Sección 4: Estado */}
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#00897b", mb: 2, fontSize: "0.95rem" }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)", backgroundClip: "text", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", mb: 2, fontSize: "0.95rem" }}>
             ⚡ Estado
           </Typography>
 
@@ -372,16 +372,16 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
                   onChange={handleChange}
                   sx={{
                     "& .MuiSwitch-switchBase.Mui-checked": {
-                      color: "#00897b",
+                      color: "#d7171a",
                     },
                     "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                      backgroundColor: "#00897b",
+                      backgroundColor: "#d7171a",
                     },
                   }}
                 />
               }
               label={
-                <span style={{ fontWeight: 600, color: formData.activo ? "#2e7d32" : "#c62828" }}>
+                <span style={{ fontWeight: 600, color: formData.activo ? "#d7171a" : "#c62828" }}>
                   {formData.activo ? "✓ Activo" : "✗ Inactivo"}
                 </span>
               }
@@ -415,9 +415,9 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
           onClick={handleSave}
           variant="contained"
           sx={{ 
-            bgcolor: "#00897b",
+            background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
             "&:hover": {
-              bgcolor: "#00695c"
+              background: "linear-gradient(135deg, #b01217 0%, #a01012 100%)"
             }
           }}
           disabled={loading}

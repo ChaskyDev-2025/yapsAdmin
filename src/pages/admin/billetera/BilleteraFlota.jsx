@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Box,
   Paper,
@@ -25,6 +25,7 @@ import {
   Tab,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import { TableToolbar } from "../usuarios/components/TableToolbar";
 import { useAuth } from "../../../auth/AuthContext";
 import {
   obtenerSolicitudesFlota,
@@ -57,6 +58,10 @@ const BilleteraFlota = () => {
     message: "",
     severity: "success",
   });
+  const [searchSolicitudes, setSearchSolicitudes] = useState("");
+  const [sortBySolicitudes, setSortBySolicitudes] = useState("fecha-desc");
+  const [searchHistorial, setSearchHistorial] = useState("");
+  const [sortByHistorial, setSortByHistorial] = useState("fecha-desc");
 
   const cargarDatos = useCallback(async () => {
     if (!flotaId) {
@@ -211,6 +216,76 @@ const BilleteraFlota = () => {
     }
   };
 
+  // Filtrado y ordenamiento para solicitudes
+  const solicitudesFiltradas = useMemo(() => {
+    let filtered = solicitudes;
+    
+    // Filtro por búsqueda
+    if (searchSolicitudes) {
+      const search = searchSolicitudes.toLowerCase();
+      filtered = filtered.filter(s =>
+        (s.concepto || "").toLowerCase().includes(search) ||
+        (s.notas || "").toLowerCase().includes(search)
+      );
+    }
+    
+    // Ordenamiento
+    const sorted = [...filtered];
+    switch (sortBySolicitudes) {
+      case "fecha-asc":
+        sorted.sort((a, b) => new Date(a.fechaSolicitud?.toDate?.() || 0) - new Date(b.fechaSolicitud?.toDate?.() || 0));
+        break;
+      case "fecha-desc":
+        sorted.sort((a, b) => new Date(b.fechaSolicitud?.toDate?.() || 0) - new Date(a.fechaSolicitud?.toDate?.() || 0));
+        break;
+      case "monto-asc":
+        sorted.sort((a, b) => a.monto - b.monto);
+        break;
+      case "monto-desc":
+        sorted.sort((a, b) => b.monto - a.monto);
+        break;
+      default:
+        break;
+    }
+    
+    return sorted;
+  }, [solicitudes, searchSolicitudes, sortBySolicitudes]);
+
+  // Filtrado y ordenamiento para historial
+  const historialFiltrado = useMemo(() => {
+    let filtered = historial;
+    
+    // Filtro por búsqueda
+    if (searchHistorial) {
+      const search = searchHistorial.toLowerCase();
+      filtered = filtered.filter(h =>
+        (h.concepto || "").toLowerCase().includes(search) ||
+        (h.tipo || "").toLowerCase().includes(search)
+      );
+    }
+    
+    // Ordenamiento
+    const sorted = [...filtered];
+    switch (sortByHistorial) {
+      case "fecha-asc":
+        sorted.sort((a, b) => new Date(a.fechaRegistro || 0) - new Date(b.fechaRegistro || 0));
+        break;
+      case "fecha-desc":
+        sorted.sort((a, b) => new Date(b.fechaRegistro || 0) - new Date(a.fechaRegistro || 0));
+        break;
+      case "monto-asc":
+        sorted.sort((a, b) => a.monto - b.monto);
+        break;
+      case "monto-desc":
+        sorted.sort((a, b) => b.monto - a.monto);
+        break;
+      default:
+        break;
+    }
+    
+    return sorted;
+  }, [historial, searchHistorial, sortByHistorial]);
+
   if (!flotaId) {
     return (
       <Box sx={{ p: 3 }}>
@@ -229,217 +304,290 @@ const BilleteraFlota = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" sx={{ mb: 3, fontWeight: "bold" }}>
-        Mi Billetera
-      </Typography>
+      <Paper elevation={6} sx={{ p: 3, borderRadius: 2, backgroundColor: "#f9f9f9" }}>
+        <Typography variant="h4" sx={{ mb: 1, fontWeight: 700, color: "#000000" }}>
+          💳 Mi Billetera
+        </Typography>
+        <Typography variant="body2" sx={{ color: "#666", mb: 3, fontFamily: "Mulish, sans-serif" }}>
+          Gestiona tu saldo y solicitudes de recarga
+        </Typography>
 
-      {/* Tarjeta de Saldo */}
-      <Card sx={{ mb: 3, background: "linear-gradient(135deg, #00897b 0%, #00695c 100%)" }}>
-        <CardContent>
-          <Typography color="white" variant="subtitle2" sx={{ mb: 1 }}>
-            Saldo Disponible
-          </Typography>
-          <Typography color="white" variant="h3" sx={{ fontWeight: "bold" }}>
-            ${saldoActual.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
-          </Typography>
-        </CardContent>
-      </Card>
+        {/* Tarjeta de Saldo */}
+        <Card sx={{ mb: 4, background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)" }}>
+          <CardContent>
+            <Typography sx={{ color: "#fff", opacity: 0.8, mb: 1, fontFamily: "Mulish, sans-serif" }}>
+              Saldo Disponible
+            </Typography>
+            <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "2rem", fontFamily: "Mulish, sans-serif" }}>
+              ${saldoActual.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+            </Typography>
+          </CardContent>
+        </Card>
 
-      {/* Botón para nueva solicitud */}
-      <Box sx={{ mb: 2 }}>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleAbrirModal}
-          sx={{ background: "#00897b" }}
-        >
-          Solicitar Recarga
-        </Button>
-      </Box>
-
-      {/* Tabs */}
-      <Paper sx={{ mb: 3 }}>
-        <Tabs
-          value={tabValue}
-          onChange={(e, newValue) => setTabValue(newValue)}
-        >
-          <Tab label="Solicitudes" />
-          <Tab label="Historial de Transacciones" />
-        </Tabs>
-      </Paper>
-
-      {/* TAB 1: SOLICITUDES */}
-      {tabValue === 0 && (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead sx={{ background: "#f5f5f5" }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: "bold" }}>Fecha</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Monto</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Concepto</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Estado</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Notas</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {solicitudes.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
-                    <Typography color="textSecondary">
-                      No hay solicitudes de recarga
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                solicitudes.map((solicitud) => (
-                  <TableRow key={solicitud.id}>
-                    <TableCell>
-                      {solicitud.fechaSolicitud?.toDate?.().toLocaleDateString("es-ES") ||
-                        "N/A"}
-                    </TableCell>
-                    <TableCell>
-                      ${solicitud.monto.toLocaleString("es-ES", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </TableCell>
-                    <TableCell>{solicitud.concepto}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={getEstadoLabel(solicitud.estado)}
-                        color={getEstadoColor(solicitud.estado)}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {solicitud.estado === "rechazada" && solicitud.razonRechazo
-                        ? `Rechazada: ${solicitud.razonRechazo}`
-                        : solicitud.notas || "-"}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-
-      {/* TAB 2: HISTORIAL */}
-      {tabValue === 1 && (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead sx={{ background: "#f5f5f5" }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: "bold" }}>Fecha</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Tipo</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Monto</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Concepto</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Saldo Posterior</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {historial.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
-                    <Typography color="textSecondary">
-                      No hay transacciones registradas
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                historial.map((tx) => (
-                  <TableRow key={tx.id}>
-                    <TableCell>{tx.fechaRegistro}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={
-                          tx.tipo === "deposito" ? "Depósito" : "Retiro"
-                        }
-                        color={
-                          tx.tipo === "deposito" ? "success" : "error"
-                        }
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      ${Math.abs(tx.monto).toLocaleString("es-ES", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </TableCell>
-                    <TableCell>{tx.concepto}</TableCell>
-                    <TableCell>
-                      ${tx.saldoNuevo.toLocaleString("es-ES", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-
-      {/* MODAL NUEVA SOLICITUD */}
-      <Dialog open={modalOpen} onClose={handleModalClose} maxWidth="sm" fullWidth>
-        <DialogTitle>Solicitar Recarga</DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          <TextField
-            fullWidth
-            label="Monto"
-            type="number"
-            value={monto}
-            onChange={(e) => setMonto(e.target.value)}
-            inputProps={{ step: "0.01", min: "0" }}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            fullWidth
-            select
-            label="Concepto"
-            value={concepto}
-            onChange={(e) => setConcepto(e.target.value)}
-            sx={{ mb: 2 }}
-            SelectProps={{
-              native: true,
+        {/* Botón para nueva solicitud */}
+        <Box sx={{ mb: 3 }}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAbrirModal}
+            sx={{ 
+              backgroundColor: "#d7171a", 
+              color: "white", 
+              fontWeight: 600,
+              fontFamily: "Mulish, sans-serif",
+              "&:hover": { backgroundColor: "#b01217" }
             }}
           >
-            <option value="recarga">Recarga General</option>
-            <option value="comisiones">Pago de Comisiones</option>
-            <option value="incentivo">Incentivo</option>
-            <option value="bonus">Bonus</option>
-            <option value="otro">Otro</option>
-          </TextField>
-          <TextField
-            fullWidth
-            label="Notas (opcional)"
-            multiline
-            rows={3}
-            value={notas}
-            onChange={(e) => setNotas(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleModalClose}>Cancelar</Button>
-          <Button
-            onClick={handleSubmitSolicitud}
-            variant="contained"
-            disabled={submitting}
-            sx={{ background: "#00897b" }}
-          >
-            {submitting ? "Enviando..." : "Enviar Solicitud"}
+            Solicitar Recarga
           </Button>
-        </DialogActions>
-      </Dialog>
+        </Box>
 
-      {/* SNACKBAR */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-      >
-        <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
-      </Snackbar>
-    </Box>
+        {/* Tabs */}
+        <Box sx={{ borderBottom: 2, borderColor: "divider", mb: 3 }}>
+          <Tabs
+            value={tabValue}
+            onChange={(e, newValue) => setTabValue(newValue)}
+            sx={{
+              "& .MuiTab-root": {
+                fontWeight: 600,
+                fontSize: "1rem",
+                textTransform: "none",
+                color: "#484848",
+                "&.Mui-selected": {
+                  color: "#d7171a",
+                },
+              },
+              "& .MuiTabs-indicator": {
+                backgroundColor: "#d7171a",
+              },
+            }}
+          >
+            <Tab label="📋 Mis Solicitudes" />
+            <Tab label="📊 Historial de Transacciones" />
+          </Tabs>
+        </Box>
+
+        {/* TAB 1: SOLICITUDES */}
+        {tabValue === 0 && (
+          <>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
+              <Box sx={{ flex: 1 }}>
+                <TableToolbar
+                  searchValue={searchSolicitudes}
+                  onSearchChange={setSearchSolicitudes}
+                  sortValue={sortBySolicitudes}
+                  onSortChange={setSortBySolicitudes}
+                  sortOptions={[
+                    { label: "↑ Fecha (Más antigua)", value: "fecha-asc" },
+                    { label: "↓ Fecha (Más reciente)", value: "fecha-desc" },
+                    { label: "↑ Monto (Menor)", value: "monto-asc" },
+                    { label: "↓ Monto (Mayor)", value: "monto-desc" },
+                  ]}
+                />
+              </Box>
+            </Box>
+            <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
+              <Table stickyHeader>
+                <TableHead sx={{ backgroundColor: "#000000" }}>
+                  <TableRow>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Fecha</TableCell>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Monto</TableCell>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Concepto</TableCell>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Estado</TableCell>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Notas</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {solicitudesFiltradas.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center">
+                        <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
+                          No hay solicitudes de recarga
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    solicitudesFiltradas.map((solicitud) => (
+                      <TableRow key={solicitud.id} sx={{ borderBottom: "1px solid #d0d0d0" }}>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          {solicitud.fechaSolicitud?.toDate?.().toLocaleDateString("es-ES") ||
+                            "N/A"}
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                          ${solicitud.monto.toLocaleString("es-ES", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{solicitud.concepto}</TableCell>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          <Chip
+                            label={getEstadoLabel(solicitud.estado)}
+                            size="small"
+                            sx={{
+                              bgcolor: solicitud.estado === "aprobada" ? "#d7171a" : 
+                                      solicitud.estado === "rechazada" ? "#ff5252" :
+                                      "#ffc107",
+                              color: "#fff",
+                              fontWeight: 600,
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontSize: "0.9rem" }}>
+                          {solicitud.estado === "rechazada" && solicitud.razonRechazo
+                            ? `Rechazada: ${solicitud.razonRechazo}`
+                            : solicitud.notas || "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </>
+        )}
+
+        {/* TAB 2: HISTORIAL */}
+        {tabValue === 1 && (
+          <>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
+              <Box sx={{ flex: 1 }}>
+                <TableToolbar
+                  searchValue={searchHistorial}
+                  onSearchChange={setSearchHistorial}
+                  sortValue={sortByHistorial}
+                  onSortChange={setSortByHistorial}
+                  sortOptions={[
+                    { label: "↑ Fecha (Más antigua)", value: "fecha-asc" },
+                    { label: "↓ Fecha (Más reciente)", value: "fecha-desc" },
+                    { label: "↑ Monto (Menor)", value: "monto-asc" },
+                    { label: "↓ Monto (Mayor)", value: "monto-desc" },
+                  ]}
+                />
+              </Box>
+            </Box>
+            <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
+              <Table stickyHeader>
+                <TableHead sx={{ backgroundColor: "#000000" }}>
+                  <TableRow>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Fecha</TableCell>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Tipo</TableCell>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Monto</TableCell>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Concepto</TableCell>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Saldo Posterior</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {historialFiltrado.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center">
+                        <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
+                          No hay transacciones registradas
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    historialFiltrado.map((tx) => (
+                      <TableRow key={tx.id} sx={{ borderBottom: "1px solid #d0d0d0" }}>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{tx.fechaRegistro}</TableCell>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          <Chip
+                            label={
+                              tx.tipo === "deposito" ? "Depósito" : "Retiro"
+                            }
+                            size="small"
+                            sx={{
+                              bgcolor: tx.tipo === "deposito" ? "#d7171a" : "#ff5252",
+                              color: "#fff",
+                              fontWeight: 600,
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                          ${Math.abs(tx.monto).toLocaleString("es-ES", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{tx.concepto}</TableCell>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600, color: "#d7171a" }}>
+                          ${tx.saldoNuevo.toLocaleString("es-ES", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </>
+        )}
+
+        {/* MODAL NUEVA SOLICITUD */}
+        <Dialog open={modalOpen} onClose={handleModalClose} maxWidth="sm" fullWidth>
+          <DialogTitle>Solicitar Recarga</DialogTitle>
+          <DialogContent sx={{ pt: 2 }}>
+            <TextField
+              fullWidth
+              label="Monto"
+              type="number"
+              value={monto}
+              onChange={(e) => setMonto(e.target.value)}
+              inputProps={{ step: "0.01", min: "0" }}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              select
+              label="Concepto"
+              value={concepto}
+              onChange={(e) => setConcepto(e.target.value)}
+              sx={{ mb: 2 }}
+              SelectProps={{
+                native: true,
+              }}
+            >
+              <option value="recarga">Recarga General</option>
+              <option value="comisiones">Pago de Comisiones</option>
+              <option value="incentivo">Incentivo</option>
+              <option value="bonus">Bonus</option>
+              <option value="otro">Otro</option>
+            </TextField>
+            <TextField
+              fullWidth
+              label="Notas (opcional)"
+              multiline
+              rows={3}
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleModalClose}>Cancelar</Button>
+            <Button
+              onClick={handleSubmitSolicitud}
+              variant="contained"
+              disabled={submitting}
+              sx={{ 
+                backgroundColor: "#d7171a",
+                "&:hover": { backgroundColor: "#b01217" }
+              }}
+            >
+              {submitting ? "Enviando..." : "Enviar Solicitud"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* SNACKBAR */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={4000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        >
+          <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
+        </Snackbar>
+      </Paper>
+
+      </Box>
   );
 };
 
