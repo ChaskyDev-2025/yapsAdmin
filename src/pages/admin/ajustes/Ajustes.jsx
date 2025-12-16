@@ -19,6 +19,7 @@ import {
   TableRow,
   Chip,
   IconButton,
+  Pagination,
 } from "@mui/material";
 import BusinessIcon from "@mui/icons-material/Business";
 import EditIcon from "@mui/icons-material/Edit";
@@ -41,6 +42,8 @@ const Ajustes = () => {
   const [flotaIdActual, setFlotaIdActual] = useState(null);
   const [searchUsuarios, setSearchUsuarios] = useState("");
   const [sortByUsuarios, setSortByUsuarios] = useState("nombre-asc");
+  const [pageUsuarios, setPageUsuarios] = useState(0);
+  const ITEMS_PER_PAGE = 10;
   const [visibleColumnsAjustes, setVisibleColumnsAjustes] = useState({
     id: true,
     nombre: true,
@@ -50,6 +53,11 @@ const Ajustes = () => {
     fechaRegistro: true,
     acciones: true,
   });
+
+  // Resetear página al cambiar búsqueda
+  useEffect(() => {
+    setPageUsuarios(0);
+  }, [searchUsuarios]);
   
   const { rows, cargando, error, refetch } = useUsuarios(flotaIdActual);
   const { user } = useAuth();
@@ -155,6 +163,15 @@ const Ajustes = () => {
     return sorted;
   }, [rows, searchUsuarios, sortByUsuarios]);
 
+  // Paginación
+  const usuariosPaginados = useMemo(() => {
+    const start = pageUsuarios * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return usuariosFiltrados.slice(start, end);
+  }, [usuariosFiltrados, pageUsuarios]);
+
+  const totalPagesUsuarios = Math.ceil(usuariosFiltrados.length / ITEMS_PER_PAGE);
+
   return (
     <Box sx={{ p: 3 }}>
       <Paper elevation={6} sx={{ p: 3, borderRadius: 2, backgroundColor: "#f9f9f9" }}>
@@ -257,7 +274,7 @@ const Ajustes = () => {
                   </TableCell>
                 </TableRow>
               ) : usuariosFiltrados.length > 0 ? (
-                usuariosFiltrados.map((row) => (
+                usuariosPaginados.map((row) => (
                   <TableRow
                     key={row.firebaseId || row.id}
                     sx={{
@@ -330,6 +347,29 @@ const Ajustes = () => {
             </TableBody>
           </Table>
         </TableContainer>
+
+        {usuariosFiltrados.length > 0 && (
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+            <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+              Mostrando {pageUsuarios * ITEMS_PER_PAGE + 1} - {Math.min((pageUsuarios + 1) * ITEMS_PER_PAGE, usuariosFiltrados.length)} de {usuariosFiltrados.length}
+            </Typography>
+            <Pagination
+              count={totalPagesUsuarios}
+              page={pageUsuarios + 1}
+              onChange={(e, page) => setPageUsuarios(page - 1)}
+              sx={{
+                "& .MuiButtonBase-root": {
+                  fontFamily: "Mulish, sans-serif",
+                  color: "#000",
+                },
+                "& .Mui-selected": {
+                  backgroundColor: "#aaaaaa !important",
+                  color: "white",
+                },
+              }}
+            />
+          </Box>
+        )}
 
         {error && (
           <Alert severity="error" sx={{ mt: 2, fontFamily: "Mulish, sans-serif" }}>

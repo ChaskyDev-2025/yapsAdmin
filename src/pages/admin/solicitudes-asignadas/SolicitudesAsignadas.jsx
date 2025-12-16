@@ -23,6 +23,7 @@ import {
   FormControl,
   InputLabel,
   Grid,
+  Pagination,
 } from "@mui/material";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
@@ -68,8 +69,13 @@ const SolicitudesAsignadas = () => {
   const [cargando, setCargando] = useState(true);
   const [ofertaDialogOpen, setOfertaDialogOpen] = useState(false);
   const [solicitudOferta, setSolicitudOferta] = useState(null);
+  const [pageSolicitudes, setPageSolicitudes] = useState(0);
+  const ITEMS_PER_PAGE = 10;
 
-  // Opciones para filtros y ordenamiento
+  // Resetear página al cambiar búsqueda
+  useEffect(() => {
+    setPageSolicitudes(0);
+  }, [searchSolicitudes]);
   const sortOptions = [
     { label: "Fecha más reciente", value: "fecha-desc" },
     { label: "Fecha más antigua", value: "fecha-asc" }
@@ -254,6 +260,15 @@ const SolicitudesAsignadas = () => {
 
     return resultado;
   }, [solicitudes, searchSolicitudes, filterEstado, sortBySolicitudes]);
+
+  // Paginación
+  const solicitudesPaginadas = useMemo(() => {
+    const start = pageSolicitudes * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return solicitudesFiltradas.slice(start, end);
+  }, [solicitudesFiltradas, pageSolicitudes]);
+
+  const totalPagesSolicitudes = Math.ceil(solicitudesFiltradas.length / ITEMS_PER_PAGE);
 
   // Manejadores de diálogos
   const handleOpenDialog = (solicitud) => {
@@ -480,7 +495,7 @@ const SolicitudesAsignadas = () => {
                   </TableCell>
                 </TableRow>
               ) : solicitudesFiltradas.length > 0 ? (
-                solicitudesFiltradas.map((solicitud) => (
+                solicitudesPaginadas.map((solicitud) => (
                   <TableRow 
                     key={solicitud.id} 
                     sx={{ 
@@ -585,7 +600,28 @@ const SolicitudesAsignadas = () => {
             </TableBody>
           </Table>
         </TableContainer>
-
+        {solicitudesFiltradas.length > 0 && (
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+            <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+              Mostrando {pageSolicitudes * ITEMS_PER_PAGE + 1} - {Math.min((pageSolicitudes + 1) * ITEMS_PER_PAGE, solicitudesFiltradas.length)} de {solicitudesFiltradas.length}
+            </Typography>
+            <Pagination
+              count={totalPagesSolicitudes}
+              page={pageSolicitudes + 1}
+              onChange={(e, page) => setPageSolicitudes(page - 1)}
+              sx={{
+                "& .MuiButtonBase-root": {
+                  fontFamily: "Mulish, sans-serif",
+                  color: "#000",
+                },
+                "& .Mui-selected": {
+                  backgroundColor: "#aaaaaa !important",
+                  color: "white",
+                },
+              }}
+            />
+          </Box>
+        )}
         {/* Diálogo para asignar conductor */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>Asignar Conductor</DialogTitle>

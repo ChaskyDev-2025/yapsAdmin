@@ -1,6 +1,6 @@
 // src/pages/admin/flotas/GestionFlotasRefactored.jsx
-import React, { useState, useMemo } from "react";
-import { Box, Paper, Typography, Button, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from "@mui/material";
+import React, { useState, useMemo, useEffect } from "react";
+import { Box, Paper, Typography, Button, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Pagination } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import { updateDoc, doc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -43,6 +43,10 @@ const GestionFlotas = () => {
   const [sortByFlotas, setSortByFlotas] = useState("nombre-asc");
   const [filterEstadoFlotas, setFilterEstadoFlotas] = useState("todos");
   
+  // Estados para paginación
+  const ITEMS_PER_PAGE = 10;
+  const [pageFlotas, setPageFlotas] = useState(0);
+  
   // Estados para columnas visibles
   const [visibleColumnsFlotas, setVisibleColumnsFlotas] = useState({
     logo: true,
@@ -81,6 +85,11 @@ const GestionFlotas = () => {
   const showSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
   };
+
+  // Resetear página al cambiar búsqueda o filtros
+  useEffect(() => {
+    setPageFlotas(0);
+  }, [searchFlotas, filterEstadoFlotas]);
 
   // Filtrado y ordenamiento de flotas
   const flotasFiltradas = useMemo(() => {
@@ -126,6 +135,15 @@ const GestionFlotas = () => {
     
     return sorted;
   }, [flotas, searchFlotas, filterEstadoFlotas, sortByFlotas]);
+
+  // Datos paginados para Flotas
+  const flotasPaginadas = useMemo(() => {
+    const start = pageFlotas * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return flotasFiltradas.slice(start, end);
+  }, [flotasFiltradas, pageFlotas]);
+
+  const totalPagesFlotas = Math.ceil(flotasFiltradas.length / ITEMS_PER_PAGE);
 
   // Funciones de manejo de formulario
   const handleOpenDialog = (flota = null) => {
@@ -462,7 +480,7 @@ const GestionFlotas = () => {
         />
 
         <FlotasTable
-          flotas={flotasFiltradas}
+          flotas={flotasPaginadas}
           administradores={administradores}
           servicios={serviciosDisponibles}
           onEdit={handleOpenDialog}
@@ -472,6 +490,26 @@ const GestionFlotas = () => {
           onManageServicios={handleManageServicios}
           visibleColumns={visibleColumnsFlotas}
         />
+
+        {/* Controles de paginación */}
+        {flotasFiltradas.length > 0 && (
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+            <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+              Mostrando {flotasPaginadas.length > 0 ? (pageFlotas * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pageFlotas + 1) * ITEMS_PER_PAGE, flotasFiltradas.length)} de {flotasFiltradas.length}
+            </Typography>
+            <Pagination 
+              count={totalPagesFlotas}
+              page={pageFlotas + 1}
+              onChange={(e, page) => setPageFlotas(page - 1)}
+              sx={{
+                "& .MuiPaginationItem-root": {
+                  fontFamily: "Mulish, sans-serif",
+                  color: "#000",
+                }
+              }}
+            />
+          </Box>
+        )}
       </Paper>
 
       {/* Diálogo de crear/editar flota */}

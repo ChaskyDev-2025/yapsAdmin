@@ -15,6 +15,7 @@ import {
   Tooltip,
   Switch,
   CircularProgress,
+  Pagination,
 } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
@@ -33,6 +34,7 @@ const Radiotaxis = () => {
   const [flotaId, setFlotaId] = useState(null);
   const [searchRadiotaxis, setSearchRadiotaxis] = useState("");
   const [sortByRadiotaxis, setSortByRadiotaxis] = useState("nombre-asc");
+  const [pageRadiotaxis, setPageRadiotaxis] = useState(0);
   const [visibleColumnsRadiotaxis, setVisibleColumnsRadiotaxis] = useState({
     nombre: true,
     email: true,
@@ -42,6 +44,7 @@ const Radiotaxis = () => {
     acciones: true,
   });
   const { user } = useAuth();
+  const ITEMS_PER_PAGE = 10;
   
   // 👉 Datos desde el hook (Firebase) - filtra por flota del usuario
   const { rows, cargando, error, refetch } = useTrabajadoresPorFlota(flotaId);
@@ -62,6 +65,11 @@ const Radiotaxis = () => {
     };
     fetchFlotaId();
   }, [user]);
+
+  // Reset página al cambiar búsqueda
+  useEffect(() => {
+    setPageRadiotaxis(0);
+  }, [searchRadiotaxis]);
 
   const handleVer = (row) => {
     setSelectedRow(row);
@@ -120,6 +128,15 @@ const Radiotaxis = () => {
     
     return sorted;
   }, [rows, searchRadiotaxis, sortByRadiotaxis]);
+
+  // Paginación
+  const radiotaxisPaginados = useMemo(() => {
+    const start = pageRadiotaxis * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return radiotaxisFiltrados.slice(start, end);
+  }, [radiotaxisFiltrados, pageRadiotaxis]);
+
+  const totalPagesRadiotaxis = Math.ceil(radiotaxisFiltrados.length / ITEMS_PER_PAGE);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -183,7 +200,7 @@ const Radiotaxis = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {radiotaxisFiltrados.length === 0 ? (
+                {radiotaxisPaginados.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
@@ -192,7 +209,7 @@ const Radiotaxis = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  radiotaxisFiltrados.map((radio) => (
+                  radiotaxisPaginados.map((radio) => (
                     <TableRow key={radio.firebaseId} hover sx={{ borderBottom: "1px solid #d0d0d0" }}>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
                         {radio.nombreEmpresa || "-"}
@@ -247,6 +264,29 @@ const Radiotaxis = () => {
               </TableBody>
             </Table>
           </TableContainer>
+        )}
+
+        {radiotaxisFiltrados.length > 0 && (
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+            <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+              Mostrando {pageRadiotaxis * ITEMS_PER_PAGE + 1} - {Math.min((pageRadiotaxis + 1) * ITEMS_PER_PAGE, radiotaxisFiltrados.length)} de {radiotaxisFiltrados.length}
+            </Typography>
+            <Pagination
+              count={totalPagesRadiotaxis}
+              page={pageRadiotaxis + 1}
+              onChange={(e, page) => setPageRadiotaxis(page - 1)}
+              sx={{
+                "& .MuiButtonBase-root": {
+                  fontFamily: "Mulish, sans-serif",
+                  color: "#000",
+                },
+                "& .Mui-selected": {
+                  backgroundColor: "#aaaaaa !important",
+                  color: "white",
+                },
+              }}
+            />
+          </Box>
         )}
 
         {error && (

@@ -3,6 +3,8 @@ import {
   Container,
   Paper,
   Box,
+  Pagination,
+  Typography,
 } from "@mui/material";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
@@ -36,6 +38,15 @@ const Solicitudes = () => {
   const [solicitudSeleccionada, setSolicitudSeleccionada] = useState(null);
   const [ofertaDialogOpen, setOfertaDialogOpen] = useState(false);
   const [solicitudOferta, setSolicitudOferta] = useState(null);
+
+  // Estados para paginación
+  const ITEMS_PER_PAGE = 10;
+  const [pageSolicitudes, setPageSolicitudes] = useState(0);
+
+  // Resetear página al cambiar búsqueda o filtros
+  useEffect(() => {
+    setPageSolicitudes(0);
+  }, [searchSolicitudes, filterEstado]);
 
   // Cargar solicitudes
   useEffect(() => {
@@ -187,6 +198,15 @@ const Solicitudes = () => {
 
     return sorted;
   }, [solicitudes, searchSolicitudes, filterEstado, sortBySolicitudes]);
+
+  // Datos paginados para Solicitudes
+  const solicitudesPaginadas = useMemo(() => {
+    const start = pageSolicitudes * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return solicitudesFiltradas.slice(start, end);
+  }, [solicitudesFiltradas, pageSolicitudes]);
+
+  const totalPagesSolicitudes = Math.ceil(solicitudesFiltradas.length / ITEMS_PER_PAGE);
 
   // Abrir diálogo para asignar flota
   const handleOpenDialog = (solicitud) => {
@@ -360,7 +380,7 @@ const Solicitudes = () => {
 
         {/* Tabla de solicitudes */}
         <SolicitudesTable
-          solicitudesFiltradas={solicitudesFiltradas}
+          solicitudesFiltradas={solicitudesPaginadas}
           onVerDetalles={handleVerDetalles}
           onVerOferta={handleVerOferta}
           onAsignarFlota={handleOpenDialog}
@@ -368,6 +388,26 @@ const Solicitudes = () => {
           formatearFecha={formatearFecha}
           getEstadoColor={getEstadoColor}
         />
+
+        {/* Controles de paginación */}
+        {solicitudesFiltradas.length > 0 && (
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+            <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+              Mostrando {solicitudesPaginadas.length > 0 ? (pageSolicitudes * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pageSolicitudes + 1) * ITEMS_PER_PAGE, solicitudesFiltradas.length)} de {solicitudesFiltradas.length}
+            </Typography>
+            <Pagination 
+              count={totalPagesSolicitudes}
+              page={pageSolicitudes + 1}
+              onChange={(e, page) => setPageSolicitudes(page - 1)}
+              sx={{
+                "& .MuiPaginationItem-root": {
+                  fontFamily: "Mulish, sans-serif",
+                  color: "#000",
+                }
+              }}
+            />
+          </Box>
+        )}
       </Paper>
 
       {/* Diálogos */}

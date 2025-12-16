@@ -25,7 +25,8 @@ import {
   InputLabel,
   FormControl,
   Grid,
-  TextField
+  TextField,
+  Pagination,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -564,6 +565,15 @@ const GestionServicios = () => {
   const [sortByServices, setSortByServices] = useState("nombre-asc");
   const [filterCategoryServices, setFilterCategoryServices] = useState("todas");
   
+  // Estados para paginación
+  const ITEMS_PER_PAGE = 10;
+  const [pageServices, setPageServices] = useState(0);
+  
+  // Resetear página al cambiar búsqueda o filtros
+  useEffect(() => {
+    setPageServices(0);
+  }, [searchServices, filterCategoryServices]);
+  
   // Estados para columnas visibles
   const [visibleColumnsServicios, setVisibleColumnsServicios] = useState({
     categoria: true,
@@ -669,6 +679,15 @@ const GestionServicios = () => {
 
     return sorted;
   }, [services, searchServices, sortByServices, filterCategoryServices]);
+
+  // Datos paginados para Servicios
+  const servicesPaginados = useMemo(() => {
+    const start = pageServices * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return servicesFiltrados.slice(start, end);
+  }, [servicesFiltrados, pageServices]);
+
+  const totalPagesServices = Math.ceil(servicesFiltrados.length / ITEMS_PER_PAGE);
 
   const handleToggleDept = async (dept, currentStatus) => {
     try {
@@ -894,7 +913,7 @@ const GestionServicios = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {servicesFiltrados.map((srv) => (
+                      {servicesPaginados.map((srv) => (
                         <TableRow key={srv.id}>
                           {visibleColumnsServicios.categoria && <TableCell>{formatearCategoria(srv.categoria)}</TableCell>}
                           {visibleColumnsServicios.nombre && <TableCell>{srv.servicio || srv.nombre_visible || srv.nombre || '-'}</TableCell>}
@@ -941,6 +960,23 @@ const GestionServicios = () => {
                     </TableBody>
                   </Table>
                 </TableContainer>
+                {servicesFiltrados.length > 0 && (
+                  <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+                    <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+                      Mostrando {servicesPaginados.length > 0 ? (pageServices * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pageServices + 1) * ITEMS_PER_PAGE, servicesFiltrados.length)} de {servicesFiltrados.length}
+                    </Typography>
+                    <Pagination 
+                      count={totalPagesServices}
+                      page={pageServices + 1}
+                      onChange={(e, page) => setPageServices(page - 1)}
+                      sx={{
+                        "& .MuiPaginationItem-root": {
+                          fontFamily: "Mulish, sans-serif",
+                        }
+                      }}
+                    />
+                  </Box>
+                )}
               </Box>
             )}
           </Box>

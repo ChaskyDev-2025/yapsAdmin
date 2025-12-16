@@ -1,10 +1,10 @@
 // src/pages/admin/banner/Banners.jsx
-import React from "react";
+import React, { useMemo } from "react";
 import Icons from "../../../shared/constants/Icons";
 import { 
   Typography, Paper, Box, CircularProgress, Alert, Dialog, DialogTitle, DialogContent, 
   DialogContentText, DialogActions, Button, Snackbar, Table, TableBody, TableCell, 
-  TableContainer, TableHead, TableRow, Avatar, IconButton, Tooltip 
+  TableContainer, TableHead, TableRow, Avatar, IconButton, Tooltip, Pagination
 } from "@mui/material";
 import TableToolbar from "../usuarios/components/TableToolbar";
 import AddIcon from "@mui/icons-material/Add";
@@ -40,6 +40,15 @@ const Banners = () => {
     fechaCreacion: true,
     acciones: true,
   });
+  
+  // Estados para paginación
+  const ITEMS_PER_PAGE = 10;
+  const [pageBanners, setPageBanners] = React.useState(0);
+  
+  // Resetear página al cambiar búsqueda o filtros
+  React.useEffect(() => {
+    setPageBanners(0);
+  }, [searchBanners]);
   const agregarApiRef = React.useRef({ datos: null }); // ModalAgregar te llena esto
 
   const fetchBanners = async () => {
@@ -57,6 +66,43 @@ const Banners = () => {
   };
 
   React.useEffect(() => { fetchBanners(); }, []);
+
+  // Filtrar y ordenar banners
+  const filteredRows = useMemo(() => {
+    let result = [...rows];
+    
+    // Filtrar por búsqueda
+    if (searchBanners.trim()) {
+      const search = searchBanners.toLowerCase();
+      result = result.filter(banner =>
+        (banner.titulo || "").toLowerCase().includes(search)
+      );
+    }
+    
+    // Ordenar
+    if (sortByBanners === "createdAt-asc") {
+      result.sort((a, b) => 
+        new Date(a.createdAt?.toDate?.() || a.createdAt || 0) - 
+        new Date(b.createdAt?.toDate?.() || b.createdAt || 0)
+      );
+    } else if (sortByBanners === "createdAt-desc") {
+      result.sort((a, b) => 
+        new Date(b.createdAt?.toDate?.() || b.createdAt || 0) - 
+        new Date(a.createdAt?.toDate?.() || a.createdAt || 0)
+      );
+    }
+    
+    return result;
+  }, [rows, searchBanners, sortByBanners]);
+
+  // Datos paginados para Banners
+  const bannersPaginados = React.useMemo(() => {
+    const start = pageBanners * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return filteredRows.slice(start, end);
+  }, [filteredRows, pageBanners]);
+
+  const totalPagesBanners = Math.ceil(filteredRows.length / ITEMS_PER_PAGE);
 
   // Cambiar estado en UI + persistir en Firestore
   const handleEstadoChange = React.useCallback(async (row, newEstado) => {
@@ -187,7 +233,7 @@ const Banners = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {rows.length === 0 ? (
+              {filteredRows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} align="center">
                     <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
@@ -196,7 +242,7 @@ const Banners = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                rows.map((banner) => (
+                bannersPaginados.map((banner) => (
                   <TableRow key={banner.id} hover sx={{ borderBottom: "1px solid #d0d0d0" }}>
                     <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                       {banner.imagen ? (
@@ -265,6 +311,23 @@ const Banners = () => {
             </TableBody>
           </Table>
         </TableContainer>
+        {filteredRows.length > 0 && (
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+            <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+              Mostrando {bannersPaginados.length > 0 ? (pageBanners * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pageBanners + 1) * ITEMS_PER_PAGE, filteredRows.length)} de {filteredRows.length}
+            </Typography>
+            <Pagination 
+              count={totalPagesBanners}
+              page={pageBanners + 1}
+              onChange={(e, page) => setPageBanners(page - 1)}
+              sx={{
+                "& .MuiPaginationItem-root": {
+                  fontFamily: "Mulish, sans-serif",
+                }
+              }}
+            />
+          </Box>
+        )}
 
       {/* Dialog de confirmación de eliminación */}
       <Dialog

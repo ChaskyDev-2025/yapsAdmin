@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Box,
   Paper,
@@ -26,6 +26,7 @@ import {
   DialogActions,
   TextField,
   Button,
+  Pagination,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -86,6 +87,20 @@ const Billetera = () => {
   const [searchSolicitudes, setSearchSolicitudes] = useState("");
   const [sortBySolicitudes, setSortBySolicitudes] = useState("fecha-desc");
 
+  // Estados para paginación
+  const ITEMS_PER_PAGE = 10;
+  const [pageFlotas, setPageFlotas] = useState(0);
+  const [pageSolicitudes, setPageSolicitudes] = useState(0);
+
+  // Resetear página al cambiar búsqueda o filtros
+  useEffect(() => {
+    setPageFlotas(0);
+  }, [searchFlotas]);
+
+  useEffect(() => {
+    setPageSolicitudes(0);
+  }, [searchSolicitudes]);
+
   const cargarDatos = useCallback(async () => {
     try {
       setLoading(true);
@@ -136,6 +151,85 @@ const Billetera = () => {
   const mostrarSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
   };
+
+  // Filtrar y ordenar flotas
+  const filteredFlotas = useMemo(() => {
+    let result = [...flotas];
+    
+    // Filtrar por búsqueda
+    if (searchFlotas.trim()) {
+      const search = searchFlotas.toLowerCase();
+      result = result.filter(flota =>
+        (flota.nombre || "").toLowerCase().includes(search) ||
+        (flota.email || "").toLowerCase().includes(search) ||
+        (flota.contacto || "").toLowerCase().includes(search)
+      );
+    }
+    
+    // Ordenar
+    if (sortByFlotas === "nombre-asc") {
+      result.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+    } else if (sortByFlotas === "nombre-desc") {
+      result.sort((a, b) => (b.nombre || "").localeCompare(a.nombre || ""));
+    } else if (sortByFlotas === "saldo-asc") {
+      result.sort((a, b) => (a.saldo || 0) - (b.saldo || 0));
+    } else if (sortByFlotas === "saldo-desc") {
+      result.sort((a, b) => (b.saldo || 0) - (a.saldo || 0));
+    }
+    
+    return result;
+  }, [flotas, searchFlotas, sortByFlotas]);
+
+  // Filtrar y ordenar solicitudes
+  const filteredSolicitudes = useMemo(() => {
+    let result = [...solicitudes];
+    
+    // Filtrar por búsqueda
+    if (searchSolicitudes.trim()) {
+      const search = searchSolicitudes.toLowerCase();
+      result = result.filter(sol =>
+        (sol.flotaNombre || "").toLowerCase().includes(search) ||
+        (sol.concepto || "").toLowerCase().includes(search)
+      );
+    }
+    
+    // Ordenar
+    if (sortBySolicitudes === "fecha-asc") {
+      result.sort((a, b) => 
+        new Date(a.fechaSolicitud?.toDate?.() || a.fechaSolicitud || 0) - 
+        new Date(b.fechaSolicitud?.toDate?.() || b.fechaSolicitud || 0)
+      );
+    } else if (sortBySolicitudes === "fecha-desc") {
+      result.sort((a, b) => 
+        new Date(b.fechaSolicitud?.toDate?.() || b.fechaSolicitud || 0) - 
+        new Date(a.fechaSolicitud?.toDate?.() || a.fechaSolicitud || 0)
+      );
+    } else if (sortBySolicitudes === "monto-asc") {
+      result.sort((a, b) => (a.monto || 0) - (b.monto || 0));
+    } else if (sortBySolicitudes === "monto-desc") {
+      result.sort((a, b) => (b.monto || 0) - (a.monto || 0));
+    }
+    
+    return result;
+  }, [solicitudes, searchSolicitudes, sortBySolicitudes]);
+
+  // Datos paginados para Flotas
+  const flotasPaginadas = useMemo(() => {
+    const start = pageFlotas * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return filteredFlotas.slice(start, end);
+  }, [filteredFlotas, pageFlotas]);
+
+  const totalPagesFlotas = Math.ceil(filteredFlotas.length / ITEMS_PER_PAGE);
+
+  // Datos paginados para Solicitudes
+  const solicitudesPaginadas = useMemo(() => {
+    const start = pageSolicitudes * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return filteredSolicitudes.slice(start, end);
+  }, [filteredSolicitudes, pageSolicitudes]);
+
+  const totalPagesSolicitudes = Math.ceil(filteredSolicitudes.length / ITEMS_PER_PAGE);
 
   const handleAbrirModal = (flota, tipo) => {
     setSelectedFlota(flota);
@@ -406,7 +500,7 @@ const Billetera = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {solicitudes.map((solicitud) => (
+                    {solicitudesPaginadas.map((solicitud) => (
                       <TableRow
                         key={solicitud.id}
                         hover
@@ -477,7 +571,31 @@ const Billetera = () => {
                 </Typography>
               </Box>
             )}
-          </Paper>
+            </Paper>
+            
+            {/* Paginación Solicitudes */}
+            {filteredSolicitudes.length > 0 && (
+              <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 3, gap: 2, flexWrap: "wrap" }}>
+                <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+                  Mostrando {solicitudesPaginadas.length > 0 ? (pageSolicitudes * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pageSolicitudes + 1) * ITEMS_PER_PAGE, filteredSolicitudes.length)} de {filteredSolicitudes.length}
+                </Typography>
+                <Pagination 
+                  count={totalPagesSolicitudes}
+                  page={pageSolicitudes + 1}
+                  onChange={(e, page) => setPageSolicitudes(page - 1)}
+                  sx={{
+                    "& .MuiPaginationItem-root": {
+                      fontFamily: "Mulish, sans-serif",
+                      color: "#000",
+                    },
+                    "& .Mui-selected": {
+                      backgroundColor: "#aaaaaa !important",
+                      color: "white",
+                    },
+                  }}
+                />
+              </Box>
+            )}
           </>
         )}
 
@@ -521,7 +639,7 @@ const Billetera = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                {flotas.map((flota) => (
+                {flotasPaginadas.map((flota) => (
                   <TableRow
                     key={flota.id}
                     hover
@@ -600,6 +718,30 @@ const Billetera = () => {
             </Table>
           </TableContainer>
           </Paper>
+          
+          {/* Paginación Flotas */}
+          {filteredFlotas.length > 0 && (
+            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+              <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+                Mostrando {flotasPaginadas.length > 0 ? (pageFlotas * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pageFlotas + 1) * ITEMS_PER_PAGE, filteredFlotas.length)} de {filteredFlotas.length}
+              </Typography>
+              <Pagination 
+                count={totalPagesFlotas}
+                page={pageFlotas + 1}
+                onChange={(e, page) => setPageFlotas(page - 1)}
+                sx={{
+                  "& .MuiPaginationItem-root": {
+                    fontFamily: "Mulish, sans-serif",
+                    color: "#000",
+                  },
+                  "& .Mui-selected": {
+                    backgroundColor: "#aaaaaa !important",
+                    color: "white",
+                  },
+                }}
+              />
+            </Box>
+          )}
           </>
         )}
       </Paper>

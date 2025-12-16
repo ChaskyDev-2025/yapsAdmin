@@ -1,5 +1,5 @@
 // src/pages/admin/referidos/Referidos.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Paper,
@@ -19,6 +19,7 @@ import {
   Snackbar,
   Alert,
   Button,
+  Pagination,
 } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
@@ -72,6 +73,20 @@ const Referidos = () => {
     referidos: true,
     acciones: true,
   });
+
+  // Estados para paginación
+  const ITEMS_PER_PAGE = 10;
+  const [pageTrabajadores, setPageTrabajadores] = useState(0);
+  const [pagePasajeros, setPagePasajeros] = useState(0);
+
+  // Resetear página al cambiar búsqueda
+  useEffect(() => {
+    setPageTrabajadores(0);
+  }, [searchTrabajadores]);
+
+  useEffect(() => {
+    setPagePasajeros(0);
+  }, [searchPasajeros]);
 
   useEffect(() => {
     // Cargar datos en paralelo para optimizar (SOLO LECTURA)
@@ -203,6 +218,70 @@ const Referidos = () => {
     alert(`Código ${codigo} copiado al portapapeles`);
   };
 
+  // Filtrar y ordenar trabajadores
+  const filteredTrabajadores = useMemo(() => {
+    let result = referidosData.filter(r => r.modo === "trabajador");
+    
+    // Filtrar por búsqueda
+    if (searchTrabajadores.trim()) {
+      const search = searchTrabajadores.toLowerCase();
+      result = result.filter(ref =>
+        (ref.nombre || "").toLowerCase().includes(search) ||
+        (ref.codigo || "").toLowerCase().includes(search)
+      );
+    }
+    
+    // Ordenar
+    if (sortByTrabajadores === "referidos-asc") {
+      result.sort((a, b) => a.referidos - b.referidos);
+    } else if (sortByTrabajadores === "referidos-desc") {
+      result.sort((a, b) => b.referidos - a.referidos);
+    }
+    
+    return result;
+  }, [referidosData, searchTrabajadores, sortByTrabajadores]);
+
+  // Filtrar y ordenar pasajeros
+  const filteredPasajeros = useMemo(() => {
+    let result = referidosData.filter(r => r.modo === "pasajero");
+    
+    // Filtrar por búsqueda
+    if (searchPasajeros.trim()) {
+      const search = searchPasajeros.toLowerCase();
+      result = result.filter(ref =>
+        (ref.nombre || "").toLowerCase().includes(search) ||
+        (ref.codigo || "").toLowerCase().includes(search)
+      );
+    }
+    
+    // Ordenar
+    if (sortByPasajeros === "referidos-asc") {
+      result.sort((a, b) => a.referidos - b.referidos);
+    } else if (sortByPasajeros === "referidos-desc") {
+      result.sort((a, b) => b.referidos - a.referidos);
+    }
+    
+    return result;
+  }, [referidosData, searchPasajeros, sortByPasajeros]);
+
+  // Datos paginados para Trabajadores
+  const trabajadoresPaginados = useMemo(() => {
+    const start = pageTrabajadores * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return filteredTrabajadores.slice(start, end);
+  }, [filteredTrabajadores, pageTrabajadores]);
+
+  const totalPagesTrabajadores = Math.ceil(filteredTrabajadores.length / ITEMS_PER_PAGE);
+
+  // Datos paginados para Pasajeros
+  const pasajerosPaginados = useMemo(() => {
+    const start = pagePasajeros * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return filteredPasajeros.slice(start, end);
+  }, [filteredPasajeros, pagePasajeros]);
+
+  const totalPagesPasajeros = Math.ceil(filteredPasajeros.length / ITEMS_PER_PAGE);
+
   const handleOpenHistorial = (referido) => {
     setSelectedReferido(referido);
     // Cargar los datos de los pasajeros referidos
@@ -290,9 +369,10 @@ const Referidos = () => {
                   />
                 </Box>
               </Box>
-              {referidosData.filter(r => r.modo === "trabajador").length > 0 ? (
-                <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e0e0e0" }}>
-                  <Table>
+              {filteredTrabajadores.length > 0 ? (
+                <Paper sx={{ boxShadow: 0 }}>
+                  <TableContainer>
+                    <Table>
                     <TableHead sx={{ backgroundColor: "#000000" }}>
                       <TableRow>
                         <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Ranking</TableCell>
@@ -310,9 +390,7 @@ const Referidos = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {referidosData
-                        .filter(r => r.modo === "trabajador")
-                        .map((referido, index) => (
+                      {trabajadoresPaginados.map((referido, index) => (
                           <TableRow key={referido.id} hover>
                             <TableCell>
                               <Chip
@@ -412,7 +490,25 @@ const Referidos = () => {
                         ))}
                     </TableBody>
                   </Table>
-                </TableContainer>
+                  </TableContainer>
+                  {filteredTrabajadores.length > 0 && (
+                    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+                      <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        Mostrando {trabajadoresPaginados.length > 0 ? (pageTrabajadores * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pageTrabajadores + 1) * ITEMS_PER_PAGE, filteredTrabajadores.length)} de {filteredTrabajadores.length}
+                      </Typography>
+                      <Pagination 
+                        count={totalPagesTrabajadores}
+                        page={pageTrabajadores + 1}
+                        onChange={(e, page) => setPageTrabajadores(page - 1)}
+                        sx={{
+                          "& .MuiPaginationItem-root": {
+                            fontFamily: "Mulish, sans-serif",
+                          }
+                        }}
+                      />
+                    </Box>
+                  )}
+                </Paper>
               ) : (
                 <Typography align="center" color="text.secondary" sx={{ py: 3 }}>
                   No hay trabajadores registrados
@@ -445,9 +541,10 @@ const Referidos = () => {
                   />
                 </Box>
               </Box>
-              {referidosData.filter(r => r.modo === "pasajero").length > 0 ? (
-                <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e0e0e0" }}>
-                  <Table>
+              {filteredPasajeros.length > 0 ? (
+                <Paper sx={{ boxShadow: 0 }}>
+                  <TableContainer>
+                    <Table>
                     <TableHead sx={{ backgroundColor: "#000000" }}>
                       <TableRow>
                         <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Ranking</TableCell>
@@ -465,9 +562,7 @@ const Referidos = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {referidosData
-                        .filter(r => r.modo === "pasajero")
-                        .map((referido, index) => (
+                      {pasajerosPaginados.map((referido, index) => (
                           <TableRow key={referido.id} hover>
                             <TableCell>
                               <Chip
@@ -567,7 +662,25 @@ const Referidos = () => {
                         ))}
                     </TableBody>
                   </Table>
-                </TableContainer>
+                  </TableContainer>
+                  {filteredPasajeros.length > 0 && (
+                    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+                      <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        Mostrando {pasajerosPaginados.length > 0 ? (pagePasajeros * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pagePasajeros + 1) * ITEMS_PER_PAGE, filteredPasajeros.length)} de {filteredPasajeros.length}
+                      </Typography>
+                      <Pagination 
+                        count={totalPagesPasajeros}
+                        page={pagePasajeros + 1}
+                        onChange={(e, page) => setPagePasajeros(page - 1)}
+                        sx={{
+                          "& .MuiPaginationItem-root": {
+                            fontFamily: "Mulish, sans-serif",
+                          }
+                        }}
+                      />
+                    </Box>
+                  )}
+                </Paper>
               ) : (
                 <Typography align="center" color="text.secondary" sx={{ py: 3 }}>
                   No hay pasajeros registrados

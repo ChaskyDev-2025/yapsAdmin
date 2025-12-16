@@ -23,6 +23,7 @@ import {
   Alert,
   Tabs,
   Tab,
+  Pagination,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
@@ -46,6 +47,9 @@ const BilleteraFlota = () => {
   const [solicitudes, setSolicitudes] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [saldoActual, setSaldoActual] = useState(0);
+  const [pageSolicitudes, setPageSolicitudes] = useState(0);
+  const [pageHistorial, setPageHistorial] = useState(0);
+  const ITEMS_PER_PAGE = 10;
 
   const [modalOpen, setModalOpen] = useState(false);
   const [monto, setMonto] = useState("");
@@ -149,6 +153,16 @@ const BilleteraFlota = () => {
     };
   }, [cargarDatos, flotaId]);
 
+  // Reset página de solicitudes al cambiar búsqueda
+  useEffect(() => {
+    setPageSolicitudes(0);
+  }, [searchSolicitudes]);
+
+  // Reset página de historial al cambiar búsqueda
+  useEffect(() => {
+    setPageHistorial(0);
+  }, [searchHistorial]);
+
   const mostrarSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
   };
@@ -251,6 +265,15 @@ const BilleteraFlota = () => {
     return sorted;
   }, [solicitudes, searchSolicitudes, sortBySolicitudes]);
 
+  // Paginación para solicitudes
+  const solicitudesPaginadas = useMemo(() => {
+    const start = pageSolicitudes * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return solicitudesFiltradas.slice(start, end);
+  }, [solicitudesFiltradas, pageSolicitudes]);
+
+  const totalPagesSolicitudes = Math.ceil(solicitudesFiltradas.length / ITEMS_PER_PAGE);
+
   // Filtrado y ordenamiento para historial
   const historialFiltrado = useMemo(() => {
     let filtered = historial;
@@ -285,6 +308,15 @@ const BilleteraFlota = () => {
     
     return sorted;
   }, [historial, searchHistorial, sortByHistorial]);
+
+  // Paginación para historial
+  const historialPaginado = useMemo(() => {
+    const start = pageHistorial * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return historialFiltrado.slice(start, end);
+  }, [historialFiltrado, pageHistorial]);
+
+  const totalPagesHistorial = Math.ceil(historialFiltrado.length / ITEMS_PER_PAGE);
 
   if (!flotaId) {
     return (
@@ -407,7 +439,7 @@ const BilleteraFlota = () => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    solicitudesFiltradas.map((solicitud) => (
+                    solicitudesPaginadas.map((solicitud) => (
                       <TableRow key={solicitud.id} sx={{ borderBottom: "1px solid #d0d0d0" }}>
                         <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                           {solicitud.fechaSolicitud?.toDate?.().toLocaleDateString("es-ES") ||
@@ -443,6 +475,29 @@ const BilleteraFlota = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {solicitudesFiltradas.length > 0 && (
+              <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+                <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+                  Mostrando {pageSolicitudes * ITEMS_PER_PAGE + 1} - {Math.min((pageSolicitudes + 1) * ITEMS_PER_PAGE, solicitudesFiltradas.length)} de {solicitudesFiltradas.length}
+                </Typography>
+                <Pagination
+                  count={totalPagesSolicitudes}
+                  page={pageSolicitudes + 1}
+                  onChange={(e, page) => setPageSolicitudes(page - 1)}
+                  sx={{
+                    "& .MuiButtonBase-root": {
+                      fontFamily: "Mulish, sans-serif",
+                      color: "#000",
+                    },
+                    "& .Mui-selected": {
+                      backgroundColor: "#aaaaaa !important",
+                      color: "white",
+                    },
+                  }}
+                />
+              </Box>
+            )}
           </>
         )}
 
@@ -486,7 +541,7 @@ const BilleteraFlota = () => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    historialFiltrado.map((tx) => (
+                    historialPaginado.map((tx) => (
                       <TableRow key={tx.id} sx={{ borderBottom: "1px solid #d0d0d0" }}>
                         <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{tx.fechaRegistro}</TableCell>
                         <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
@@ -519,6 +574,29 @@ const BilleteraFlota = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {historialFiltrado.length > 0 && (
+              <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+                <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+                  Mostrando {pageHistorial * ITEMS_PER_PAGE + 1} - {Math.min((pageHistorial + 1) * ITEMS_PER_PAGE, historialFiltrado.length)} de {historialFiltrado.length}
+                </Typography>
+                <Pagination
+                  count={totalPagesHistorial}
+                  page={pageHistorial + 1}
+                  onChange={(e, page) => setPageHistorial(page - 1)}
+                  sx={{
+                    "& .MuiButtonBase-root": {
+                      fontFamily: "Mulish, sans-serif",
+                      color: "#000",
+                    },
+                    "& .Mui-selected": {
+                      backgroundColor: "#aaaaaa !important",
+                      color: "white",
+                    },
+                  }}
+                />
+              </Box>
+            )}
           </>
         )}
 

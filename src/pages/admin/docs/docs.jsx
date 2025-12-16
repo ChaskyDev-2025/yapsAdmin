@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   Typography, Paper, Stack, Alert, Box, Chip, Tabs, Tab, Button,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Switch, IconButton, Tooltip
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Switch, IconButton, Tooltip, Pagination
 } from "@mui/material";
 import { Tabla2 }        from "../../../shared/components/tablas/tabla";
 
@@ -31,6 +31,15 @@ const Documentos = () => {
   // Estados para búsqueda y ordenamiento
   const [searchDocumentos, setSearchDocumentos] = useState("");
   const [sortByDocumentos, setSortByDocumentos] = useState("titulo-asc");
+  
+  // Estados para paginación
+  const ITEMS_PER_PAGE = 10;
+  const [pageDocumentos, setPageDocumentos] = useState(0);
+  
+  // Resetear página al cambiar búsqueda
+  useEffect(() => {
+    setPageDocumentos(0);
+  }, [searchDocumentos]);
   
   /* ── estado del modal ───────────── */
   const { rows, loading, create, update, remove, toggleActivo } = useDocuments();
@@ -62,6 +71,38 @@ const Documentos = () => {
   const documentosPorCiudad = rows.filter(
     (doc) => doc.ciudad === ciudadSeleccionada
   );
+
+  // Filtrar y ordenar documentos
+  const filteredDocumentos = useMemo(() => {
+    let result = [...documentosPorCiudad];
+    
+    // Filtrar por búsqueda
+    if (searchDocumentos.trim()) {
+      const search = searchDocumentos.toLowerCase();
+      result = result.filter(doc =>
+        (doc.titulo || "").toLowerCase().includes(search) ||
+        (doc.screenTitle || "").toLowerCase().includes(search)
+      );
+    }
+    
+    // Ordenar
+    if (sortByDocumentos === "titulo-asc") {
+      result.sort((a, b) => (a.titulo || "").localeCompare(b.titulo || ""));
+    } else if (sortByDocumentos === "titulo-desc") {
+      result.sort((a, b) => (b.titulo || "").localeCompare(a.titulo || ""));
+    }
+    
+    return result;
+  }, [documentosPorCiudad, searchDocumentos, sortByDocumentos]);
+
+  // Datos paginados para Documentos
+  const documentosPaginados = useMemo(() => {
+    const start = pageDocumentos * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return filteredDocumentos.slice(start, end);
+  }, [filteredDocumentos, pageDocumentos]);
+
+  const totalPagesDocumentos = Math.ceil(filteredDocumentos.length / ITEMS_PER_PAGE);
 
   const handleSave = async (nuevoDoc) => {
     try {
@@ -273,7 +314,7 @@ const Documentos = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {documentosPorCiudad.map((doc) => (
+              {documentosPaginados.map((doc) => (
                 <TableRow 
                   key={doc.firebaseId} 
                   hover
@@ -332,6 +373,24 @@ const Documentos = () => {
             </TableBody>
           </Table>
         </TableContainer>
+        {filteredDocumentos.length > 0 && (
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+            <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+              Mostrando {documentosPaginados.length > 0 ? (pageDocumentos * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pageDocumentos + 1) * ITEMS_PER_PAGE, filteredDocumentos.length)} de {filteredDocumentos.length}
+            </Typography>
+            <Pagination 
+              count={totalPagesDocumentos}
+              page={pageDocumentos + 1}
+              onChange={(e, page) => setPageDocumentos(page - 1)}
+              sx={{
+                "& .MuiPaginationItem-root": {
+                  fontFamily: "Mulish, sans-serif",
+                  color: "#000",
+                }
+              }}
+            />
+          </Box>
+        )}
       </Paper>
 
       {/* Modal separado y reutilizable */}

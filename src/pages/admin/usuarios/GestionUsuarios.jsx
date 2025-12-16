@@ -27,6 +27,7 @@ import {
   Snackbar,
   Switch,
   FormControlLabel,
+  Pagination,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -39,7 +40,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import DescriptionIcon from "@mui/icons-material/Description";
 import { useAuth } from "../../../auth/AuthContext";
 import { getAllUsers, createAdminUser, updateUser, deleteUser, isSuperAdmin } from "../../../services/userService";
-import { collection, getDocs, deleteDoc, doc, updateDoc, onSnapshot } from "firebase/firestore";
+import { collection, deleteDoc, doc, updateDoc, onSnapshot } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 import { TableToolbar } from "./components/TableToolbar";
 import { HistorialViajesModal } from "./components/HistorialViajesModal";
@@ -77,6 +78,19 @@ const GestionUsuarios = () => {
   const [filterEstado, setFilterEstado] = useState("todos"); // todos, activos, inactivos
   const [filterEstadoConductores, setFilterEstadoConductores] = useState("todos"); // todos, activos, inactivos
   
+  // Resetear página al cambiar búsqueda
+  useEffect(() => {
+    setPageAdmin(0);
+  }, [searchAdmin, filterEstado]);
+  
+  useEffect(() => {
+    setPagePasajeros(0);
+  }, [searchPasajeros]);
+  
+  useEffect(() => {
+    setPageConductores(0);
+  }, [searchConductores, filterEstadoConductores]);
+  
   // Estados para ordenamiento
   const [sortByAdmin, setSortByAdmin] = useState("email-asc"); // email-asc, email-desc, nombre-asc, nombre-desc
   const [sortByPasajeros, setSortByPasajeros] = useState("nombre-asc"); // nombre-asc, nombre-desc, email-asc, email-desc
@@ -113,6 +127,12 @@ const GestionUsuarios = () => {
     estado: true,
     acciones: true,
   });
+
+  // Estados para paginación
+  const ITEMS_PER_PAGE = 10;
+  const [pageAdmin, setPageAdmin] = useState(0);
+  const [pagePasajeros, setPagePasajeros] = useState(0);
+  const [pageConductores, setPageConductores] = useState(0);
   
   const [formData, setFormData] = useState({
     email: "",
@@ -256,6 +276,33 @@ const GestionUsuarios = () => {
     
     return sorted;
   }, [trabajadores, searchConductores, sortByConductores, filterEstadoConductores]);
+
+  // Datos paginados para Administradores
+  const usuariosPaginados = useMemo(() => {
+    const start = pageAdmin * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return usuariosFiltrados.slice(start, end);
+  }, [usuariosFiltrados, pageAdmin]);
+
+  const totalPagesAdmin = Math.ceil(usuariosFiltrados.length / ITEMS_PER_PAGE);
+
+  // Datos paginados para Pasajeros
+  const pasajerosPaginados = useMemo(() => {
+    const start = pagePasajeros * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return pasajerosFiltrados.slice(start, end);
+  }, [pasajerosFiltrados, pagePasajeros]);
+
+  const totalPagesPasajeros = Math.ceil(pasajerosFiltrados.length / ITEMS_PER_PAGE);
+
+  // Datos paginados para Conductores
+  const conductoresPaginados = useMemo(() => {
+    const start = pageConductores * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return conductoresFiltrados.slice(start, end);
+  }, [conductoresFiltrados, pageConductores]);
+
+  const totalPagesConductores = Math.ceil(conductoresFiltrados.length / ITEMS_PER_PAGE);
 
   // Cargar usuarios, pasajeros, trabajadores y flotas
   useEffect(() => {
@@ -564,6 +611,7 @@ const GestionUsuarios = () => {
             label="Conductores" 
           />
         </Tabs>
+      </Paper>
 
         {tabValue === 0 && (
           <>
@@ -598,8 +646,9 @@ const GestionUsuarios = () => {
               showClearButton={true}
             />
 
-            <TableContainer component={Paper} sx={{ boxShadow: 0 }}>
-        <Table>
+            <Paper sx={{ boxShadow: "0 2px 8px rgba(0,0,0,0.1)", borderRadius: 2, overflow: "hidden" }}>
+              <TableContainer>
+                <Table>
           <TableHead sx={{ bgcolor: "#000000" }}>
             <TableRow>
               {visibleColumnsAdmin.email && <TableCell sx={{ fontWeight: "bold", color: "white" }}>Email</TableCell>}
@@ -626,7 +675,7 @@ const GestionUsuarios = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              usuariosFiltrados.map((usuario) => (
+              usuariosPaginados.map((usuario) => (
                 <TableRow key={usuario.id} hover>
                   {visibleColumnsAdmin.email && <TableCell>{usuario.email}</TableCell>}
                   {visibleColumnsAdmin.nombre && <TableCell>{usuario.nombre}</TableCell>}
@@ -763,12 +812,32 @@ const GestionUsuarios = () => {
             )}
           </TableBody>
         </Table>
-      </TableContainer>
-          </>
-        )}
+              </TableContainer>
+            </Paper>
+            
+            {/* Paginación Administradores */}
+            {usuariosFiltrados.length > 0 && (
+              <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+                <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+                  Mostrando {usuariosPaginados.length > 0 ? (pageAdmin * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pageAdmin + 1) * ITEMS_PER_PAGE, usuariosFiltrados.length)} de {usuariosFiltrados.length}
+                </Typography>
+                <Pagination 
+                  count={totalPagesAdmin}
+                  page={pageAdmin + 1}
+                  onChange={(e, page) => setPageAdmin(page - 1)}
+                  sx={{
+                    "& .MuiButtonBase-root": { fontFamily: "Mulish, sans-serif", color: "#000" },
+                    "& .Mui-selected": { backgroundColor: "#aaaaaa !important", color: "white" },
+                  }}
+                />
+              </Box>
+            )}
 
-        {tabValue === 1 && (
-          <>
+    </>
+    )}
+
+    {tabValue === 1 && (
+      <>
             {/* Toolbar para Pasajeros */}
             <TableToolbar
               searchValue={searchPasajeros}
@@ -786,15 +855,16 @@ const GestionUsuarios = () => {
               showClearButton={true}
             />
 
-            <TableContainer component={Paper} sx={{ boxShadow: 0 }}>
-            <Table>
-              <TableHead sx={{ bgcolor: "#000000" }}>
-                <TableRow>
-                  {visibleColumnsPasajeros.foto && (
-                    <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                      Foto
-                    </TableCell>
-                  )}
+            <Paper sx={{ boxShadow: "0 2px 8px rgba(0,0,0,0.1)", borderRadius: 2, overflow: "hidden" }}>
+              <TableContainer>
+                <Table>
+                  <TableHead sx={{ bgcolor: "#000000" }}>
+                    <TableRow>
+                      {visibleColumnsPasajeros.foto && (
+                        <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                          Foto
+                        </TableCell>
+                      )}
                   {visibleColumnsPasajeros.nombre && (
                     <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
                       Nombre
@@ -835,7 +905,7 @@ const GestionUsuarios = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  pasajerosFiltrados.map((pasajero) => (
+                  pasajerosPaginados.map((pasajero) => (
                     <TableRow key={pasajero.id} hover>
                       {visibleColumnsPasajeros.foto && (
                         <TableCell>
@@ -911,8 +981,27 @@ const GestionUsuarios = () => {
                   ))
                 )}
               </TableBody>
-            </Table>
-          </TableContainer>
+              </Table>
+            </TableContainer>
+            </Paper>
+            
+            {/* Paginación Pasajeros */}
+            {pasajerosFiltrados.length > 0 && (
+              <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+                <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+                  Mostrando {pasajerosPaginados.length > 0 ? (pagePasajeros * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pagePasajeros + 1) * ITEMS_PER_PAGE, pasajerosFiltrados.length)} de {pasajerosFiltrados.length}
+                </Typography>
+                <Pagination 
+                  count={totalPagesPasajeros}
+                  page={pagePasajeros + 1}
+                  onChange={(e, page) => setPagePasajeros(page - 1)}
+                  sx={{
+                    "& .MuiButtonBase-root": { fontFamily: "Mulish, sans-serif", color: "#000" },
+                    "& .Mui-selected": { backgroundColor: "#aaaaaa !important", color: "white" },
+                  }}
+                />
+              </Box>
+            )}
           </>
         )}
 
@@ -949,13 +1038,14 @@ const GestionUsuarios = () => {
               showClearButton={true}
             />
 
-            <TableContainer component={Paper} sx={{ boxShadow: 0 }}>
-            <Table>
-              <TableHead sx={{ bgcolor: "#000000" }}>
-                <TableRow>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Foto
-                  </TableCell>
+            <Paper sx={{ boxShadow: "0 2px 8px rgba(0,0,0,0.1)", borderRadius: 2, overflow: "hidden" }}>
+              <TableContainer>
+                <Table>
+                  <TableHead sx={{ bgcolor: "#000000" }}>
+                    <TableRow>
+                      <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                        Foto
+                      </TableCell>
                   <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
                     Nombre
                   </TableCell>
@@ -997,7 +1087,7 @@ const GestionUsuarios = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  conductoresFiltrados.map((trabajador) => (
+                  conductoresPaginados.map((trabajador) => (
                     <TableRow key={trabajador.id} hover>
                       <TableCell>
                         <Avatar
@@ -1133,8 +1223,28 @@ const GestionUsuarios = () => {
               </TableBody>
             </Table>
           </TableContainer>
-          </>
+          </Paper>
+          
+          {/* Paginación Conductores */}
+          {conductoresFiltrados.length > 0 && (
+            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+              <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+                Mostrando {conductoresPaginados.length > 0 ? (pageConductores * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pageConductores + 1) * ITEMS_PER_PAGE, conductoresFiltrados.length)} de {conductoresFiltrados.length}
+              </Typography>
+              <Pagination 
+                count={totalPagesConductores}
+                page={pageConductores + 1}
+                onChange={(e, page) => setPageConductores(page - 1)}
+                sx={{
+                  "& .MuiButtonBase-root": { fontFamily: "Mulish, sans-serif", color: "#000" },
+                  "& .Mui-selected": { backgroundColor: "#aaaaaa !important", color: "white" },
+                }}
+              />
+            </Box>
+          )}
+        </>
         )}
+
       </Paper>
 
       {/* Dialog para crear/editar usuario */}
@@ -1247,7 +1357,7 @@ const GestionUsuarios = () => {
         onClose={() => setDocumentosConductorModalOpen(false)}
         selectedConductor={conductorDocumentosSeleccionado}
       />
-      </Paper>
+
     </Box>
   );
 };

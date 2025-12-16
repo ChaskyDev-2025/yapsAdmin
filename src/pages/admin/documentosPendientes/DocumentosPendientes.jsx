@@ -1,5 +1,5 @@
 // src/pages/admin/documentosPendientes/DocumentosPendientes.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Box,
   Paper,
@@ -13,6 +13,7 @@ import {
   Chip,
   IconButton,
   Typography,
+  Pagination,
 } from "@mui/material";
 import { useAuth } from "../../../auth/AuthContext";
 import { useUserFlota, useDocumentosPendientes } from "./hooks/useDocumentosPendientes";
@@ -38,6 +39,13 @@ const DocumentosPendientes = () => {
     documentosPendientes: true,
     acciones: true,
   });
+  const [pageDocumentos, setPageDocumentos] = useState(0);
+  const ITEMS_PER_PAGE = 10;
+
+  // Resetear página al cambiar búsqueda
+  useEffect(() => {
+    setPageDocumentos(0);
+  }, [searchDocumentos]);
 
   const handleOpenDialog = (trabajador) => {
     setSelectedTrabajador(trabajador);
@@ -105,6 +113,15 @@ const DocumentosPendientes = () => {
 
     return sorted;
   }, [trabajadores, searchDocumentos, sortByDocumentos]);
+
+  // Paginación
+  const trabajadoresPaginados = useMemo(() => {
+    const start = pageDocumentos * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return trabajadoresFiltrados.slice(start, end);
+  }, [trabajadoresFiltrados, pageDocumentos]);
+
+  const totalPagesDocumentos = Math.ceil(trabajadoresFiltrados.length / ITEMS_PER_PAGE);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -184,7 +201,7 @@ const DocumentosPendientes = () => {
                         </TableCell>
                       </TableRow>
                     ) : trabajadoresFiltrados.length > 0 ? (
-                      trabajadoresFiltrados.map((trabajador) => (
+                      trabajadoresPaginados.map((trabajador) => (
                         <TableRow
                           key={trabajador.id}
                           sx={{
@@ -241,6 +258,29 @@ const DocumentosPendientes = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
+
+              {trabajadoresFiltrados.length > 0 && (
+                <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
+                  <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
+                    Mostrando {pageDocumentos * ITEMS_PER_PAGE + 1} - {Math.min((pageDocumentos + 1) * ITEMS_PER_PAGE, trabajadoresFiltrados.length)} de {trabajadoresFiltrados.length}
+                  </Typography>
+                  <Pagination
+                    count={totalPagesDocumentos}
+                    page={pageDocumentos + 1}
+                    onChange={(e, page) => setPageDocumentos(page - 1)}
+                    sx={{
+                      "& .MuiButtonBase-root": {
+                        fontFamily: "Mulish, sans-serif",
+                        color: "#000",
+                      },
+                      "& .Mui-selected": {
+                        backgroundColor: "#aaaaaa !important",
+                        color: "white",
+                      },
+                    }}
+                  />
+                </Box>
+              )}
             </Box>
           )}
         </DocumentosHeader>
