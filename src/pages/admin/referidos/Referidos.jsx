@@ -56,7 +56,7 @@ const Referidos = () => {
   const [modalPromoOpen, setModalPromoOpen] = useState(false);
   const [selectedPromo, setSelectedPromo] = useState(null);
   const [searchTrabajadores, setSearchTrabajadores] = useState("");
-  const [sortByTrabajadores, setSortByTrabajadores] = useState("referidos-desc");
+  const [sortByTrabajadores, setSortByTrabajadores] = useState("tickets-desc");
   const [visibleColumnsTrabajadores, setVisibleColumnsTrabajadores] = useState({
     ranking: true,
     usuario: true,
@@ -65,7 +65,7 @@ const Referidos = () => {
     acciones: true,
   });
   const [searchPasajeros, setSearchPasajeros] = useState("");
-  const [sortByPasajeros, setSortByPasajeros] = useState("referidos-desc");
+  const [sortByPasajeros, setSortByPasajeros] = useState("tickets-desc");
   const [visibleColumnsPasajeros, setVisibleColumnsPasajeros] = useState({
     ranking: true,
     usuario: true,
@@ -184,11 +184,11 @@ const Referidos = () => {
         };
       });
 
-      // Combinar y ordenar
+      // Combinar y ordenar por TICKETS (no por referidos, ya que referidos están incluidos en tickets)
       const allData = [...data, ...dataPasajeros];
       allData.sort((a, b) => {
-        if (b.referidos !== a.referidos) {
-          return b.referidos - a.referidos;
+        if (b.tickets !== a.tickets) {
+          return b.tickets - a.tickets;
         }
         return a.nombre.localeCompare(b.nombre);
       });
@@ -231,11 +231,11 @@ const Referidos = () => {
       );
     }
     
-    // Ordenar
-    if (sortByTrabajadores === "referidos-asc") {
-      result.sort((a, b) => a.referidos - b.referidos);
-    } else if (sortByTrabajadores === "referidos-desc") {
-      result.sort((a, b) => b.referidos - a.referidos);
+    // Ordenar por tickets (no por referidos, ya que referidos están incluidos en tickets)
+    if (sortByTrabajadores === "tickets-asc") {
+      result.sort((a, b) => a.tickets - b.tickets);
+    } else if (sortByTrabajadores === "tickets-desc") {
+      result.sort((a, b) => b.tickets - a.tickets);
     }
     
     return result;
@@ -254,11 +254,11 @@ const Referidos = () => {
       );
     }
     
-    // Ordenar
-    if (sortByPasajeros === "referidos-asc") {
-      result.sort((a, b) => a.referidos - b.referidos);
-    } else if (sortByPasajeros === "referidos-desc") {
-      result.sort((a, b) => b.referidos - a.referidos);
+    // Ordenar por tickets (no por referidos, ya que referidos están incluidos en tickets)
+    if (sortByPasajeros === "tickets-asc") {
+      result.sort((a, b) => a.tickets - b.tickets);
+    } else if (sortByPasajeros === "tickets-desc") {
+      result.sort((a, b) => b.tickets - a.tickets);
     }
     
     return result;
@@ -357,14 +357,15 @@ const Referidos = () => {
                     onSortChange={setSortByTrabajadores}
                     sortOptions={[
                       { label: "↑ Sort by Referidos (ASC)", value: "referidos-asc" },
-                      { label: "↓ Sort by Referidos (DESC)", value: "referidos-desc" },
+                      { label: "↑ Sort by Tickets (ASC)", value: "tickets-asc" },
+                      { label: "↓ Sort by Tickets (DESC)", value: "tickets-desc" },
                     ]}
                     visibleColumns={visibleColumnsTrabajadores}
                     onColumnChange={(col, visible) => setVisibleColumnsTrabajadores(prev => ({ ...prev, [col]: visible }))}
                     showClearButton={searchTrabajadores !== ""}
                     onClear={() => {
                       setSearchTrabajadores("");
-                      setSortByTrabajadores("referidos-desc");
+                      setSortByTrabajadores("tickets-desc");
                     }}
                   />
                 </Box>
@@ -528,15 +529,15 @@ const Referidos = () => {
                     sortValue={sortByPasajeros}
                     onSortChange={setSortByPasajeros}
                     sortOptions={[
-                      { label: "↑ Sort by Referidos (ASC)", value: "referidos-asc" },
-                      { label: "↓ Sort by Referidos (DESC)", value: "referidos-desc" },
+                      { label: "↑ Sort by Tickets (ASC)", value: "tickets-asc" },
+                      { label: "↓ Sort by Tickets (DESC)", value: "tickets-desc" },
                     ]}
                     visibleColumns={visibleColumnsPasajeros}
                     onColumnChange={(col, visible) => setVisibleColumnsPasajeros(prev => ({ ...prev, [col]: visible }))}
                     showClearButton={searchPasajeros !== ""}
                     onClear={() => {
                       setSearchPasajeros("");
-                      setSortByPasajeros("referidos-desc");
+                      setSortByPasajeros("tickets-desc");
                     }}
                   />
                 </Box>

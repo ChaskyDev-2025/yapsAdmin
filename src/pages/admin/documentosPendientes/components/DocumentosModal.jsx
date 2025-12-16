@@ -120,33 +120,41 @@ const DocumentosModal = ({
     }
   }, [selectedTrabajador, open]);
 
-  const handleApproveDocument = async (trabajadorId, docIndex) => {
+  const handleApproveDocument = async (trabajadorId, docKey) => {
     try {
       const trabajadorRef = doc(db, "trabajadores", trabajadorId);
       const trabajadorSnap = await getDoc(trabajadorRef);
-      const docs = trabajadorSnap.data().documentos || [];
+      const docsObj = trabajadorSnap.data().documentos || {};
       
-      // Actualizar el documento en el índice correcto
-      if (typeof docs[docIndex] === 'string') {
-        // Si es string, crear un objeto con estado
-        docs[docIndex] = {
-          nombre: docs[docIndex],
-          estado: "aprobado",
-          aprobadoEn: new Date().toISOString(),
-        };
-      } else {
-        // Si ya es objeto, actualizar
-        docs[docIndex].estado = "aprobado";
-        docs[docIndex].aprobadoEn = new Date().toISOString();
+      // Actualizar el documento con la clave correcta
+      if (docsObj[docKey]) {
+        docsObj[docKey].estado = "aprobado";
+        docsObj[docKey].aprobadoEn = new Date().toISOString();
+        delete docsObj[docKey].motivoRechazo;
       }
 
-      await updateDoc(trabajadorRef, { documentos: docs });
+      // Calcular documentos_aprobados: todos deben estar aprobados
+      const documentosAprobadosValue = Object.keys(docsObj)
+        .filter(key => !['updatedAt', 'documentosActualizadoEn'].includes(key))
+        .filter(key => docsObj[key] && typeof docsObj[key] === 'object' && docsObj[key].fotos)
+        .every(key => docsObj[key].estado === "aprobado");
+
+      // Una sola operación que actualiza todo
+      await updateDoc(trabajadorRef, { 
+        documentos: docsObj,
+        documentos_aprobados: documentosAprobadosValue,
+        activo: documentosAprobadosValue
+      });
       
-      // Actualizar lista local - actualizar el documento sin remover
-      const updatedDocs = documentos.map((d, i) => 
-        i === docIndex ? { ...d, estado: "aprobado", aprobadoEn: new Date().toISOString() } : d
-      );
+      // Actualizar lista local
+      const updatedDocs = documentos.map((d) => {
+        if (d.key === docKey) {
+          return { ...d, estado: "aprobado", aprobadoEn: new Date().toISOString() };
+        }
+        return d;
+      });
       setDocumentos(updatedDocs);
+      setDocumentosAprobados(documentosAprobadosValue);
       setDocumentoActivo(null);
       
       setSnackbar({
@@ -157,6 +165,7 @@ const DocumentosModal = ({
 
       onDocumentApproved();
     } catch (error) {
+      console.error("Error al aprobar:", error);
       setSnackbar({
         open: true,
         message: "Error al aprobar documento",
@@ -165,34 +174,40 @@ const DocumentosModal = ({
     }
   };
 
-  const handleRejectDocument = async (trabajadorId, docIndex) => {
+  const handleRejectDocument = async (trabajadorId, docKey) => {
     try {
       const trabajadorRef = doc(db, "trabajadores", trabajadorId);
       const trabajadorSnap = await getDoc(trabajadorRef);
       const docsObj = trabajadorSnap.data().documentos || {};
       
-      // Actualizar el documento en el índice correcto
-      if (typeof docsObj[docIndex] === 'string') {
-        docsObj[docIndex] = {
-          nombre: docsObj[docIndex],
-          estado: "rechazado",
-          rechazadoEn: new Date().toISOString(),
-        };
-      } else {
-        docsObj[docIndex].estado = "rechazado";
-        docsObj[docIndex].rechazadoEn = new Date().toISOString();
+      // Actualizar el documento con la clave correcta
+      if (docsObj[docKey]) {
+        docsObj[docKey].estado = "rechazado";
+        docsObj[docKey].rechazadoEn = new Date().toISOString();
       }
       
+      // Calcular documentos_aprobados: todos deben estar aprobados
+      const documentosAprobadosValue = Object.keys(docsObj)
+        .filter(key => !['updatedAt', 'documentosActualizadoEn'].includes(key))
+        .filter(key => docsObj[key] && typeof docsObj[key] === 'object' && docsObj[key].fotos)
+        .every(key => docsObj[key].estado === "aprobado");
+
+      // Una sola operación que actualiza todo
       await updateDoc(trabajadorRef, { 
         documentos: docsObj,
-        activo: false // Desactivar automáticamente
+        documentos_aprobados: documentosAprobadosValue,
+        activo: false // Desactivar automáticamente si hay rechazos
       });
       
-      // Actualizar lista local - actualizar el documento sin remover
-      const updatedDocs = documentos.map((d, i) => 
-        i === docIndex ? { ...d, estado: "rechazado", rechazadoEn: new Date().toISOString() } : d
-      );
+      // Actualizar lista local
+      const updatedDocs = documentos.map((d) => {
+        if (d.key === docKey) {
+          return { ...d, estado: "rechazado", rechazadoEn: new Date().toISOString() };
+        }
+        return d;
+      });
       setDocumentos(updatedDocs);
+      setDocumentosAprobados(documentosAprobadosValue);
       setDocumentoActivo(null);
       
       setSnackbar({
@@ -203,6 +218,7 @@ const DocumentosModal = ({
 
       onDocumentRejected();
     } catch (error) {
+      console.error("Error al rechazar:", error);
       setSnackbar({
         open: true,
         message: "Error al rechazar documento",
@@ -231,18 +247,17 @@ const DocumentosModal = ({
         }
       }
 
-      await updateDoc(trabajadorRef, { documentos: docsObj });
-      
       // Calcular documentos_aprobados: todos deben estar aprobados
       const documentosAprobadosValue = Object.keys(docsObj)
         .filter(key => !['updatedAt', 'documentosActualizadoEn'].includes(key))
         .filter(key => docsObj[key] && typeof docsObj[key] === 'object' && docsObj[key].fotos)
         .every(key => docsObj[key].estado === "aprobado");
 
-      // Actualizar documentos_aprobados y activo vinculados: activo = documentos_aprobados
+      // Una sola operación que actualiza todo
       await updateDoc(trabajadorRef, { 
+        documentos: docsObj,
         documentos_aprobados: documentosAprobadosValue,
-        activo: documentosAprobadosValue
+        activo: nuevoEstado === "rechazado" ? false : documentosAprobadosValue
       });
       
       // Actualizar lista local
@@ -261,6 +276,7 @@ const DocumentosModal = ({
         return d;
       });
       setDocumentos(updatedDocs);
+      setDocumentosAprobados(documentosAprobadosValue);
       
       setSnackbar({
         open: true,

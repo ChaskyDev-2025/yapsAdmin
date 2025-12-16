@@ -64,7 +64,12 @@ export function useTrabajadoresPorFlota(flotaId) {
               activo: trabajador.activo !== false,
               documentos: trabajador.documentos || {},
               documentos_aprobados: trabajador.documentos_aprobados || false,
+              deletedByFlotaId: trabajador.deletedByFlotaId || null,
             };
+          })
+          .filter(item => {
+            // Filtrar: no mostrar si fue eliminado por esta flota
+            return item.deletedByFlotaId !== flotaId;
           })
           .filter(Boolean);
 

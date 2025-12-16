@@ -16,6 +16,13 @@ import {
   Switch,
   CircularProgress,
   Pagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Alert,
+  Button,
 } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
@@ -23,14 +30,25 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import DetalleModal from "./components/modalGenerico";
 import TableToolbar from "../usuarios/components/TableToolbar";
 import { useAuth } from "../../../auth/AuthContext";
-import { doc, getDoc, deleteDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, deleteDoc, updateDoc, collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
+import { isSuperAdmin } from "../../../services/userService";
 // 👉 Datos desde el hook (Firebase)
 import { useTrabajadoresPorFlota } from "./hooks/useTrabajadoresPorFlota";
 
 const Radiotaxis = () => {
   const [openModal, setOpenModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingRadio, setEditingRadio] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    nombreEmpresa: "",
+    email: "",
+    telefono: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const [flotaId, setFlotaId] = useState(null);
   const [searchRadiotaxis, setSearchRadiotaxis] = useState("");
   const [sortByRadiotaxis, setSortByRadiotaxis] = useState("nombre-asc");
@@ -43,11 +61,52 @@ const Radiotaxis = () => {
     estado: true,
     acciones: true,
   });
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
+  const isSuperAdminUser = isSuperAdmin(userRole);
+  const [allRadiotaxis, setAllRadiotaxis] = useState([]);
   const ITEMS_PER_PAGE = 10;
   
-  // 👉 Datos desde el hook (Firebase) - filtra por flota del usuario
-  const { rows, cargando, error, refetch } = useTrabajadoresPorFlota(flotaId);
+  // Cargar todos los radiotaxis (solo para superadmin)
+  useEffect(() => {
+    if (!isSuperAdminUser) return;
+
+    const trabajadoresRef = collection(db, "trabajadores");
+    const q = query(trabajadoresRef, where("modo", "==", "trabajador"));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map((docSnap) => {
+        const trabajador = docSnap.data();
+        const nombreUsuario = trabajador.perfil?.name || "Trabajador sin nombre";
+        const telefono = trabajador.telefono || "Sin teléfono";
+        const email = trabajador.perfil?.email || trabajador.email || "Sin email";
+        const fotoUrl = trabajador.perfil?.photoUrl || "";
+
+        return {
+          id: docSnap.id,
+          firebaseId: docSnap.id,
+          nombreEmpresa: nombreUsuario,
+          telefono,
+          email,
+          representante: email,
+          logoUrl: fotoUrl,
+          logo: fotoUrl,
+          saldo: "Bs. 0.00",
+          estado: "Trabajador",
+          activo: trabajador.activo !== false,
+          documentos: trabajador.documentos || {},
+          documentos_aprobados: trabajador.documentos_aprobados || false,
+          deletedByFlotaId: trabajador.deletedByFlotaId || null,
+        };
+      });
+      setAllRadiotaxis(data);
+    });
+
+    return () => unsubscribe();
+  }, [isSuperAdminUser]);
+
+  // Seleccionar filas correctas según el rol
+  const { rows: rowsFlota, cargando, error, refetch } = useTrabajadoresPorFlota(flotaId);
+  const displayRows = isSuperAdminUser ? allRadiotaxis : rowsFlota;
 
   // Obtener flotaId del usuario actual
   useEffect(() => {
@@ -76,6 +135,76 @@ const Radiotaxis = () => {
     setOpenModal(true);
   };
 
+  const handleEdit = (row) => {
+    setEditingRadio(row);
+    setEditFormData({
+      nombreEmpresa: row.nombreEmpresa || "",
+      email: row.email || "",
+      telefono: row.telefono || "",
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editFormData.nombreEmpresa || !editFormData.telefono) {
+      setErrorMessage("Nombre y teléfono son obligatorios");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await updateDoc(doc(db, "trabajadores", editingRadio.firebaseId), {
+        nombreEmpresa: editFormData.nombreEmpresa,
+        email: editFormData.email,
+        telefono: editFormData.telefono,
+        updatedAt: new Date(),
+      });
+      setSuccessMessage("Radiotaxi actualizado correctamente");
+      setEditDialogOpen(false);
+      setEditingRadio(null);
+      setErrorMessage("");
+      setTimeout(() => {
+        setSuccessMessage("");
+        refetch();
+      }, 2000);
+    } catch (error) {
+      setErrorMessage("Error al actualizar: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (row) => {
+    if (!window.confirm(`¿Está seguro de que desea eliminar a ${row.nombreEmpresa}? Este usuario será eliminado de su sistema.`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (isSuperAdminUser) {
+        // Superadmin elimina permanentemente
+        await deleteDoc(doc(db, "trabajadores", row.firebaseId));
+        setSuccessMessage("Radiotaxi eliminado permanentemente");
+      } else {
+        // Admin de flota hace soft delete (marca como eliminado por su flota)
+        await updateDoc(doc(db, "trabajadores", row.firebaseId), {
+          deletedByFlotaId: flotaId,
+          deletedAt: new Date(),
+        });
+        setSuccessMessage("Radiotaxi ocultado para su flota");
+      }
+      setErrorMessage("");
+      setTimeout(() => {
+        setSuccessMessage("");
+        refetch();
+      }, 2000);
+    } catch (error) {
+      setErrorMessage("Error al eliminar: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleToggleHabilitado = async (firebaseId, nuevoEstado, documentosAprobados) => {
     // Si intenta activar y documentos_aprobados es false, no permitir
     if (nuevoEstado && !documentosAprobados) {
@@ -102,7 +231,7 @@ const Radiotaxis = () => {
 
   // Filtrado y ordenamiento
   const radiotaxisFiltrados = useMemo(() => {
-    let filtered = rows;
+    let filtered = displayRows;
     
     // Filtro por búsqueda
     if (searchRadiotaxis) {
@@ -127,7 +256,7 @@ const Radiotaxis = () => {
     }
     
     return sorted;
-  }, [rows, searchRadiotaxis, sortByRadiotaxis]);
+  }, [displayRows, searchRadiotaxis, sortByRadiotaxis]);
 
   // Paginación
   const radiotaxisPaginados = useMemo(() => {
@@ -256,6 +385,24 @@ const Radiotaxis = () => {
                               <VisibilityIcon />
                             </IconButton>
                           </Tooltip>
+                          <Tooltip title="Editar">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleEdit(radio)}
+                              sx={{ bgcolor: "#e3f2fd", color: "#1976d2", "&:hover": { bgcolor: "#bbdefb" } }}
+                            >
+                              <EditIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Eliminar">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDelete(radio)}
+                              sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcdd2" } }}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </Tooltip>
                         </Box>
                       </TableCell>
                     </TableRow>
@@ -289,18 +436,67 @@ const Radiotaxis = () => {
           </Box>
         )}
 
-        {error && (
-          <Typography color="error" sx={{ mt: 2, fontFamily: "Mulish, sans-serif" }}>
-            {error}
-          </Typography>
+        {successMessage && (
+          <Alert severity="success" sx={{ mt: 2 }}>
+            {successMessage}
+          </Alert>
+        )}
+        {errorMessage && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {errorMessage}
+          </Alert>
         )}
       </Paper>
 
-      <DetalleModal
-        open={openModal}
-        onClose={() => setOpenModal(false)}
-        rowData={selectedRow}
-      />
+      {/* Dialog para editar */}
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, bgcolor: "#000000", color: "white" }}>
+          Editar Radiotaxi
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <TextField
+            label="Nombre de Empresa"
+            fullWidth
+            margin="normal"
+            value={editFormData.nombreEmpresa}
+            onChange={(e) => setEditFormData({ ...editFormData, nombreEmpresa: e.target.value })}
+          />
+          <TextField
+            label="Email"
+            type="email"
+            fullWidth
+            margin="normal"
+            value={editFormData.email}
+            onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+          />
+          <TextField
+            label="Teléfono"
+            fullWidth
+            margin="normal"
+            value={editFormData.telefono}
+            onChange={(e) => setEditFormData({ ...editFormData, telefono: e.target.value })}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setEditDialogOpen(false)} sx={{ color: "#484848" }}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSaveEdit}
+            variant="contained"
+            disabled={loading}
+            sx={{ bgcolor: "#d7171a", "&:hover": { bgcolor: "#b01217" } }}
+          >
+            {loading ? "Guardando..." : "Guardar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {error && (
+        <Typography color="error" sx={{ mt: 2, fontFamily: "Mulish, sans-serif" }}>
+          {error}
+        </Typography>
+      )}
     </Box>
   );
 };

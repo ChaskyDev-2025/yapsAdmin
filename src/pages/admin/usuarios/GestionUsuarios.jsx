@@ -18,7 +18,6 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  MenuItem,
   Alert,
   Tooltip,
   Tabs,
@@ -28,6 +27,10 @@ import {
   Switch,
   FormControlLabel,
   Pagination,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -38,7 +41,9 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import LocalTaxiIcon from "@mui/icons-material/LocalTaxi";
 import HistoryIcon from "@mui/icons-material/History";
 import DescriptionIcon from "@mui/icons-material/Description";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useAuth } from "../../../auth/AuthContext";
+
 import { getAllUsers, createAdminUser, updateUser, deleteUser, isSuperAdmin } from "../../../services/userService";
 import { collection, deleteDoc, doc, updateDoc, onSnapshot } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
@@ -46,6 +51,11 @@ import { TableToolbar } from "./components/TableToolbar";
 import { HistorialViajesModal } from "./components/HistorialViajesModal";
 import { HistorialViajesConductorModal } from "./components/HistorialViajesConductorModal";
 import DocumentosConductoresViewModal from "./components/DocumentosConductoresViewModal";
+
+const DEPARTAMENTOS = [
+  "La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", 
+  "Oruro", "Potosí", "Tarija", "Pando", "Beni"
+];
 
 const GestionUsuarios = () => {
   const { userRole, user } = useAuth();
@@ -60,7 +70,12 @@ const GestionUsuarios = () => {
   const [conductorSeleccionado, setConductorSeleccionado] = useState(null);
   const [documentosConductorModalOpen, setDocumentosConductorModalOpen] = useState(false);
   const [conductorDocumentosSeleccionado, setConductorDocumentosSeleccionado] = useState(null);
+  const [detallesPasajeroModalOpen, setDetallesPasajeroModalOpen] = useState(false);
+  const [pasajeroDetalles, setPasajeroDetalles] = useState(null);
+  const [detallesConductorModalOpen, setDetallesConductorModalOpen] = useState(false);
+  const [conductorDetalles, setConductorDetalles] = useState(null);
   const [loading, setLoading] = useState(true);
+
   const [openDialog, setOpenDialog] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [error, setError] = useState("");
@@ -77,7 +92,7 @@ const GestionUsuarios = () => {
   const [searchConductores, setSearchConductores] = useState("");
   const [filterEstado, setFilterEstado] = useState("todos"); // todos, activos, inactivos
   const [filterEstadoConductores, setFilterEstadoConductores] = useState("todos"); // todos, activos, inactivos
-  
+
   // Resetear página al cambiar búsqueda
   useEffect(() => {
     setPageAdmin(0);
@@ -114,6 +129,7 @@ const GestionUsuarios = () => {
     email: true,
     modo: true,
     provider: true,
+    departamento: true,
     fecha: true,
   });
   
@@ -139,7 +155,15 @@ const GestionUsuarios = () => {
     nombre: "",
     role: "admin",
     password: "",
-    flotaId: "",
+    departamentoActual: "",
+    codigoReferido: "",
+    metodoPagoEfectivo: false,
+    metodoPagoQr: false,
+    ciudad: "",
+    departamento: "",
+    servicio: "",
+    categoria: "",
+    activo: true,
   });
 
   // Función para formatear fechas de Firestore
@@ -228,6 +252,20 @@ const GestionUsuarios = () => {
       case "email-desc":
         sorted.sort((a, b) => ((b.email || b.perfil?.email || "") || "").localeCompare((a.email || a.perfil?.email || "") || ""));
         break;
+      case "fecha-recientes":
+        sorted.sort((a, b) => {
+          const fechaA = a.createdAt?.toDate?.() || new Date(0);
+          const fechaB = b.createdAt?.toDate?.() || new Date(0);
+          return fechaB - fechaA;
+        });
+        break;
+      case "fecha-antiguos":
+        sorted.sort((a, b) => {
+          const fechaA = a.createdAt?.toDate?.() || new Date(0);
+          const fechaB = b.createdAt?.toDate?.() || new Date(0);
+          return fechaA - fechaB;
+        });
+        break;
       default:
         break;
     }
@@ -269,6 +307,20 @@ const GestionUsuarios = () => {
         break;
       case "email-desc":
         sorted.sort((a, b) => ((b.perfil?.email || "") || "").localeCompare((a.perfil?.email || "") || ""));
+        break;
+      case "fecha-recientes":
+        sorted.sort((a, b) => {
+          const fechaA = a.perfil?.createdAt?.toDate?.() || new Date(0);
+          const fechaB = b.perfil?.createdAt?.toDate?.() || new Date(0);
+          return fechaB - fechaA;
+        });
+        break;
+      case "fecha-antiguos":
+        sorted.sort((a, b) => {
+          const fechaA = a.perfil?.createdAt?.toDate?.() || new Date(0);
+          const fechaB = b.perfil?.createdAt?.toDate?.() || new Date(0);
+          return fechaA - fechaB;
+        });
         break;
       default:
         break;
@@ -373,16 +425,36 @@ const GestionUsuarios = () => {
   const handleOpenDialog = (usuario = null) => {
     if (usuario) {
       setEditingUser(usuario);
-      // Para trabajadores (conductores), siempre tomar del perfil
-      const isTrabajador = usuario.perfil;
-      const nombreFinal = isTrabajador ? (usuario.perfil?.name || "") : (usuario.nombre || "");
+      // Detectar tipo de usuario
+      const isPasajero = usuario.modo === "pasajero";
+      const isTrabajador = usuario.perfil && usuario.role;
+      
+      // Obtener nombre y email según el tipo
+      let nombreFinal = "";
+      let emailFinal = "";
+      
+      if (isPasajero || isTrabajador) {
+        nombreFinal = usuario.perfil?.name || "";
+        emailFinal = usuario.perfil?.email || "";
+      } else {
+        nombreFinal = usuario.nombre || "";
+        emailFinal = usuario.email || "";
+      }
       
       setFormData({
-        email: usuario.email || usuario.perfil?.email || "",
+        email: emailFinal,
         nombre: nombreFinal,
         role: usuario.role || "driver",
         password: "",
-        flotaId: usuario.flotaId || "",
+        departamentoActual: usuario.departamentoActual || "",
+        codigoReferido: usuario.codigoReferido || "",
+        metodoPagoEfectivo: usuario.metodos_pago?.efectivo || false,
+        metodoPagoQr: usuario.metodos_pago?.qr || false,
+        ciudad: usuario.ciudad || "",
+        departamento: usuario.departamento || "",
+        servicio: usuario.servicio || "",
+        categoria: usuario.categoria || "",
+        activo: usuario.activo !== false,
       });
     } else {
       setEditingUser(null);
@@ -391,7 +463,15 @@ const GestionUsuarios = () => {
         nombre: "",
         role: "admin",
         password: "",
-        flotaId: "",
+        departamentoActual: "",
+        codigoReferido: "",
+        metodoPagoEfectivo: false,
+        metodoPagoQr: false,
+        ciudad: "",
+        departamento: "",
+        servicio: "",
+        categoria: "",
+        activo: true,
       });
     }
     setOpenDialog(true);
@@ -402,7 +482,7 @@ const GestionUsuarios = () => {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setEditingUser(null);
-    setFormData({ email: "", nombre: "", role: "admin", password: "", flotaId: "" });
+    setFormData({ email: "", nombre: "", role: "admin", password: "", departamentoActual: "", codigoReferido: "", metodoPagoEfectivo: false, metodoPagoQr: false, ciudad: "", departamento: "", servicio: "", categoria: "", activo: true });
   };
 
   const handleSaveUser = async () => {
@@ -415,10 +495,30 @@ const GestionUsuarios = () => {
     }
 
     if (editingUser) {
-      // Verificar si es un trabajador (conductor) o un admin
-      const isTrabajador = editingUser.perfil; // Los trabajadores tienen el campo perfil
+      // Verificar qué tipo de usuario es
+      const isPasajero = editingUser.modo === "pasajero"; // Los pasajeros tienen modo: "pasajero"
+      const isTrabajador = editingUser.perfil && editingUser.role; // Los trabajadores tienen perfil y role
 
-      if (isTrabajador) {
+      if (isPasajero) {
+        // Actualizar pasajero en colección "pasajeros"
+        try {
+          await updateDoc(doc(db, "pasajeros", editingUser.id), {
+            name: formData.nombre || editingUser.name,
+            email: formData.email || editingUser.email,
+            perfil: {
+              ...editingUser.perfil,
+              name: formData.nombre || editingUser.perfil?.name,
+              email: formData.email || editingUser.perfil?.email,
+            },
+            departamentoActual: formData.departamentoActual || editingUser.departamentoActual,
+          });
+          setSuccess("Pasajero actualizado correctamente");
+          setTimeout(() => handleCloseDialog(), 1500);
+        } catch (error) {
+          console.error("Error al actualizar pasajero:", error);
+          setError("Error al actualizar pasajero: " + error.message);
+        }
+      } else if (isTrabajador) {
         // Actualizar trabajador en colección "trabajadores"
         try {
           await updateDoc(doc(db, "trabajadores", editingUser.id), {
@@ -429,6 +529,11 @@ const GestionUsuarios = () => {
               email: formData.email,
             },
             role: formData.role,
+            ciudad: formData.ciudad,
+            departamento: formData.departamento,
+            servicio: formData.servicio,
+            categoria: formData.categoria,
+            activo: formData.activo,
           });
           setSuccess("Conductor actualizado correctamente");
           setTimeout(() => handleCloseDialog(), 1500);
@@ -508,6 +613,18 @@ const GestionUsuarios = () => {
     } catch (error) {
       console.error("Error al eliminar conductor:", error);
       setError("Error al eliminar conductor");
+      setTimeout(() => setError(""), 3000);
+    }
+  };
+
+  const handleDeletePasajero = async (pasajeroId) => {
+    try {
+      await deleteDoc(doc(db, "pasajeros", pasajeroId));
+      setSuccess("Pasajero eliminado correctamente");
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (error) {
+      console.error("Error al eliminar pasajero:", error);
+      setError("Error al eliminar pasajero");
       setTimeout(() => setError(""), 3000);
     }
   };
@@ -847,6 +964,8 @@ const GestionUsuarios = () => {
                 { label: "↓ Sort by Nombre (DESC)", value: "nombre-desc" },
                 { label: "↑ Sort by Email (ASC)", value: "email-asc" },
                 { label: "↓ Sort by Email (DESC)", value: "email-desc" },
+                { label: "↓ Más Recientes", value: "fecha-recientes" },
+                { label: "↑ Más Antiguos", value: "fecha-antiguos" },
               ]}
               sortValue={sortByPasajeros}
               onSortChange={setSortByPasajeros}
@@ -883,6 +1002,11 @@ const GestionUsuarios = () => {
                   {visibleColumnsPasajeros.provider && (
                     <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
                       Provider
+                    </TableCell>
+                  )}
+                  {visibleColumnsPasajeros.departamento && (
+                    <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                      Departamento
                     </TableCell>
                   )}
                   {visibleColumnsPasajeros.fecha && (
@@ -956,6 +1080,11 @@ const GestionUsuarios = () => {
                           />
                         </TableCell>
                       )}
+                      {visibleColumnsPasajeros.departamento && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          {pasajero.departamentoActual || "-"}
+                        </TableCell>
+                      )}
                       {visibleColumnsPasajeros.fecha && (
                         <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                           {pasajero.createdAt?.toDate?.().toLocaleDateString() || 
@@ -974,6 +1103,40 @@ const GestionUsuarios = () => {
                             sx={{ color: "#d7171a" }}
                           >
                             <HistoryIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Ver Detalles">
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setPasajeroDetalles(pasajero);
+                              setDetallesPasajeroModalOpen(true);
+                            }}
+                            sx={{ color: "#484848" }}
+                          >
+                            <VisibilityIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Editar">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenDialog(pasajero)}
+                            sx={{ color: "#0066cc" }}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Eliminar">
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              if (window.confirm("¿Estás seguro de eliminar este pasajero?")) {
+                                handleDeletePasajero(pasajero.id);
+                              }
+                            }}
+                            sx={{ color: "#d7171a" }}
+                          >
+                            <DeleteIcon />
                           </IconButton>
                         </Tooltip>
                       </TableCell>
@@ -1016,6 +1179,8 @@ const GestionUsuarios = () => {
                 { label: "↓ Sort by Nombre (DESC)", value: "nombre-desc" },
                 { label: "↑ Sort by Email (ASC)", value: "email-asc" },
                 { label: "↓ Sort by Email (DESC)", value: "email-desc" },
+                { label: "↓ Más Recientes", value: "fecha-recientes" },
+                { label: "↑ Más Antiguos", value: "fecha-antiguos" },
               ]}
               sortValue={sortByConductores}
               onSortChange={setSortByConductores}
@@ -1170,6 +1335,18 @@ const GestionUsuarios = () => {
                         />
                       </TableCell>
                       <TableCell>
+                        <Tooltip title="Ver Detalles">
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setConductorDetalles(trabajador);
+                              setDetallesConductorModalOpen(true);
+                            }}
+                            sx={{ color: "#484848", mr: 1 }}
+                          >
+                            <VisibilityIcon />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip title="Ver Documentos">
                           <IconButton
                             size="small"
@@ -1264,6 +1441,18 @@ const GestionUsuarios = () => {
             </Alert>
           )}
 
+          {editingUser?.modo === "pasajero" && (
+            <Box sx={{ display: "flex", justifyContent: "center", mb: 3, mt: 1 }}>
+              <Avatar
+                src={editingUser.perfil?.photoUrl || editingUser.photoURL}
+                alt={editingUser.perfil?.name || editingUser.name}
+                sx={{ width: 100, height: 100, bgcolor: "#d7171a" }}
+              >
+                {(editingUser.perfil?.name || editingUser.name || "?")?.charAt(0).toUpperCase()}
+              </Avatar>
+            </Box>
+          )}
+
           <TextField
             label="Email"
             type="email"
@@ -1282,22 +1471,63 @@ const GestionUsuarios = () => {
             onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
           />
 
-          <TextField
-            label="Flota"
-            select
-            fullWidth
-            margin="normal"
-            value={formData.flotaId}
-            onChange={(e) => setFormData({ ...formData, flotaId: e.target.value })}
-            helperText="Opcional - Puede asignarla después"
-          >
-            <MenuItem value="">Sin asignar</MenuItem>
-            {flotas.map((flota) => (
-              <MenuItem key={flota.id} value={flota.id}>
-                {flota.nombre}
-              </MenuItem>
-            ))}
-          </TextField>
+          {editingUser?.modo === "pasajero" && (
+            <>
+              <TextField
+                label="Departamento Actual"
+                fullWidth
+                margin="normal"
+                value={formData.departamentoActual}
+                onChange={(e) => setFormData({ ...formData, departamentoActual: e.target.value })}
+              />
+            </>
+          )}
+
+          {editingUser?.perfil && editingUser?.role && (
+            <>
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Departamento/Ciudad</InputLabel>
+                <Select
+                  value={formData.departamento}
+                  label="Departamento/Ciudad"
+                  onChange={(e) => setFormData({ ...formData, departamento: e.target.value, ciudad: e.target.value })}
+                >
+                  <MenuItem value="">
+                    <em>Seleccionar</em>
+                  </MenuItem>
+                  {DEPARTAMENTOS.map((dept) => (
+                    <MenuItem key={dept} value={dept}>
+                      {dept}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <TextField
+                label="Servicio"
+                fullWidth
+                margin="normal"
+                value={formData.servicio}
+                onChange={(e) => setFormData({ ...formData, servicio: e.target.value })}
+              />
+              <TextField
+                label="Categoría"
+                fullWidth
+                margin="normal"
+                value={formData.categoria}
+                onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.activo}
+                    onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
+                  />
+                }
+                label="Conductor Activo"
+                sx={{ mt: 1 }}
+              />
+            </>
+          )}
 
           {!editingUser && (
             <TextField
@@ -1357,6 +1587,363 @@ const GestionUsuarios = () => {
         onClose={() => setDocumentosConductorModalOpen(false)}
         selectedConductor={conductorDocumentosSeleccionado}
       />
+
+      {/* Modal de Detalles del Pasajero */}
+      <Dialog open={detallesPasajeroModalOpen} onClose={() => setDetallesPasajeroModalOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ 
+          fontWeight: 700, 
+          bgcolor: "#000000", 
+          color: "#FFFFFF",
+          padding: "24px",
+          fontSize: "1.3rem"
+        }}>
+          Detalles del Pasajero: {pasajeroDetalles?.perfil?.name || pasajeroDetalles?.name || ""}
+        </DialogTitle>
+        <DialogContent dividers sx={{ bgcolor: "#FFFFFF", p: 3 }}>
+          {pasajeroDetalles && (
+            <Box>
+              {/* Foto */}
+              <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
+                <Avatar
+                  src={pasajeroDetalles.perfil?.photoUrl || pasajeroDetalles.photoURL}
+                  alt={pasajeroDetalles.perfil?.name || pasajeroDetalles.name}
+                  sx={{ width: 140, height: 140, bgcolor: "#d7171a", border: "4px solid #d7171a", boxShadow: "0 4px 12px rgba(215,23,26,0.3)" }}
+                >
+                  {(pasajeroDetalles.perfil?.name || pasajeroDetalles.name || "?")?.charAt(0).toUpperCase()}
+                </Avatar>
+              </Box>
+
+              {/* Información Personal */}
+              <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center" }}>
+                  👤 Información Personal
+                </Typography>
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Nombre</Typography>
+                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem" }}>{pasajeroDetalles.perfil?.name || pasajeroDetalles.name}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Email</Typography>
+                    <Typography sx={{ fontWeight: 600, color: "#d7171a", fontSize: "0.95rem", wordBreak: "break-all" }}>{pasajeroDetalles.perfil?.email || pasajeroDetalles.email}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Departamento</Typography>
+                    <Typography sx={{ fontWeight: 700, color: "#d7171a", fontSize: "1rem" }}>{pasajeroDetalles.departamentoActual || "-"}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Provider</Typography>
+                    <Chip label={pasajeroDetalles.perfil?.provider || "N/A"} size="small" sx={{ bgcolor: pasajeroDetalles.perfil?.provider === "google" ? "#000000" : "#484848", color: "#FFFFFF", fontWeight: 600 }} />
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Información de Referidos */}
+              <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #484848", borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center" }}>
+                  🎯 Información de Referidos
+                </Typography>
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Código Referido</Typography>
+                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem", fontFamily: "monospace" }}>{pasajeroDetalles.codigoReferido || "-"}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Código Usado</Typography>
+                    <Chip 
+                      label={pasajeroDetalles.codigoReferidoUsado ? "✓ Sí" : "✗ No"} 
+                      size="small" 
+                      sx={{ 
+                        bgcolor: pasajeroDetalles.codigoReferidoUsado ? "#000000" : "#484848", 
+                        color: "#FFFFFF", 
+                        fontWeight: 700 
+                      }} 
+                    />
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Estadísticas */}
+              <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center", fontFamily: "Mulish, sans-serif" }}>
+                📊 Estadísticas
+              </Typography>
+              <Box sx={{ mb: 3, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                <Box sx={{ p: 3, bgcolor: "#FFFFFF", borderRadius: 1, border: "2px solid #d7171a", textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+                  <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.75rem", display: "block", mb: 1 }}>Carreras Completadas</Typography>
+                  <Typography sx={{ fontWeight: 700, fontSize: "2.5rem", color: "#d7171a" }}>{pasajeroDetalles.carrerasCompletadas || 0}</Typography>
+                </Box>
+                <Box sx={{ p: 3, bgcolor: "#FFFFFF", borderRadius: 1, border: "2px solid #000000", textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+                  <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.75rem", display: "block", mb: 1 }}>Donaciones Acumuladas</Typography>
+                  <Typography sx={{ fontWeight: 700, fontSize: "2.5rem", color: "#000000" }}>${parseFloat(pasajeroDetalles.donacionesAcumuladas || 0).toFixed(2)}</Typography>
+                </Box>
+              </Box>
+
+              {/* Tickets por Departamento */}
+              {pasajeroDetalles.tickets && Object.keys(pasajeroDetalles.tickets).length > 0 && (
+                <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2 }}>🎫 Tickets</Typography>
+                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 2 }}>
+                    {Object.entries(pasajeroDetalles.tickets).filter(([depto]) => depto !== "general").map(([depto, count]) => (
+                      <Box key={depto} sx={{ p: 2, bgcolor: "#f9f9f9", borderRadius: 1, textAlign: "center", border: "1px solid #d7171a" }}>
+                        <Typography variant="caption" sx={{ color: "#d7171a", fontWeight: 700, textTransform: "uppercase", fontSize: "0.75rem" }}>{depto}</Typography>
+                        <Typography sx={{ fontWeight: 700, fontSize: "1.8rem", color: "#d7171a", mt: 0.5 }}>{count}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {/* Última Donación */}
+              {pasajeroDetalles.ultimaDonacion && (
+                <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #484848", borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2 }}>💳 Última Donación</Typography>
+                  <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Monto</Typography>
+                      <Typography sx={{ fontWeight: 700, fontSize: "1.3rem", color: "#d7171a" }}>${parseFloat(pasajeroDetalles.ultimaDonacion.monto || 0).toFixed(2)}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Fecha</Typography>
+                      <Typography sx={{ fontWeight: 600, color: "#000000" }}>{pasajeroDetalles.ultimaDonacion.fecha?.toDate?.().toLocaleString() || "-"}</Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              )}
+
+              {/* Último Viaje */}
+              {pasajeroDetalles.ultimoViaje && (
+                <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2 }}>🚗 Último Viaje</Typography>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Destino</Typography>
+                    <Typography sx={{ fontWeight: 600, color: "#000000", mb: 1.5 }}>{pasajeroDetalles.ultimoViaje.destinoNombre || "-"}</Typography>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Fecha y Hora</Typography>
+                    <Typography sx={{ fontWeight: 600, color: "#000000" }}>{pasajeroDetalles.ultimoViaje.timestamp?.toDate?.().toLocaleString() || "-"}</Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {/* Métodos de Pago */}
+              {pasajeroDetalles.metodos_pago && (
+                <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #484848", borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2 }}>💰 Métodos de Pago</Typography>
+                  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                    <Chip 
+                      label={`Efectivo: ${pasajeroDetalles.metodos_pago.efectivo ? "✓ Activo" : "✗ Inactivo"}`} 
+                      sx={{ 
+                        bgcolor: pasajeroDetalles.metodos_pago.efectivo ? "#000000" : "#e0e0e0",
+                        color: pasajeroDetalles.metodos_pago.efectivo ? "#FFFFFF" : "#484848",
+                        fontWeight: 700,
+                        border: `2px solid ${pasajeroDetalles.metodos_pago.efectivo ? "#000000" : "#b0b0b0"}`
+                      }} 
+                    />
+                    <Chip 
+                      label={`QR: ${pasajeroDetalles.metodos_pago.qr ? "✓ Activo" : "✗ Inactivo"}`} 
+                      sx={{ 
+                        bgcolor: pasajeroDetalles.metodos_pago.qr ? "#000000" : "#e0e0e0",
+                        color: pasajeroDetalles.metodos_pago.qr ? "#FFFFFF" : "#484848",
+                        fontWeight: 700,
+                        border: `2px solid ${pasajeroDetalles.metodos_pago.qr ? "#000000" : "#b0b0b0"}`
+                      }} 
+                    />
+                  </Box>
+                </Box>
+              )}
+
+              {/* Fechas */}
+              <Box sx={{ p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2 }}>📅 Fechas</Typography>
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Fecha de Registro</Typography>
+                    <Typography sx={{ fontWeight: 600, color: "#000000", fontSize: "0.9rem" }}>{pasajeroDetalles.perfil?.createdAt?.toDate?.().toLocaleString() || "-"}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Último Login</Typography>
+                    <Typography sx={{ fontWeight: 600, color: "#000000", fontSize: "0.9rem" }}>{pasajeroDetalles.perfil?.ultimoLogin?.toDate?.().toLocaleString() || "-"}</Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ bgcolor: "#FFFFFF", p: 2, borderTop: "1px solid #e0e0e0" }}>
+          <Button onClick={() => setDetallesPasajeroModalOpen(false)} variant="contained" sx={{ bgcolor: "#d7171a", color: "#FFFFFF", fontWeight: 700, "&:hover": { bgcolor: "#b8131f" } }}>
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal de Detalles del Conductor */}
+      <Dialog open={detallesConductorModalOpen} onClose={() => setDetallesConductorModalOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ 
+          fontWeight: 700, 
+          bgcolor: "#000000", 
+          color: "#FFFFFF",
+          padding: "24px",
+          fontSize: "1.3rem"
+        }}>
+          Detalles del Conductor: {conductorDetalles?.perfil?.name || conductorDetalles?.name || ""}
+        </DialogTitle>
+        <DialogContent dividers sx={{ bgcolor: "#FFFFFF", p: 3 }}>
+          {conductorDetalles && (
+            <Box>
+              {/* Foto */}
+              <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
+                <Avatar
+                  src={conductorDetalles.perfil?.photoUrl || conductorDetalles.photoURL}
+                  alt={conductorDetalles.perfil?.name || conductorDetalles.name}
+                  sx={{ width: 140, height: 140, bgcolor: "#d7171a", border: "4px solid #d7171a", boxShadow: "0 4px 12px rgba(215,23,26,0.3)" }}
+                >
+                  {(conductorDetalles.perfil?.name || conductorDetalles.name || "?")?.charAt(0).toUpperCase()}
+                </Avatar>
+              </Box>
+
+              {/* Información Personal */}
+              <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center" }}>
+                  👤 Información Personal
+                </Typography>
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Nombre</Typography>
+                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem" }}>{conductorDetalles.perfil?.name || "-"}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Email</Typography>
+                    <Typography sx={{ fontWeight: 600, color: "#d7171a", fontSize: "0.95rem", wordBreak: "break-all" }}>{conductorDetalles.perfil?.email || "-"}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Role</Typography>
+                    <Chip label={conductorDetalles.perfil?.role || "N/A"} size="small" sx={{ bgcolor: "#000000", color: "#FFFFFF", fontWeight: 600 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Provider</Typography>
+                    <Chip label={conductorDetalles.perfil?.provider || "N/A"} size="small" sx={{ bgcolor: conductorDetalles.perfil?.provider === "google" ? "#000000" : "#484848", color: "#FFFFFF", fontWeight: 600 }} />
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Información de Ubicación */}
+              <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #484848", borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center" }}>
+                  📍 Ubicación
+                </Typography>
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Departamento</Typography>
+                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem" }}>{conductorDetalles.departamento || "-"}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Ciudad</Typography>
+                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem" }}>{conductorDetalles.ciudad || "-"}</Typography>
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Información del Servicio */}
+              <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center" }}>
+                  🚖 Servicio
+                </Typography>
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Tipo de Servicio</Typography>
+                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem" }}>{conductorDetalles.servicio || "-"}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Categoría</Typography>
+                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem" }}>{conductorDetalles.categoria || "-"}</Typography>
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Información de Flota */}
+              {conductorDetalles.flotaId && (
+                <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #484848", borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center" }}>
+                    🏢 Flota
+                  </Typography>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Nombre de Flota</Typography>
+                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem" }}>{conductorDetalles.flotaNombre || "-"}</Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {/* Estado y Documentos */}
+              <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center" }}>
+                  ✅ Estado
+                </Typography>
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Estado Activo</Typography>
+                    <Chip 
+                      label={conductorDetalles.activo !== false ? "✓ Activo" : "✗ Inactivo"} 
+                      sx={{ 
+                        bgcolor: conductorDetalles.activo !== false ? "#000000" : "#484848",
+                        color: "#FFFFFF",
+                        fontWeight: 700
+                      }} 
+                    />
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Documentos Aprobados</Typography>
+                    <Chip 
+                      label={conductorDetalles.documentos_aprobados ? "✓ Sí" : "✗ No"} 
+                      sx={{ 
+                        bgcolor: conductorDetalles.documentos_aprobados ? "#000000" : "#484848",
+                        color: "#FFFFFF",
+                        fontWeight: 700
+                      }} 
+                    />
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Tiene Documentos</Typography>
+                    <Chip 
+                      label={conductorDetalles.tieneDocs ? "✓ Sí" : "✗ No"} 
+                      sx={{ 
+                        bgcolor: conductorDetalles.tieneDocs ? "#000000" : "#484848",
+                        color: "#FFFFFF",
+                        fontWeight: 700
+                      }} 
+                    />
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Fechas */}
+              <Box sx={{ p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2 }}>📅 Fechas</Typography>
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Fecha de Registro</Typography>
+                    <Typography sx={{ fontWeight: 600, color: "#000000", fontSize: "0.9rem" }}>{conductorDetalles.perfil?.createdAt?.toDate?.().toLocaleString() || "-"}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Último Login</Typography>
+                    <Typography sx={{ fontWeight: 600, color: "#000000", fontSize: "0.9rem" }}>{conductorDetalles.perfil?.ultimoLogin?.toDate?.().toLocaleString() || "-"}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Documentos Actualizado</Typography>
+                    <Typography sx={{ fontWeight: 600, color: "#000000", fontSize: "0.9rem" }}>{conductorDetalles.documentosActualizadoEn?.toDate?.().toLocaleString() || "-"}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Última Actualización</Typography>
+                    <Typography sx={{ fontWeight: 600, color: "#000000", fontSize: "0.9rem" }}>{conductorDetalles.updatedAt?.toDate?.().toLocaleString() || "-"}</Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ bgcolor: "#FFFFFF", p: 2, borderTop: "1px solid #e0e0e0" }}>
+          <Button onClick={() => setDetallesConductorModalOpen(false)} variant="contained" sx={{ bgcolor: "#d7171a", color: "#FFFFFF", fontWeight: 700, "&:hover": { bgcolor: "#b8131f" } }}>
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
 
     </Box>
   );

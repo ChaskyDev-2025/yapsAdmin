@@ -25,8 +25,9 @@ import {
   Grid,
   Pagination,
 } from "@mui/material";
-import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
+import { collection, getDocs, updateDoc, doc, query, where } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
+import { useAuth } from "../../../auth/AuthContext";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -36,6 +37,7 @@ import { TableToolbar } from "../usuarios/components/TableToolbar";
 import GenerarOfertaModal from "./components/GenerarOfertaModal";
 
 const SolicitudesAsignadas = () => {
+  const { userFlotaId } = useAuth();
   
   const disabledTextFieldStyles = {
     "& .MuiInputBase-input.Mui-disabled": {
@@ -99,12 +101,23 @@ const SolicitudesAsignadas = () => {
     }
   ];
 
-  // Cargar solicitudes asignadas a esta flota y obtener el flotaId
+  // Cargar solicitudes asignadas a esta flota específicamente
   useEffect(() => {
     const cargarSolicitudes = async () => {
+      if (!userFlotaId) {
+        setSolicitudes([]);
+        setCargando(false);
+        return;
+      }
+
       try {
         setCargando(true);
-        const snapshot = await getDocs(collection(db, "solicitudes"));
+        // Filtrar solo las solicitudes de la flota actual del usuario
+        const q = query(
+          collection(db, "solicitudes"),
+          where("flota_asignada", "==", userFlotaId)
+        );
+        const snapshot = await getDocs(q);
         const data = snapshot.docs
           .map(doc => {
             const docData = doc.data();
@@ -122,15 +135,10 @@ const SolicitudesAsignadas = () => {
                 }
               }
             };
-          })
-          .filter(sol => sol.flota_asignada);
+          });
         
         setSolicitudes(data);
-
-        // Obtener el flotaId de la primera solicitud asignada (todas tienen la misma flota)
-        if (data.length > 0) {
-          setFlotaId(data[0].flota_asignada);
-        }
+        setFlotaId(userFlotaId);
         setCargando(false);
       } catch (error) {
         console.error("Error cargando solicitudes:", error);
@@ -139,7 +147,7 @@ const SolicitudesAsignadas = () => {
     };
 
     cargarSolicitudes();
-  }, []);
+  }, [userFlotaId]);
 
   // Cargar conductores de la flota
   useEffect(() => {

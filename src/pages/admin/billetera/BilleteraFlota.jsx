@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Paper,
@@ -17,8 +17,6 @@ import {
   TextField,
   Chip,
   CircularProgress,
-  Card,
-  CardContent,
   Snackbar,
   Alert,
   Tabs,
@@ -67,46 +65,6 @@ const BilleteraFlota = () => {
   const [searchHistorial, setSearchHistorial] = useState("");
   const [sortByHistorial, setSortByHistorial] = useState("fecha-desc");
 
-  const cargarDatos = useCallback(async () => {
-    if (!flotaId) {
-      setLoading(false);
-      return;
-    }
-
-    const getSaldo = async () => {
-      try {
-        const billeteraRef = doc(db, "flotas", flotaId, "billetera", "saldo");
-        const docSnapshot = await getDoc(billeteraRef);
-
-        if (docSnapshot.exists()) {
-          return docSnapshot.data().monto || 0;
-        }
-        return 0;
-      } catch (error) {
-        console.error("Error al obtener saldo:", error);
-        return 0;
-      }
-    };
-
-    try {
-      setLoading(true);
-
-      const [solicitudesData, historialData, saldoData] = await Promise.all([
-        obtenerSolicitudesFlota(flotaId),
-        obtenerHistorialTransacciones(flotaId),
-        getSaldo(),
-      ]);
-
-      setSolicitudes(solicitudesData);
-      setHistorial(historialData);
-      setSaldoActual(saldoData);
-    } catch (error) {
-      mostrarSnackbar("Error al cargar datos", "error");
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  }, [flotaId]);
 
   useEffect(() => {
     if (!flotaId) {
@@ -114,44 +72,71 @@ const BilleteraFlota = () => {
       return;
     }
 
-    cargarDatos();
-
-    // Listener en tiempo real para solicitudes
-    const unsubscribeSolicitudes = escucharSolicitudesFlota(flotaId, (solicitudesActualizadas) => {
-      setSolicitudes(solicitudesActualizadas);
-    });
-
-    // Listener en tiempo real para historial de transacciones
-    const unsubscribeHistorial = escucharHistorialTransacciones(flotaId, (historialActualizado) => {
-      setHistorial(historialActualizado);
-      
-      // Cuando el historial se actualiza, también actualizar el saldo
-      const refrescarSaldo = async () => {
-        try {
-          const billeteraRef = doc(db, "flotas", flotaId, "billetera", "saldo");
-          const docSnapshot = await getDoc(billeteraRef);
-          if (docSnapshot.exists()) {
-            setSaldoActual(docSnapshot.data().monto || 0);
+    let isMounted = true;
+    
+    // Cargar datos iniciales
+    const loadInitialData = async () => {
+      try {
+        setLoading(true);
+        
+        const [solicitudesData, historialData] = await Promise.all([
+          obtenerSolicitudesFlota(flotaId),
+          obtenerHistorialTransacciones(flotaId),
+        ]);
+        
+        if (isMounted) {
+          setSolicitudes(solicitudesData);
+          setHistorial(historialData);
+          
+          // También intentar cargar el saldo inicial
+          try {
+            const billeteraRef = doc(db, "flotas", flotaId, "billetera", "saldo");
+            const billeteraSnapshot = await getDoc(billeteraRef);
+            if (billeteraSnapshot.exists()) {
+              setSaldoActual(billeteraSnapshot.data().monto || 0);
+            }
+          } catch (err) {
+            // Error silencioso
           }
-        } catch (error) {
-          console.error("Error refrescando saldo:", error);
         }
-      };
-      refrescarSaldo();
-    });
+      } catch (error) {
+        // Error silencioso
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
 
-    // Listener en tiempo real para saldo
+    loadInitialData();
+    
+    // Listener EN TIEMPO REAL para el saldo - punto único de verdad
     const unsubscribeSaldo = escucharSaldoFlota(flotaId, (saldoActualizado) => {
-      setSaldoActual(saldoActualizado);
+      if (isMounted) {
+        setSaldoActual(saldoActualizado);
+      }
     });
 
-    // Cleanup
+    // Listener para solicitudes
+    const unsubscribeSolicitudes = escucharSolicitudesFlota(flotaId, (solicitudesActualizadas) => {
+      if (isMounted) {
+        setSolicitudes(solicitudesActualizadas);
+      }
+    });
+
+    // Listener para historial
+    const unsubscribeHistorial = escucharHistorialTransacciones(flotaId, (historialActualizado) => {
+      if (isMounted) {
+        setHistorial(historialActualizado);
+      }
+    });
+
+    // Cleanup: desuscribir de todos los listeners
     return () => {
+      isMounted = false;
+      if (unsubscribeSaldo) unsubscribeSaldo();
       if (unsubscribeSolicitudes) unsubscribeSolicitudes();
       if (unsubscribeHistorial) unsubscribeHistorial();
-      if (unsubscribeSaldo) unsubscribeSaldo();
     };
-  }, [cargarDatos, flotaId]);
+  }, [flotaId]);
 
   // Reset página de solicitudes al cambiar búsqueda
   useEffect(() => {
@@ -166,6 +151,8 @@ const BilleteraFlota = () => {
   const mostrarSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
   };
+
+
 
   const handleAbrirModal = () => {
     setMonto("");
@@ -196,24 +183,10 @@ const BilleteraFlota = () => {
 
       mostrarSnackbar("Solicitud enviada al superadmin", "success");
       handleModalClose();
-      // NO recargar - el listener actualizará automáticamente
     } catch (error) {
       mostrarSnackbar(error.message || "Error al crear solicitud", "error");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const getEstadoColor = (estado) => {
-    switch (estado) {
-      case "pendiente":
-        return "warning";
-      case "aprobada":
-        return "success";
-      case "rechazada":
-        return "error";
-      default:
-        return "default";
     }
   };
 
@@ -344,17 +317,28 @@ const BilleteraFlota = () => {
           Gestiona tu saldo y solicitudes de recarga
         </Typography>
 
-        {/* Tarjeta de Saldo */}
-        <Card sx={{ mb: 4, background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)" }}>
-          <CardContent>
-            <Typography sx={{ color: "#fff", opacity: 0.8, mb: 1, fontFamily: "Mulish, sans-serif" }}>
-              Saldo Disponible
-            </Typography>
-            <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "2rem", fontFamily: "Mulish, sans-serif" }}>
-              ${saldoActual.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
-            </Typography>
-          </CardContent>
-        </Card>
+        {/* Tarjeta de Saldo Disponible */}
+        <Paper 
+          key={`saldo-${saldoActual}`}
+          elevation={3} 
+          sx={{ 
+            mb: 4, 
+            p: 3, 
+            background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
+            borderRadius: 2,
+            color: "#fff"
+          }}
+        >
+          <Typography variant="body2" sx={{ opacity: 0.9, mb: 1, fontFamily: "Mulish, sans-serif" }}>
+            Saldo Disponible de la Flota
+          </Typography>
+          <Typography variant="h3" sx={{ fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+            ${saldoActual.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+          </Typography>
+          <Typography variant="caption" sx={{ opacity: 0.8, mt: 1, display: "block", fontFamily: "Mulish, sans-serif" }}>
+            Se actualiza automáticamente con recargas y retiros
+          </Typography>
+        </Paper>
 
         {/* Botón para nueva solicitud */}
         <Box sx={{ mb: 3 }}>

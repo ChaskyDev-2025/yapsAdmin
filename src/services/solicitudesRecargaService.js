@@ -325,7 +325,6 @@ export const aprobarSolicitud = async (
       monto: solicitud.monto,
     };
   } catch (error) {
-    console.error("Error al aprobar solicitud:", error);
     throw error;
   }
 };
@@ -395,7 +394,6 @@ export const escucharHistorialTransacciones = (flotaId, callback) => {
         });
       });
 
-      console.log(`📊 Transacciones actualizadas para flota ${flotaId}:`, transacciones.length);
       callback(transacciones);
     }, (error) => {
       console.error("Error escuchando historial de transacciones:", error);
@@ -426,13 +424,11 @@ export const escucharSaldoFlota = (flotaId, callback) => {
         callback(0);
       }
     }, (error) => {
-      console.error("Error escuchando saldo de flota:", error);
-      callback(0); // Retornar 0 en error
+      callback(0);
     });
 
     return unsubscribe;
   } catch (error) {
-    console.error("Error configurando listener de saldo:", error);
-    return () => {}; // Retornar función vacía si hay error en configuración
+    return () => {};
   }
 };

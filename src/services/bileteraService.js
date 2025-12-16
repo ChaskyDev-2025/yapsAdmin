@@ -3,6 +3,7 @@ import {
   collection, 
   getDocs, 
   getDoc,
+  getDocFromServer,
   updateDoc, 
   addDoc,
   serverTimestamp,
@@ -380,7 +381,8 @@ export const escucharSaldoTotal = (callback) => {
         flotaIds.map(async (flotaId) => {
           try {
             const billeteraRef = getBilleteraRef(flotaId);
-            const billeteraSnapshot = await getDoc(billeteraRef);
+            // Usar getDocFromServer para forzar lectura del servidor sin caché
+            const billeteraSnapshot = await getDocFromServer(billeteraRef);
 
             if (billeteraSnapshot.exists()) {
               saldoTotal += billeteraSnapshot.data().monto || 0;
@@ -399,57 +401,6 @@ export const escucharSaldoTotal = (callback) => {
     });
 
     unsubscribers.push(unsubscribeFlotas);
-
-    // Listeners para cambios en billeteras (para actualizaciones en tiempo real de saldos)
-    getDocs(flotasRef).then((snapshot) => {
-      snapshot.docs.forEach((doc) => {
-        const flotaId = doc.id;
-        const billeteraRef = getBilleteraRef(flotaId);
-
-        const unsubscribeBilletera = onSnapshot(billeteraRef, async (billeteraSnap) => {
-          // Recalcular saldo total cuando cualquier billetera cambia
-          let saldoTotal = 0;
-          let flotasActivas = 0;
-
-          // Obtener todas las flotas para contar activas
-          const flotasSnapshot = await getDocs(flotasRef);
-          const flotaIds = [];
-
-          flotasSnapshot.docs.forEach(flotaDoc => {
-            flotaIds.push(flotaDoc.id);
-            if (flotaDoc.data().estado === "activa") {
-              flotasActivas++;
-            }
-          });
-
-          // Sumar saldos de todas las flotas
-          await Promise.all(
-            flotaIds.map(async (id) => {
-              try {
-                const billeteraSaldoRef = getBilleteraRef(id);
-                const billeteraSaldoSnap = await getDoc(billeteraSaldoRef);
-
-                if (billeteraSaldoSnap.exists()) {
-                  saldoTotal += billeteraSaldoSnap.data().monto || 0;
-                }
-              } catch (err) {
-                console.warn(`Error obteniendo saldo para flota ${id}:`, err);
-              }
-            })
-          );
-
-          callback({
-            saldoTotal,
-            flotasActivas,
-            totalFlotas: flotasSnapshot.docs.length,
-          });
-        });
-
-        unsubscribers.push(unsubscribeBilletera);
-      });
-    }).catch((err) => {
-      console.error("Error configurando listeners de billeteras:", err);
-    });
 
     return () => {
       unsubscribers.forEach(unsub => unsub());
