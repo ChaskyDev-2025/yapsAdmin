@@ -2,8 +2,6 @@ import React from "react";
 import {
   DirectionsCar,
   CheckCircle,
-  People,
-  WarningAmber,
 } from "@mui/icons-material";
 import StatCard from "./StatCard";
 import CardGrid from "./CardGrid";
@@ -23,16 +21,10 @@ const MainMetrics = ({ metricas }) => (
       color="#000000"
     />
     <StatCard
-      title="Total de Usuarios"
-      value={metricas.usuarios.totalPasajeros}
-      icon={People}
+      title="Radiotaxis Inactivos"
+      value={metricas.radiotaxis.inactivos}
+      icon={DirectionsCar}
       color="#484848"
-    />
-    <StatCard
-      title="Alertas Pendientes"
-      value={metricas.actividad.alertas}
-      icon={WarningAmber}
-      color="#d7171a"
     />
   </CardGrid>
 );

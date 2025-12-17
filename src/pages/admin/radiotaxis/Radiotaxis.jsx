@@ -23,6 +23,7 @@ import {
   TextField,
   Alert,
   Button,
+  Avatar,
 } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
@@ -309,6 +310,9 @@ const Radiotaxis = () => {
               <TableHead sx={{ backgroundColor: "#000000" }}>
                 <TableRow>
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                    Foto
+                  </TableCell>
+                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
                     Nombre
                   </TableCell>
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
@@ -331,7 +335,7 @@ const Radiotaxis = () => {
               <TableBody>
                 {radiotaxisPaginados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
+                    <TableCell colSpan={7} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                         No hay radiotaxis registrados
                       </Typography>
@@ -340,6 +344,23 @@ const Radiotaxis = () => {
                 ) : (
                   radiotaxisPaginados.map((radio) => (
                     <TableRow key={radio.firebaseId} hover sx={{ borderBottom: "1px solid #d0d0d0" }}>
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", textAlign: "center" }}>
+                        <Avatar
+                          src={radio.logo}
+                          alt={radio.nombreEmpresa}
+                          sx={{
+                            width: 50,
+                            height: 50,
+                            bgcolor: "#d7171a",
+                            border: "2px solid #d7171a",
+                            margin: "0 auto",
+                            fontWeight: 700,
+                            fontSize: "1.2rem"
+                          }}
+                        >
+                          {radio.nombreEmpresa?.[0] || "?"}
+                        </Avatar>
+                      </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
                         {radio.nombreEmpresa || "-"}
                       </TableCell>
@@ -497,6 +518,13 @@ const Radiotaxis = () => {
           {error}
         </Typography>
       )}
+
+      {/* Modal de Detalles */}
+      <DetalleModal
+        open={openModal}
+        onClose={() => setOpenModal(false)}
+        rowData={selectedRow}
+      />
     </Box>
   );
 };

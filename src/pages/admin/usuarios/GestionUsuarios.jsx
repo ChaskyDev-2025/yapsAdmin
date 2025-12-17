@@ -39,7 +39,6 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import PeopleIcon from "@mui/icons-material/People";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import LocalTaxiIcon from "@mui/icons-material/LocalTaxi";
-import HistoryIcon from "@mui/icons-material/History";
 import DescriptionIcon from "@mui/icons-material/Description";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useAuth } from "../../../auth/AuthContext";
@@ -48,8 +47,8 @@ import { getAllUsers, createAdminUser, updateUser, deleteUser, isSuperAdmin } fr
 import { collection, deleteDoc, doc, updateDoc, onSnapshot } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 import { TableToolbar } from "./components/TableToolbar";
-import { HistorialViajesModal } from "./components/HistorialViajesModal";
-import { HistorialViajesConductorModal } from "./components/HistorialViajesConductorModal";
+import ModalDetalleConductor from "./components/ModalDetalleConductor";
+import ModalDetallePasajero from "./components/ModalDetallePasajero";
 import DocumentosConductoresViewModal from "./components/DocumentosConductoresViewModal";
 
 const DEPARTAMENTOS = [
@@ -64,10 +63,6 @@ const GestionUsuarios = () => {
   const [pasajeros, setPasajeros] = useState([]);
   const [trabajadores, setTrabajadores] = useState([]);
   const [flotas, setFlotas] = useState([]);
-  const [historialModalOpen, setHistorialModalOpen] = useState(false);
-  const [pasajeroSeleccionado, setPasajeroSeleccionado] = useState(null);
-  const [historialConductorModalOpen, setHistorialConductorModalOpen] = useState(false);
-  const [conductorSeleccionado, setConductorSeleccionado] = useState(null);
   const [documentosConductorModalOpen, setDocumentosConductorModalOpen] = useState(false);
   const [conductorDocumentosSeleccionado, setConductorDocumentosSeleccionado] = useState(null);
   const [detallesPasajeroModalOpen, setDetallesPasajeroModalOpen] = useState(false);
@@ -1093,26 +1088,17 @@ const GestionUsuarios = () => {
                         </TableCell>
                       )}
                       <TableCell align="center">
-                        <Tooltip title="Ver Historial de Viajes">
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              setPasajeroSeleccionado(pasajero.id);
-                              setHistorialModalOpen(true);
-                            }}
-                            sx={{ color: "#d7171a" }}
-                          >
-                            <HistoryIcon />
-                          </IconButton>
-                        </Tooltip>
                         <Tooltip title="Ver Detalles">
                           <IconButton
                             size="small"
                             onClick={() => {
-                              setPasajeroDetalles(pasajero);
+                              setPasajeroDetalles({
+                                ...pasajero,
+                                firebaseId: pasajero.id
+                              });
                               setDetallesPasajeroModalOpen(true);
                             }}
-                            sx={{ color: "#484848" }}
+                            sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffebee" } }}
                           >
                             <VisibilityIcon />
                           </IconButton>
@@ -1339,10 +1325,13 @@ const GestionUsuarios = () => {
                           <IconButton
                             size="small"
                             onClick={() => {
-                              setConductorDetalles(trabajador);
+                              setConductorDetalles({
+                                ...trabajador,
+                                firebaseId: trabajador.id
+                              });
                               setDetallesConductorModalOpen(true);
                             }}
-                            sx={{ color: "#484848", mr: 1 }}
+                            sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffebee" }, mr: 1 }}
                           >
                             <VisibilityIcon />
                           </IconButton>
@@ -1357,18 +1346,6 @@ const GestionUsuarios = () => {
                             sx={{ color: "#1976d2", mr: 1 }}
                           >
                             <DescriptionIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Ver Historial de Viajes">
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              setConductorSeleccionado(trabajador.id);
-                              setHistorialConductorModalOpen(true);
-                            }}
-                            sx={{ color: "#d7171a", mr: 1 }}
-                          >
-                            <HistoryIcon />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Editar">
@@ -1507,14 +1484,16 @@ const GestionUsuarios = () => {
                 fullWidth
                 margin="normal"
                 value={formData.servicio}
-                onChange={(e) => setFormData({ ...formData, servicio: e.target.value })}
+                disabled
+                inputProps={{ readOnly: true }}
               />
               <TextField
                 label="Categoría"
                 fullWidth
                 margin="normal"
                 value={formData.categoria}
-                onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+                disabled
+                inputProps={{ readOnly: true }}
               />
               <FormControlLabel
                 control={
@@ -1570,380 +1549,25 @@ const GestionUsuarios = () => {
         </Alert>
       </Snackbar>
 
-      <HistorialViajesModal
-        open={historialModalOpen}
-        onClose={() => setHistorialModalOpen(false)}
-        pasajeroUID={pasajeroSeleccionado}
-      />
-
-      <HistorialViajesConductorModal
-        open={historialConductorModalOpen}
-        onClose={() => setHistorialConductorModalOpen(false)}
-        conductorUID={conductorSeleccionado}
-      />
-
       <DocumentosConductoresViewModal
         open={documentosConductorModalOpen}
         onClose={() => setDocumentosConductorModalOpen(false)}
         selectedConductor={conductorDocumentosSeleccionado}
       />
 
-      {/* Modal de Detalles del Pasajero */}
-      <Dialog open={detallesPasajeroModalOpen} onClose={() => setDetallesPasajeroModalOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ 
-          fontWeight: 700, 
-          bgcolor: "#000000", 
-          color: "#FFFFFF",
-          padding: "24px",
-          fontSize: "1.3rem"
-        }}>
-          Detalles del Pasajero: {pasajeroDetalles?.perfil?.name || pasajeroDetalles?.name || ""}
-        </DialogTitle>
-        <DialogContent dividers sx={{ bgcolor: "#FFFFFF", p: 3 }}>
-          {pasajeroDetalles && (
-            <Box>
-              {/* Foto */}
-              <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
-                <Avatar
-                  src={pasajeroDetalles.perfil?.photoUrl || pasajeroDetalles.photoURL}
-                  alt={pasajeroDetalles.perfil?.name || pasajeroDetalles.name}
-                  sx={{ width: 140, height: 140, bgcolor: "#d7171a", border: "4px solid #d7171a", boxShadow: "0 4px 12px rgba(215,23,26,0.3)" }}
-                >
-                  {(pasajeroDetalles.perfil?.name || pasajeroDetalles.name || "?")?.charAt(0).toUpperCase()}
-                </Avatar>
-              </Box>
+      {/* Modal de Detalles del Pasajero - Nuevo */}
+      <ModalDetallePasajero
+        open={detallesPasajeroModalOpen}
+        onClose={() => setDetallesPasajeroModalOpen(false)}
+        rowData={pasajeroDetalles}
+      />
 
-              {/* Información Personal */}
-              <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center" }}>
-                  👤 Información Personal
-                </Typography>
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Nombre</Typography>
-                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem" }}>{pasajeroDetalles.perfil?.name || pasajeroDetalles.name}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Email</Typography>
-                    <Typography sx={{ fontWeight: 600, color: "#d7171a", fontSize: "0.95rem", wordBreak: "break-all" }}>{pasajeroDetalles.perfil?.email || pasajeroDetalles.email}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Departamento</Typography>
-                    <Typography sx={{ fontWeight: 700, color: "#d7171a", fontSize: "1rem" }}>{pasajeroDetalles.departamentoActual || "-"}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Provider</Typography>
-                    <Chip label={pasajeroDetalles.perfil?.provider || "N/A"} size="small" sx={{ bgcolor: pasajeroDetalles.perfil?.provider === "google" ? "#000000" : "#484848", color: "#FFFFFF", fontWeight: 600 }} />
-                  </Box>
-                </Box>
-              </Box>
-
-              {/* Información de Referidos */}
-              <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #484848", borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center" }}>
-                  🎯 Información de Referidos
-                </Typography>
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Código Referido</Typography>
-                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem", fontFamily: "monospace" }}>{pasajeroDetalles.codigoReferido || "-"}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Código Usado</Typography>
-                    <Chip 
-                      label={pasajeroDetalles.codigoReferidoUsado ? "✓ Sí" : "✗ No"} 
-                      size="small" 
-                      sx={{ 
-                        bgcolor: pasajeroDetalles.codigoReferidoUsado ? "#000000" : "#484848", 
-                        color: "#FFFFFF", 
-                        fontWeight: 700 
-                      }} 
-                    />
-                  </Box>
-                </Box>
-              </Box>
-
-              {/* Estadísticas */}
-              <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center", fontFamily: "Mulish, sans-serif" }}>
-                📊 Estadísticas
-              </Typography>
-              <Box sx={{ mb: 3, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                <Box sx={{ p: 3, bgcolor: "#FFFFFF", borderRadius: 1, border: "2px solid #d7171a", textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
-                  <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.75rem", display: "block", mb: 1 }}>Carreras Completadas</Typography>
-                  <Typography sx={{ fontWeight: 700, fontSize: "2.5rem", color: "#d7171a" }}>{pasajeroDetalles.carrerasCompletadas || 0}</Typography>
-                </Box>
-                <Box sx={{ p: 3, bgcolor: "#FFFFFF", borderRadius: 1, border: "2px solid #000000", textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
-                  <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.75rem", display: "block", mb: 1 }}>Donaciones Acumuladas</Typography>
-                  <Typography sx={{ fontWeight: 700, fontSize: "2.5rem", color: "#000000" }}>${parseFloat(pasajeroDetalles.donacionesAcumuladas || 0).toFixed(2)}</Typography>
-                </Box>
-              </Box>
-
-              {/* Tickets por Departamento */}
-              {pasajeroDetalles.tickets && Object.keys(pasajeroDetalles.tickets).length > 0 && (
-                <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                  <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2 }}>🎫 Tickets</Typography>
-                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 2 }}>
-                    {Object.entries(pasajeroDetalles.tickets).filter(([depto]) => depto !== "general").map(([depto, count]) => (
-                      <Box key={depto} sx={{ p: 2, bgcolor: "#f9f9f9", borderRadius: 1, textAlign: "center", border: "1px solid #d7171a" }}>
-                        <Typography variant="caption" sx={{ color: "#d7171a", fontWeight: 700, textTransform: "uppercase", fontSize: "0.75rem" }}>{depto}</Typography>
-                        <Typography sx={{ fontWeight: 700, fontSize: "1.8rem", color: "#d7171a", mt: 0.5 }}>{count}</Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-              )}
-
-              {/* Última Donación */}
-              {pasajeroDetalles.ultimaDonacion && (
-                <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #484848", borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                  <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2 }}>💳 Última Donación</Typography>
-                  <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                    <Box>
-                      <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Monto</Typography>
-                      <Typography sx={{ fontWeight: 700, fontSize: "1.3rem", color: "#d7171a" }}>${parseFloat(pasajeroDetalles.ultimaDonacion.monto || 0).toFixed(2)}</Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Fecha</Typography>
-                      <Typography sx={{ fontWeight: 600, color: "#000000" }}>{pasajeroDetalles.ultimaDonacion.fecha?.toDate?.().toLocaleString() || "-"}</Typography>
-                    </Box>
-                  </Box>
-                </Box>
-              )}
-
-              {/* Último Viaje */}
-              {pasajeroDetalles.ultimoViaje && (
-                <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                  <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2 }}>🚗 Último Viaje</Typography>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Destino</Typography>
-                    <Typography sx={{ fontWeight: 600, color: "#000000", mb: 1.5 }}>{pasajeroDetalles.ultimoViaje.destinoNombre || "-"}</Typography>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Fecha y Hora</Typography>
-                    <Typography sx={{ fontWeight: 600, color: "#000000" }}>{pasajeroDetalles.ultimoViaje.timestamp?.toDate?.().toLocaleString() || "-"}</Typography>
-                  </Box>
-                </Box>
-              )}
-
-              {/* Métodos de Pago */}
-              {pasajeroDetalles.metodos_pago && (
-                <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #484848", borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                  <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2 }}>💰 Métodos de Pago</Typography>
-                  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-                    <Chip 
-                      label={`Efectivo: ${pasajeroDetalles.metodos_pago.efectivo ? "✓ Activo" : "✗ Inactivo"}`} 
-                      sx={{ 
-                        bgcolor: pasajeroDetalles.metodos_pago.efectivo ? "#000000" : "#e0e0e0",
-                        color: pasajeroDetalles.metodos_pago.efectivo ? "#FFFFFF" : "#484848",
-                        fontWeight: 700,
-                        border: `2px solid ${pasajeroDetalles.metodos_pago.efectivo ? "#000000" : "#b0b0b0"}`
-                      }} 
-                    />
-                    <Chip 
-                      label={`QR: ${pasajeroDetalles.metodos_pago.qr ? "✓ Activo" : "✗ Inactivo"}`} 
-                      sx={{ 
-                        bgcolor: pasajeroDetalles.metodos_pago.qr ? "#000000" : "#e0e0e0",
-                        color: pasajeroDetalles.metodos_pago.qr ? "#FFFFFF" : "#484848",
-                        fontWeight: 700,
-                        border: `2px solid ${pasajeroDetalles.metodos_pago.qr ? "#000000" : "#b0b0b0"}`
-                      }} 
-                    />
-                  </Box>
-                </Box>
-              )}
-
-              {/* Fechas */}
-              <Box sx={{ p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2 }}>📅 Fechas</Typography>
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Fecha de Registro</Typography>
-                    <Typography sx={{ fontWeight: 600, color: "#000000", fontSize: "0.9rem" }}>{pasajeroDetalles.perfil?.createdAt?.toDate?.().toLocaleString() || "-"}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Último Login</Typography>
-                    <Typography sx={{ fontWeight: 600, color: "#000000", fontSize: "0.9rem" }}>{pasajeroDetalles.perfil?.ultimoLogin?.toDate?.().toLocaleString() || "-"}</Typography>
-                  </Box>
-                </Box>
-              </Box>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ bgcolor: "#FFFFFF", p: 2, borderTop: "1px solid #e0e0e0" }}>
-          <Button onClick={() => setDetallesPasajeroModalOpen(false)} variant="contained" sx={{ bgcolor: "#d7171a", color: "#FFFFFF", fontWeight: 700, "&:hover": { bgcolor: "#b8131f" } }}>
-            Cerrar
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Modal de Detalles del Conductor */}
-      <Dialog open={detallesConductorModalOpen} onClose={() => setDetallesConductorModalOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ 
-          fontWeight: 700, 
-          bgcolor: "#000000", 
-          color: "#FFFFFF",
-          padding: "24px",
-          fontSize: "1.3rem"
-        }}>
-          Detalles del Conductor: {conductorDetalles?.perfil?.name || conductorDetalles?.name || ""}
-        </DialogTitle>
-        <DialogContent dividers sx={{ bgcolor: "#FFFFFF", p: 3 }}>
-          {conductorDetalles && (
-            <Box>
-              {/* Foto */}
-              <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
-                <Avatar
-                  src={conductorDetalles.perfil?.photoUrl || conductorDetalles.photoURL}
-                  alt={conductorDetalles.perfil?.name || conductorDetalles.name}
-                  sx={{ width: 140, height: 140, bgcolor: "#d7171a", border: "4px solid #d7171a", boxShadow: "0 4px 12px rgba(215,23,26,0.3)" }}
-                >
-                  {(conductorDetalles.perfil?.name || conductorDetalles.name || "?")?.charAt(0).toUpperCase()}
-                </Avatar>
-              </Box>
-
-              {/* Información Personal */}
-              <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center" }}>
-                  👤 Información Personal
-                </Typography>
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Nombre</Typography>
-                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem" }}>{conductorDetalles.perfil?.name || "-"}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Email</Typography>
-                    <Typography sx={{ fontWeight: 600, color: "#d7171a", fontSize: "0.95rem", wordBreak: "break-all" }}>{conductorDetalles.perfil?.email || "-"}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Role</Typography>
-                    <Chip label={conductorDetalles.perfil?.role || "N/A"} size="small" sx={{ bgcolor: "#000000", color: "#FFFFFF", fontWeight: 600 }} />
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Provider</Typography>
-                    <Chip label={conductorDetalles.perfil?.provider || "N/A"} size="small" sx={{ bgcolor: conductorDetalles.perfil?.provider === "google" ? "#000000" : "#484848", color: "#FFFFFF", fontWeight: 600 }} />
-                  </Box>
-                </Box>
-              </Box>
-
-              {/* Información de Ubicación */}
-              <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #484848", borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center" }}>
-                  📍 Ubicación
-                </Typography>
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Departamento</Typography>
-                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem" }}>{conductorDetalles.departamento || "-"}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Ciudad</Typography>
-                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem" }}>{conductorDetalles.ciudad || "-"}</Typography>
-                  </Box>
-                </Box>
-              </Box>
-
-              {/* Información del Servicio */}
-              <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center" }}>
-                  🚖 Servicio
-                </Typography>
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Tipo de Servicio</Typography>
-                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem" }}>{conductorDetalles.servicio || "-"}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Categoría</Typography>
-                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem" }}>{conductorDetalles.categoria || "-"}</Typography>
-                  </Box>
-                </Box>
-              </Box>
-
-              {/* Información de Flota */}
-              {conductorDetalles.flotaId && (
-                <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #484848", borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                  <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center" }}>
-                    🏢 Flota
-                  </Typography>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Nombre de Flota</Typography>
-                    <Typography sx={{ fontWeight: 700, color: "#000000", fontSize: "1rem" }}>{conductorDetalles.flotaNombre || "-"}</Typography>
-                  </Box>
-                </Box>
-              )}
-
-              {/* Estado y Documentos */}
-              <Box sx={{ mb: 3, p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2, display: "flex", alignItems: "center" }}>
-                  ✅ Estado
-                </Typography>
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Estado Activo</Typography>
-                    <Chip 
-                      label={conductorDetalles.activo !== false ? "✓ Activo" : "✗ Inactivo"} 
-                      sx={{ 
-                        bgcolor: conductorDetalles.activo !== false ? "#000000" : "#484848",
-                        color: "#FFFFFF",
-                        fontWeight: 700
-                      }} 
-                    />
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Documentos Aprobados</Typography>
-                    <Chip 
-                      label={conductorDetalles.documentos_aprobados ? "✓ Sí" : "✗ No"} 
-                      sx={{ 
-                        bgcolor: conductorDetalles.documentos_aprobados ? "#000000" : "#484848",
-                        color: "#FFFFFF",
-                        fontWeight: 700
-                      }} 
-                    />
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Tiene Documentos</Typography>
-                    <Chip 
-                      label={conductorDetalles.tieneDocs ? "✓ Sí" : "✗ No"} 
-                      sx={{ 
-                        bgcolor: conductorDetalles.tieneDocs ? "#000000" : "#484848",
-                        color: "#FFFFFF",
-                        fontWeight: 700
-                      }} 
-                    />
-                  </Box>
-                </Box>
-              </Box>
-
-              {/* Fechas */}
-              <Box sx={{ p: 2, bgcolor: "#FFFFFF", borderLeft: "4px solid #d7171a", borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: "#000000", mb: 2 }}>📅 Fechas</Typography>
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Fecha de Registro</Typography>
-                    <Typography sx={{ fontWeight: 600, color: "#000000", fontSize: "0.9rem" }}>{conductorDetalles.perfil?.createdAt?.toDate?.().toLocaleString() || "-"}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Último Login</Typography>
-                    <Typography sx={{ fontWeight: 600, color: "#000000", fontSize: "0.9rem" }}>{conductorDetalles.perfil?.ultimoLogin?.toDate?.().toLocaleString() || "-"}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Documentos Actualizado</Typography>
-                    <Typography sx={{ fontWeight: 600, color: "#000000", fontSize: "0.9rem" }}>{conductorDetalles.documentosActualizadoEn?.toDate?.().toLocaleString() || "-"}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: "#484848", fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem" }}>Última Actualización</Typography>
-                    <Typography sx={{ fontWeight: 600, color: "#000000", fontSize: "0.9rem" }}>{conductorDetalles.updatedAt?.toDate?.().toLocaleString() || "-"}</Typography>
-                  </Box>
-                </Box>
-              </Box>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ bgcolor: "#FFFFFF", p: 2, borderTop: "1px solid #e0e0e0" }}>
-          <Button onClick={() => setDetallesConductorModalOpen(false)} variant="contained" sx={{ bgcolor: "#d7171a", color: "#FFFFFF", fontWeight: 700, "&:hover": { bgcolor: "#b8131f" } }}>
-            Cerrar
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Modal de Detalles del Conductor - Nuevo */}
+      <ModalDetalleConductor
+        open={detallesConductorModalOpen}
+        onClose={() => setDetallesConductorModalOpen(false)}
+        rowData={conductorDetalles}
+      />
 
     </Box>
   );

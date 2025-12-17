@@ -1,9 +1,8 @@
 import React from "react";
 import {
-  CheckCircleOutline,
+  LocalTaxi,
+  CheckCircle,
   CancelOutlined,
-  Notifications,
-  AssignmentTurnedIn,
 } from "@mui/icons-material";
 import StatCard from "./StatCard";
 import CardGrid from "./CardGrid";
@@ -11,28 +10,22 @@ import CardGrid from "./CardGrid";
 const RequestMetrics = ({ metricas }) => (
   <CardGrid columns={4}>
     <StatCard
-      title="Solicitudes Completadas"
-      value={metricas.solicitudes.completadas}
-      icon={CheckCircleOutline}
-      color="#000000"
-    />
-    <StatCard
-      title="Solicitudes Canceladas"
-      value={metricas.solicitudes.canceladas}
-      icon={CancelOutlined}
+      title="Total de Órdenes"
+      value={metricas.ordenes.total}
+      icon={LocalTaxi}
       color="#d7171a"
     />
     <StatCard
-      title="Solicitudes Pendientes"
-      value={metricas.solicitudes.pendientes}
-      icon={Notifications}
-      color="#484848"
+      title="Órdenes Completadas"
+      value={metricas.ordenes.completadas}
+      icon={CheckCircle}
+      color="#000000"
     />
     <StatCard
-      title="Total de Solicitudes"
-      value={metricas.solicitudes.total}
-      icon={AssignmentTurnedIn}
-      color="#000000"
+      title="Órdenes Canceladas"
+      value={metricas.ordenes.canceladas}
+      icon={CancelOutlined}
+      color="#d7171a"
     />
   </CardGrid>
 );
