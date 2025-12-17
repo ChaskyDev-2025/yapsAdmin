@@ -9,8 +9,9 @@ export default function ModalIzquierdoConductor({ rowData }) {
   const fotoUrl = rowData.perfil?.photoUrl || rowData.photoURL || "";
   const estado = rowData.activo !== false ? "Activo" : "Inactivo";
   const departamento = rowData.departamento || "-";
-  const ciudad = rowData.ciudad || "-";
   const servicio = rowData.servicio || "-";
+  const categoria = rowData.categoria || "-";
+  const flotaNombre = rowData.flotaNombre || "-";
 
   return (
     <Box sx={{ width: 350, display: "flex", justifyContent: "center", alignItems: "flex-start", pt: 3, overflow: "auto", flexShrink: 0 }}>
@@ -61,7 +62,10 @@ export default function ModalIzquierdoConductor({ rowData }) {
             <b>Departamento:</b> {departamento}
           </Typography>
           <Typography variant="body2">
-            <b>Ciudad:</b> {ciudad}
+            <b>Categoría:</b> {categoria}
+          </Typography>
+          <Typography variant="body2">
+            <b>Flota:</b> {flotaNombre}
           </Typography>
           <Typography variant="body2">
             <b>Servicio:</b> {servicio}

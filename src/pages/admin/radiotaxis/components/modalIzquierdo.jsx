@@ -13,6 +13,11 @@ export default function ModalIzquierdo({ rowData }) {
   const [openRecarga, setOpenRecarga] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [saldoActual, setSaldoActual] = useState(rowData.saldo);
+  
+  const categoria = rowData.categoria || "-";
+  const flotaNombre = rowData.flotaNombre || "-";
+  const departamento = rowData.departamento || "-";
+  const servicio = rowData.servicio || "-";
 
   // Escucha el saldo actualizado en Firestore
   useEffect(() => {
@@ -65,6 +70,18 @@ export default function ModalIzquierdo({ rowData }) {
           </Typography>
           <Typography>
             <b>Teléfono:</b> {rowData.telefono || "No proporcionado"}
+          </Typography>
+          <Typography>
+            <b>Departamento:</b> {departamento}
+          </Typography>
+          <Typography>
+            <b>Categoría:</b> {categoria}
+          </Typography>
+          <Typography>
+            <b>Flota:</b> {flotaNombre}
+          </Typography>
+          <Typography>
+            <b>Servicio:</b> {servicio}
           </Typography>
           <Typography>
             <b>Estado:</b>{" "}

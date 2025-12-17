@@ -97,6 +97,11 @@ const Radiotaxis = () => {
           documentos: trabajador.documentos || {},
           documentos_aprobados: trabajador.documentos_aprobados || false,
           deletedByFlotaId: trabajador.deletedByFlotaId || null,
+          departamento: trabajador.departamento || "-",
+          categoria: trabajador.categoria || "-",
+          flotaId: trabajador.flotaId || "-",
+          flotaNombre: trabajador.flotaNombre || "-",
+          servicio: trabajador.servicio || "-",
         };
       });
       setAllRadiotaxis(data);

@@ -4,6 +4,7 @@ import LoadingState from "./components/LoadingState";
 import CardGrid from "./components/CardGrid";
 import StatCard from "./components/StatCard";
 import SummaryCard from "./components/SummaryCard";
+import ChartsMetrics from "./components/ChartsMetrics";
 import { useFlotaInfo } from "./hooks/useFlotaInfo";
 import {
   DirectionsCar,
@@ -121,6 +122,9 @@ const FlotaAdminDashboard = () => {
             ]}
           />
         </div>
+
+        {/* FILA 5: Gráficos */}
+        <ChartsMetrics metricas={metricas} />
       </div>
     </div>
   );

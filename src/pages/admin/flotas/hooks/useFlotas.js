@@ -1,6 +1,6 @@
 // src/pages/admin/flotas/hooks/useFlotas.js
 import { useState, useEffect } from "react";
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, deleteField, setDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, deleteField, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../../../../data/firebase/firebase";
 
 export const useFlotas = () => {
@@ -69,12 +69,17 @@ export const useFlotas = () => {
       updatedAt: serverTimestamp(),
     });
     
-    // Crear billetera con saldo y transacciones si no existe
+    // Crear billetera con saldo y transacciones si no existe (SIN RESETEAR SALDO)
     try {
       const saldoRef = doc(db, "flotas", flotaId, "billetera", "saldo");
+      
+      // Obtener el saldo actual para NO perderlo
+      const saldoSnapshot = await getDoc(saldoRef);
+      const saldoActual = saldoSnapshot.exists() ? saldoSnapshot.data().monto : 0;
+      
       await setDoc(saldoRef, {
-        monto: 0,
-        createdAt: serverTimestamp(),
+        monto: saldoActual,  // Mantener saldo actual, NO resetear a 0
+        createdAt: saldoSnapshot.exists() ? saldoSnapshot.data().createdAt : serverTimestamp(),
         updatedAt: serverTimestamp(),
       }, { merge: true });
       
