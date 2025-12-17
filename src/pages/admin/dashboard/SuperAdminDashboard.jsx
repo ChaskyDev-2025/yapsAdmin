@@ -4,6 +4,8 @@ import LoadingState from "./components/LoadingState";
 import CardGrid from "./components/CardGrid";
 import StatCard from "./components/StatCard";
 import SummaryCard from "./components/SummaryCard";
+import ChartsMetricsSuperAdmin from "./components/ChartsMetricsSuperAdmin";
+import ChartOrdenesPorDia from "./components/ChartOrdenesPorDia";
 import {
   DirectionsCar,
   CheckCircle,
@@ -56,7 +58,10 @@ const SuperAdminDashboard = () => {
           />
         </CardGrid>
 
-        {/* FILA 2: Órdenes */}
+        {/* FILA 2: Gráficos */}
+        <ChartsMetricsSuperAdmin metricas={metricas} />
+
+        {/* FILA 3: Órdenes */}
         <CardGrid columns={4}>
           <StatCard
             title="Total de Órdenes"
@@ -127,6 +132,9 @@ const SuperAdminDashboard = () => {
             ]}
           />
         </div>
+
+        {/* FILA 5: Gráfico de Órdenes por Día */}
+        <ChartOrdenesPorDia />
       </div>
     </div>
   );

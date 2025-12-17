@@ -1,0 +1,177 @@
+import React from "react";
+import { Box, Paper, Typography } from "@mui/material";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import { useTrendenciaTrabajadores } from "../hooks/useTrendenciaTrabajadores";
+import { useTrendenciaPasajeros } from "../hooks/useTrendenciaPasajeros";
+
+const COLORS = ["#d7171a", "#FF8042", "#00C49F", "#0088FE"];
+
+export default function ChartsMetricsSuperAdmin({ metricas }) {
+  const { trendData: trendTrabajadores, loading: loadingTrabajadores } = useTrendenciaTrabajadores();
+  const { trendData: trendPasajeros, loading: loadingPasajeros } = useTrendenciaPasajeros();
+
+  // Datos para gráfico de pie (órdenes por estado)
+  const ordenesData = [
+    { name: "Completadas", value: metricas.ordenes?.completadas || 0 },
+    { name: "Canceladas", value: metricas.ordenes?.canceladas || 0 },
+    { name: "En progreso", value: (metricas.ordenes?.total || 0) - (metricas.ordenes?.completadas || 0) - (metricas.ordenes?.canceladas || 0) },
+  ];
+
+  // Datos para gráfico de pie (documentos)
+  const documentosData = [
+    { name: "Aprobados", value: metricas.documentos?.aprobados || 0 },
+    { name: "Pendientes", value: metricas.documentos?.pendientes || 0 },
+    { name: "Rechazados", value: metricas.documentos?.rechazados || 0 },
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      {/* Fila 1: Dos gráficos de línea */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "24px" }}>
+        {/* Gráfico de Línea - Tendencia de Trabajadores */}
+        <Paper sx={{ p: 3, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+          <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+            <TrendingUpIcon sx={{ mr: 1, color: "#d7171a", fontSize: 28 }} />
+            <Typography variant="h6" fontWeight={700}>
+              Tendencia de Trabajadores
+            </Typography>
+          </Box>
+          {loadingTrabajadores ? (
+            <Typography color="textSecondary">Cargando datos...</Typography>
+          ) : (
+            <ResponsiveContainer width="100%" height={350}>
+              <LineChart data={trendTrabajadores}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="name" stroke="#888" />
+                <YAxis stroke="#888" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #d7171a",
+                    borderRadius: "8px",
+                  }}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="trabajadores"
+                  stroke="#d7171a"
+                  strokeWidth={3}
+                  dot={{ fill: "#d7171a", r: 5 }}
+                  activeDot={{ r: 7 }}
+                  name="Trabajadores Registrados"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </Paper>
+
+        {/* Gráfico de Línea - Tendencia de Pasajeros */}
+        <Paper sx={{ p: 3, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+          <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+            <TrendingUpIcon sx={{ mr: 1, color: "#0088FE", fontSize: 28 }} />
+            <Typography variant="h6" fontWeight={700}>
+              Tendencia de Pasajeros
+            </Typography>
+          </Box>
+          {loadingPasajeros ? (
+            <Typography color="textSecondary">Cargando datos...</Typography>
+          ) : (
+            <ResponsiveContainer width="100%" height={350}>
+              <LineChart data={trendPasajeros}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="name" stroke="#888" />
+                <YAxis stroke="#888" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #0088FE",
+                    borderRadius: "8px",
+                  }}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="pasajeros"
+                  stroke="#0088FE"
+                  strokeWidth={3}
+                  dot={{ fill: "#0088FE", r: 5 }}
+                  activeDot={{ r: 7 }}
+                  name="Pasajeros Registrados"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </Paper>
+      </div>
+
+      {/* Fila 2: Dos gráficos de pie */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "24px" }}>
+        {/* Gráfico de Pie - Órdenes */}
+        <Paper sx={{ p: 4, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)", textAlign: "center" }}>
+          <Typography variant="h6" fontWeight={700} mb={2}>
+            Estado de Órdenes
+          </Typography>
+          <ResponsiveContainer width="100%" height={400}>
+            <PieChart>
+              <Pie
+                data={ordenesData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, value }) => `${name}: ${value}`}
+                outerRadius={120}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {ordenesData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </Paper>
+
+        {/* Gráfico de Pie - Documentos */}
+        <Paper sx={{ p: 4, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)", textAlign: "center" }}>
+          <Typography variant="h6" fontWeight={700} mb={2}>
+            Estado de Documentos
+          </Typography>
+          <ResponsiveContainer width="100%" height={400}>
+            <PieChart>
+              <Pie
+                data={documentosData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, value }) => `${name}: ${value}`}
+                outerRadius={120}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {documentosData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </Paper>
+      </div>
+    </div>
+  );
+}

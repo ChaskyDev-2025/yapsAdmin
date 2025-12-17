@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Paper, Typography, Grid } from "@mui/material";
+import { Box, Paper, Typography } from "@mui/material";
 import {
   LineChart,
   Line,
@@ -36,54 +36,53 @@ export default function ChartsMetrics({ metricas }) {
   ];
 
   return (
-    <Grid container spacing={3} sx={{ mt: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* Gráfico de Línea - Tendencia de usuarios y trabajadores */}
-      <Grid item xs={12}>
-        <Paper sx={{ p: 3, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
-          <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-            <TrendingUpIcon sx={{ mr: 1, color: "#d7171a", fontSize: 28 }} />
-            <Typography variant="h6" fontWeight={700}>
-              Tendencia de Trabajadores Registrados
-            </Typography>
-          </Box>
-          {trendLoading ? (
-            <Typography color="textSecondary">Cargando datos...</Typography>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="name" stroke="#888" />
-                <YAxis stroke="#888" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#ffffff",
-                    border: "1px solid #d7171a",
-                    borderRadius: "8px",
-                  }}
-                />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="trabajadores"
-                  stroke="#d7171a"
-                  strokeWidth={3}
-                  dot={{ fill: "#d7171a", r: 5 }}
-                  activeDot={{ r: 7 }}
-                  name="Trabajadores Registrados"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </Paper>
-      </Grid>
+      <Paper sx={{ p: 3, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+        <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+          <TrendingUpIcon sx={{ mr: 1, color: "#d7171a", fontSize: 28 }} />
+          <Typography variant="h6" fontWeight={700}>
+            Tendencia de Trabajadores Registrados
+          </Typography>
+        </Box>
+        {trendLoading ? (
+          <Typography color="textSecondary">Cargando datos...</Typography>
+        ) : (
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+              <XAxis dataKey="name" stroke="#888" />
+              <YAxis stroke="#888" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #d7171a",
+                  borderRadius: "8px",
+                }}
+              />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="trabajadores"
+                stroke="#d7171a"
+                strokeWidth={3}
+                dot={{ fill: "#d7171a", r: 5 }}
+                activeDot={{ r: 7 }}
+                name="Trabajadores Registrados"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </Paper>
 
-      {/* Gráfico de Pie - Órdenes */}
-      <Grid item xs={12} sm={6} lg={6}>
-        <Paper sx={{ p: 3, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)", textAlign: "center" }}>
+      {/* Contenedor de Pie Charts */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "24px" }}>
+        {/* Gráfico de Pie - Órdenes */}
+        <Paper sx={{ p: 4, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)", textAlign: "center" }}>
           <Typography variant="h6" fontWeight={700} mb={2}>
             Estado de Órdenes
           </Typography>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={400}>
             <PieChart>
               <Pie
                 data={ordenesData}
@@ -91,7 +90,7 @@ export default function ChartsMetrics({ metricas }) {
                 cy="50%"
                 labelLine={false}
                 label={({ name, value }) => `${name}: ${value}`}
-                outerRadius={80}
+                outerRadius={120}
                 fill="#8884d8"
                 dataKey="value"
               >
@@ -103,15 +102,13 @@ export default function ChartsMetrics({ metricas }) {
             </PieChart>
           </ResponsiveContainer>
         </Paper>
-      </Grid>
 
-      {/* Gráfico de Pie - Documentos */}
-      <Grid item xs={12} sm={6} lg={6}>
-        <Paper sx={{ p: 3, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)", textAlign: "center" }}>
+        {/* Gráfico de Pie - Documentos */}
+        <Paper sx={{ p: 4, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)", textAlign: "center" }}>
           <Typography variant="h6" fontWeight={700} mb={2}>
             Estado de Documentos
           </Typography>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={400}>
             <PieChart>
               <Pie
                 data={documentosData}
@@ -119,7 +116,7 @@ export default function ChartsMetrics({ metricas }) {
                 cy="50%"
                 labelLine={false}
                 label={({ name, value }) => `${name}: ${value}`}
-                outerRadius={80}
+                outerRadius={120}
                 fill="#8884d8"
                 dataKey="value"
               >
@@ -131,7 +128,7 @@ export default function ChartsMetrics({ metricas }) {
             </PieChart>
           </ResponsiveContainer>
         </Paper>
-      </Grid>
-    </Grid>
+      </div>
+    </div>
   );
 }

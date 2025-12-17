@@ -113,8 +113,6 @@ export const useDashboardMetrics = () => {
     let solicitudesData = [];
     let pasajerosData = [];
 
-    console.log("📡 Dashboard: Iniciando listeners de tiempo real...", { userRole, adminFlotaId });
-
     // Definir función actualizar ANTES de los listeners
     const actualizar = () => {
       try {
@@ -122,23 +120,15 @@ export const useDashboardMetrics = () => {
         let ordenesFiltered = ordenesData;
         if (!isSuperAdmin && trabajadoresData.length > 0) {
           const trabajadorIds = trabajadoresData.map(t => t.id);
-          console.log("📊 Dashboard (Real-time): Comparando uidTaxista con IDs de trabajadores...");
-          console.log("   IDs de trabajadores:", trabajadorIds);
-          console.log("   UIDsTaxista en órdenes:", ordenesData.map(o => o.uidTaxista));
           
           ordenesFiltered = ordenesData.filter(orden => {
             const match = trabajadorIds.includes(orden.uidTaxista);
-            if (!match && orden.uidTaxista) {
-              console.log(`   ⚠️ Orden con uidTaxista ${orden.uidTaxista} NO coincide con trabajadores`);
-            }
             return match;
           });
           
-          console.log("📊 Dashboard (Real-time): Total órdenes:", ordenesData.length, "| Filtradas:", ordenesFiltered.length);
         }
 
         const newMetricas = calcularMetricas(trabajadoresData, ordenesFiltered, solicitudesData, pasajerosData);
-        console.log("✅ Dashboard (Real-time): Métricas actualizadas", newMetricas);
         setMetricas(newMetricas);
         setCargando(false);
       } catch (error) {
@@ -157,8 +147,6 @@ export const useDashboardMetrics = () => {
           ...doc.data(),
           id: doc.id  // Incluir el document ID como 'id'
         }));
-        console.log("👷 Dashboard (Real-time): Trabajadores actualizados:", trabajadoresData.length);
-        console.log("👷 Dashboard (Real-time): IDs de trabajadores:", trabajadoresData.map(t => t.id));
         actualizar();
       }, (error) => {
         console.error("❌ Error en listener de trabajadores:", error);
@@ -170,7 +158,6 @@ export const useDashboardMetrics = () => {
 
       const unsubOrdenes = onSnapshot(ordenesQuery, (snapshot) => {
         ordenesData = snapshot.docs.map(doc => doc.data());
-        console.log("🚕 Dashboard (Real-time): Órdenes totales en BD:", ordenesData.length);
         actualizar();
       }, (error) => {
         console.error("❌ Error en listener de órdenes:", error);
@@ -184,7 +171,6 @@ export const useDashboardMetrics = () => {
 
       const unsubSolicitudes = onSnapshot(solicitudesQuery, (snapshot) => {
         solicitudesData = snapshot.docs.map(doc => doc.data());
-        console.log("📋 Dashboard (Real-time): Solicitudes actualizadas:", solicitudesData.length);
         actualizar();
       }, (error) => {
         console.error("❌ Error en listener de solicitudes:", error);
@@ -198,7 +184,6 @@ export const useDashboardMetrics = () => {
 
       const unsubPasajeros = onSnapshot(pasajerosQuery, (snapshot) => {
         pasajerosData = snapshot.docs.map(doc => doc.data());
-        console.log("👤 Dashboard (Real-time): Pasajeros actualizados:", pasajerosData.length);
         actualizar();
       }, (error) => {
         console.error("❌ Error en listener de pasajeros:", error);
@@ -215,7 +200,6 @@ export const useDashboardMetrics = () => {
 
     // Cleanup: Desuscribirse de todos los listeners al desmontar
     return () => {
-      console.log("🧹 Dashboard: Limpiando listeners...");
       unsubscribers.forEach(unsub => unsub());
     };
   }, [userRole, userFlotaId]);

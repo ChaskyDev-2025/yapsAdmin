@@ -5,6 +5,7 @@ import CardGrid from "./components/CardGrid";
 import StatCard from "./components/StatCard";
 import SummaryCard from "./components/SummaryCard";
 import ChartsMetrics from "./components/ChartsMetrics";
+import ChartOrdenesPorDia from "./components/ChartOrdenesPorDia";
 import { useFlotaInfo } from "./hooks/useFlotaInfo";
 import {
   DirectionsCar,
@@ -51,7 +52,10 @@ const FlotaAdminDashboard = () => {
           />
         </CardGrid>
 
-        {/* FILA 2: Órdenes */}
+        {/* FILA 2: Gráficos */}
+        <ChartsMetrics metricas={metricas} />
+
+        {/* FILA 3: Órdenes */}
         <CardGrid columns={3}>
           <StatCard
             title="Total de Órdenes"
@@ -123,8 +127,8 @@ const FlotaAdminDashboard = () => {
           />
         </div>
 
-        {/* FILA 5: Gráficos */}
-        <ChartsMetrics metricas={metricas} />
+        {/* FILA 5: Gráfico de Órdenes por Día */}
+        <ChartOrdenesPorDia />
       </div>
     </div>
   );
