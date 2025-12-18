@@ -35,6 +35,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import QrCodeIcon from "@mui/icons-material/QrCode";
+import ImageIcon from "@mui/icons-material/Image";
 import {
   obtenerFlotas,
   obtenerSaldoTotal,
@@ -47,6 +48,8 @@ import {
   escucharSolicitudesPendientes,
   aprobarSolicitud,
   rechazarSolicitud,
+  obtenerHistorialSolicitudes,
+  escucharHistorialSolicitudes,
 } from "../../../services/solicitudesRecargaService";
 import ModalAsignarSaldo from "./components/ModalAsignarSaldo";
 import HistorialTransacciones from "./components/HistorialTransacciones";
@@ -64,6 +67,7 @@ const Billetera = () => {
   const [tabValue, setTabValue] = useState(0);
   const [flotas, setFlotas] = useState([]);
   const [solicitudes, setSolicitudes] = useState([]);
+  const [historialSolicitudes, setHistorialSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [estadisticas, setEstadisticas] = useState({
     saldoTotal: 0,
@@ -83,6 +87,11 @@ const Billetera = () => {
   const [rejectReason, setRejectReason] = useState("");
   const [selectedSolicitud, setSelectedSolicitud] = useState(null);
   const [processingId, setProcessingId] = useState(null);
+
+  // Estado para modal de comprobante
+  const [comprobanteExpandidoOpen, setComprobanteExpandidoOpen] =
+    useState(false);
+  const [comprobanteExpandidoUrl, setComprobanteExpandidoUrl] = useState(null);
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -104,11 +113,14 @@ const Billetera = () => {
   const [sortByFlotas, setSortByFlotas] = useState("nombre-asc");
   const [searchSolicitudes, setSearchSolicitudes] = useState("");
   const [sortBySolicitudes, setSortBySolicitudes] = useState("fecha-desc");
+  const [searchHistorial, setSearchHistorial] = useState("");
+  const [sortByHistorial, setSortByHistorial] = useState("fecha-desc");
 
   // Estados para paginación
   const ITEMS_PER_PAGE = 10;
   const [pageFlotas, setPageFlotas] = useState(0);
   const [pageSolicitudes, setPageSolicitudes] = useState(0);
+  const [pageHistorial, setPageHistorial] = useState(0);
 
   // Resetear página al cambiar búsqueda o filtros
   useEffect(() => {
@@ -119,16 +131,25 @@ const Billetera = () => {
     setPageSolicitudes(0);
   }, [searchSolicitudes]);
 
+  useEffect(() => {
+    setPageHistorial(0);
+  }, [searchHistorial]);
+
   const cargarDatos = useCallback(async () => {
     try {
       setLoading(true);
-      const [flotasData, estadisticasData, solicitudesData] = await Promise.all(
-        [obtenerFlotas(), obtenerSaldoTotal(), obtenerSolicitudesPendientes()]
-      );
+      const [flotasData, estadisticasData, solicitudesData, historialData] =
+        await Promise.all([
+          obtenerFlotas(),
+          obtenerSaldoTotal(),
+          obtenerSolicitudesPendientes(),
+          obtenerHistorialSolicitudes(),
+        ]);
 
       setFlotas(flotasData);
       setEstadisticas(estadisticasData);
       setSolicitudes(solicitudesData);
+      setHistorialSolicitudes(historialData);
     } catch (error) {
       mostrarSnackbar("Error al cargar datos", "error");
     } finally {
@@ -158,11 +179,19 @@ const Billetera = () => {
       }
     );
 
+    // Listener para historial
+    const unsubscribeHistorial = escucharHistorialSolicitudes(
+      (historialActualizado) => {
+        setHistorialSolicitudes(historialActualizado);
+      }
+    );
+
     // Cleanup: desuscribirse de todos los listeners
     return () => {
       if (unsubscribeFlotas) unsubscribeFlotas();
       if (unsubscribeSaldo) unsubscribeSaldo();
       if (unsubscribeSolicitudes) unsubscribeSolicitudes();
+      if (unsubscribeHistorial) unsubscribeHistorial();
     };
   }, [cargarDatos]);
 
@@ -344,6 +373,54 @@ const Billetera = () => {
 
   const totalPagesSolicitudes = Math.ceil(
     filteredSolicitudes.length / ITEMS_PER_PAGE
+  );
+
+  // Filtrar y ordenar historial
+  const filteredHistorial = useMemo(() => {
+    let result = [...historialSolicitudes];
+
+    // Filtrar por búsqueda
+    if (searchHistorial.trim()) {
+      const search = searchHistorial.toLowerCase();
+      result = result.filter(
+        (sol) =>
+          (sol.flotaNombre || "").toLowerCase().includes(search) ||
+          (sol.concepto || "").toLowerCase().includes(search) ||
+          (sol.nroComprobante || "").toLowerCase().includes(search)
+      );
+    }
+
+    // Ordenar
+    if (sortByHistorial === "fecha-asc") {
+      result.sort(
+        (a, b) =>
+          new Date(a.fechaSolicitud?.toDate?.() || a.fechaSolicitud || 0) -
+          new Date(b.fechaSolicitud?.toDate?.() || b.fechaSolicitud || 0)
+      );
+    } else if (sortByHistorial === "fecha-desc") {
+      result.sort(
+        (a, b) =>
+          new Date(b.fechaSolicitud?.toDate?.() || b.fechaSolicitud || 0) -
+          new Date(a.fechaSolicitud?.toDate?.() || a.fechaSolicitud || 0)
+      );
+    } else if (sortByHistorial === "monto-asc") {
+      result.sort((a, b) => (a.monto || 0) - (b.monto || 0));
+    } else if (sortByHistorial === "monto-desc") {
+      result.sort((a, b) => (b.monto || 0) - (a.monto || 0));
+    }
+
+    return result;
+  }, [historialSolicitudes, searchHistorial, sortByHistorial]);
+
+  // Datos paginados para Historial
+  const historialPaginado = useMemo(() => {
+    const start = pageHistorial * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return filteredHistorial.slice(start, end);
+  }, [filteredHistorial, pageHistorial]);
+
+  const totalPagesHistorial = Math.ceil(
+    filteredHistorial.length / ITEMS_PER_PAGE
   );
 
   const handleAbrirModal = (flota, tipo) => {
@@ -672,6 +749,9 @@ const Billetera = () => {
           >
             <Tab label="💰 Gestión de Flotas" />
             <Tab label={`📋 Solicitudes Pendientes (${solicitudes.length})`} />
+            <Tab
+              label={`📄 Historial de Solicitudes (${historialSolicitudes.length})`}
+            />
           </Tabs>
         </Box>
 
@@ -781,6 +861,18 @@ const Billetera = () => {
                             fontSize: "0.95rem",
                           }}
                         >
+                          Comprobante
+                        </TableCell>
+                        <TableCell
+                          align="center"
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
                           Acciones
                         </TableCell>
                       </TableRow>
@@ -845,6 +937,38 @@ const Billetera = () => {
                               solicitud.fechaSolicitud?.toDate?.() ||
                                 solicitud.fechaSolicitud
                             ).toLocaleDateString("es-ES")}
+                          </TableCell>
+                          <TableCell align="center">
+                            {solicitud.comprobanteUrl ? (
+                              <Tooltip title="Ver comprobante">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => {
+                                    setComprobanteExpandidoUrl(
+                                      solicitud.comprobanteUrl
+                                    );
+                                    setComprobanteExpandidoOpen(true);
+                                  }}
+                                  sx={{
+                                    bgcolor: "#e3f2fd",
+                                    color: "#1976d2",
+                                    "&:hover": { bgcolor: "#bbdefb" },
+                                  }}
+                                >
+                                  <ImageIcon />
+                                </IconButton>
+                              </Tooltip>
+                            ) : (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: "#999",
+                                  fontFamily: "Mulish, sans-serif",
+                                }}
+                              >
+                                {solicitud.nroComprobante || "-"}
+                              </Typography>
+                            )}
                           </TableCell>
                           <TableCell align="center">
                             <Box
@@ -935,6 +1059,326 @@ const Billetera = () => {
                   count={totalPagesSolicitudes}
                   page={pageSolicitudes + 1}
                   onChange={(e, page) => setPageSolicitudes(page - 1)}
+                  sx={{
+                    "& .MuiPaginationItem-root": {
+                      fontFamily: "Mulish, sans-serif",
+                      color: "#000",
+                    },
+                    "& .Mui-selected": {
+                      backgroundColor: "#aaaaaa !important",
+                      color: "white",
+                    },
+                  }}
+                />
+              </Box>
+            )}
+          </>
+        )}
+
+        {/* Contenido de Historial de Solicitudes */}
+        {tabValue === 2 && (
+          <>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 3,
+                gap: 2,
+              }}
+            >
+              <Box sx={{ flex: 1 }}>
+                <TableToolbar
+                  searchValue={searchHistorial}
+                  onSearchChange={setSearchHistorial}
+                  sortOptions={[
+                    { label: "↑ Fecha (Más antigua)", value: "fecha-asc" },
+                    { label: "↓ Fecha (Más reciente)", value: "fecha-desc" },
+                    { label: "↑ Monto (Menor)", value: "monto-asc" },
+                    { label: "↓ Monto (Mayor)", value: "monto-desc" },
+                  ]}
+                  sortValue={sortByHistorial}
+                  onSortChange={setSortByHistorial}
+                  filterOptions={[]}
+                  visibleColumns={{}}
+                  onColumnChange={() => {}}
+                  showClearButton={true}
+                />
+              </Box>
+            </Box>
+            <Paper
+              elevation={3}
+              sx={{ borderRadius: 2, overflow: "hidden", mb: 4 }}
+            >
+              {historialSolicitudes.length > 0 ? (
+                <TableContainer sx={{ maxHeight: "calc(100vh - 400px)" }}>
+                  <Table stickyHeader>
+                    <TableHead sx={{ backgroundColor: "#000000" }}>
+                      <TableRow>
+                        <TableCell
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Flota
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Monto
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Concepto
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Estado
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Fecha Solicitud
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Fecha Respuesta
+                        </TableCell>
+                        <TableCell
+                          align="center"
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Comprobante
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Notas
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {historialPaginado.map((solicitud) => (
+                        <TableRow
+                          key={solicitud.id}
+                          hover
+                          sx={{ borderBottom: "1px solid #d0d0d0" }}
+                        >
+                          <TableCell
+                            sx={{
+                              fontWeight: 600,
+                              fontFamily: "Mulish, sans-serif",
+                            }}
+                          >
+                            {solicitud.flotaNombre}
+                          </TableCell>
+                          <TableCell
+                            align="right"
+                            sx={{
+                              fontWeight: 700,
+                              fontSize: "1.05rem",
+                              fontFamily: "Mulish, sans-serif",
+                            }}
+                          >
+                            <span style={{ color: "#d7171a" }}>
+                              $
+                              {solicitud.monto.toLocaleString("es-ES", {
+                                minimumFractionDigits: 2,
+                              })}
+                            </span>
+                          </TableCell>
+                          <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                            <Chip
+                              label={solicitud.concepto}
+                              size="small"
+                              sx={{
+                                bgcolor: "#ffe0e0",
+                                color: "#b01217",
+                                fontWeight: 600,
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={
+                                solicitud.estado === "aprobada"
+                                  ? "Aprobada"
+                                  : "Rechazada"
+                              }
+                              size="small"
+                              sx={{
+                                bgcolor:
+                                  solicitud.estado === "aprobada"
+                                    ? "#4caf50"
+                                    : "#f44336",
+                                color: "#fff",
+                                fontWeight: 600,
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell
+                            sx={{
+                              fontSize: "0.9rem",
+                              fontFamily: "Mulish, sans-serif",
+                            }}
+                          >
+                            {new Date(
+                              solicitud.fechaSolicitud?.toDate?.() ||
+                                solicitud.fechaSolicitud
+                            ).toLocaleDateString("es-ES")}
+                          </TableCell>
+                          <TableCell
+                            sx={{
+                              fontSize: "0.9rem",
+                              fontFamily: "Mulish, sans-serif",
+                            }}
+                          >
+                            {solicitud.fechaAprobacion
+                              ? new Date(
+                                  solicitud.fechaAprobacion?.toDate?.() ||
+                                    solicitud.fechaAprobacion
+                                ).toLocaleDateString("es-ES")
+                              : "-"}
+                          </TableCell>
+                          <TableCell align="center">
+                            {solicitud.comprobanteUrl ? (
+                              <Tooltip title="Ver comprobante">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => {
+                                    setComprobanteExpandidoUrl(
+                                      solicitud.comprobanteUrl
+                                    );
+                                    setComprobanteExpandidoOpen(true);
+                                  }}
+                                  sx={{
+                                    bgcolor: "#e3f2fd",
+                                    color: "#1976d2",
+                                    "&:hover": { bgcolor: "#bbdefb" },
+                                  }}
+                                >
+                                  <ImageIcon />
+                                </IconButton>
+                              </Tooltip>
+                            ) : (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: "#999",
+                                  fontFamily: "Mulish, sans-serif",
+                                }}
+                              >
+                                {solicitud.nroComprobante || "-"}
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell
+                            sx={{
+                              fontSize: "0.9rem",
+                              color: "#666",
+                              fontFamily: "Mulish, sans-serif",
+                            }}
+                          >
+                            {solicitud.estado === "rechazada" &&
+                            solicitud.razonRechazo
+                              ? solicitud.razonRechazo
+                              : solicitud.notas || "-"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Box sx={{ p: 4, textAlign: "center" }}>
+                  <Typography variant="body1" color="text.secondary">
+                    📋 No hay solicitudes en el historial
+                  </Typography>
+                </Box>
+              )}
+            </Paper>
+
+            {/* Paginación Historial */}
+            {filteredHistorial.length > 0 && (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  mt: 3,
+                  gap: 2,
+                  flexWrap: "wrap",
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{ fontFamily: "Mulish, sans-serif" }}
+                >
+                  Mostrando{" "}
+                  {historialPaginado.length > 0
+                    ? pageHistorial * ITEMS_PER_PAGE + 1
+                    : 0}{" "}
+                  -{" "}
+                  {Math.min(
+                    (pageHistorial + 1) * ITEMS_PER_PAGE,
+                    filteredHistorial.length
+                  )}{" "}
+                  de {filteredHistorial.length}
+                </Typography>
+                <Pagination
+                  count={totalPagesHistorial}
+                  page={pageHistorial + 1}
+                  onChange={(e, page) => setPageHistorial(page - 1)}
                   sx={{
                     "& .MuiPaginationItem-root": {
                       fontFamily: "Mulish, sans-serif",
@@ -1427,6 +1871,51 @@ const Billetera = () => {
             {uploadingQr ? "Subiendo..." : "Guardar QR"}
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Modal Comprobante Expandido */}
+      <Dialog
+        open={comprobanteExpandidoOpen}
+        onClose={() => setComprobanteExpandidoOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: "rgba(0, 0, 0, 0.9)",
+            boxShadow: "none",
+          },
+        }}
+      >
+        <DialogContent
+          sx={{
+            p: 2,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <Box
+            component="img"
+            src={comprobanteExpandidoUrl}
+            alt="Comprobante Expandido"
+            sx={{
+              maxWidth: "100%",
+              maxHeight: "80vh",
+              objectFit: "contain",
+              borderRadius: 2,
+            }}
+          />
+          <Typography
+            variant="caption"
+            sx={{
+              color: "#fff",
+              mt: 2,
+              fontFamily: "Mulish, sans-serif",
+            }}
+          >
+            Haz clic fuera de la imagen para cerrar
+          </Typography>
+        </DialogContent>
       </Dialog>
 
       {/* Snackbar */}

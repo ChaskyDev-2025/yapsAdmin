@@ -433,6 +433,114 @@ export const escucharHistorialTransacciones = (flotaId, callback) => {
 };
 
 /**
+ * Obtiene el historial de todas las solicitudes (aprobadas y rechazadas)
+ */
+export const obtenerHistorialSolicitudes = async () => {
+  try {
+    const flotasRef = collection(db, FLOTAS_PATH);
+    const flotasSnapshot = await getDocs(flotasRef);
+
+    const historialSolicitudes = [];
+
+    for (const flotaDoc of flotasSnapshot.docs) {
+      try {
+        const flotaId = flotaDoc.id;
+        const flotaData = flotaDoc.data();
+        const solicitudesRef = getSolicitudesRef(flotaId);
+        const q = query(
+          solicitudesRef,
+          where("estado", "in", ["aprobada", "rechazada"]),
+          orderBy("fechaSolicitud", "desc")
+        );
+
+        const solicitudesSnapshot = await getDocs(q);
+
+        solicitudesSnapshot.docs.forEach((solicitudDoc) => {
+          historialSolicitudes.push({
+            id: solicitudDoc.id,
+            flotaId,
+            flotaNombre: flotaData.nombre || "Sin nombre",
+            ...solicitudDoc.data(),
+          });
+        });
+      } catch (error) {
+        console.error(
+          `Error obteniendo historial de flota ${flotaDoc.id}:`,
+          error
+        );
+      }
+    }
+
+    // Ordenar por fecha descendente
+    return historialSolicitudes.sort(
+      (a, b) => b.fechaSolicitud - a.fechaSolicitud
+    );
+  } catch (error) {
+    console.error("Error al obtener historial de solicitudes:", error);
+    return [];
+  }
+};
+
+/**
+ * Escucha cambios en tiempo real del historial de solicitudes
+ */
+export const escucharHistorialSolicitudes = (callback) => {
+  let unsubscribers = [];
+
+  try {
+    const flotasRef = collection(db, FLOTAS_PATH);
+
+    getDocs(flotasRef)
+      .then((flotasSnapshot) => {
+        flotasSnapshot.docs.forEach((flotaDoc) => {
+          const flotaId = flotaDoc.id;
+          const flotaData = flotaDoc.data();
+          const solicitudesRef = getSolicitudesRef(flotaId);
+          const q = query(
+            solicitudesRef,
+            where("estado", "in", ["aprobada", "rechazada"])
+          );
+
+          const unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+              const solicitudes = [];
+
+              snapshot.docs.forEach((solicitudDoc) => {
+                solicitudes.push({
+                  id: solicitudDoc.id,
+                  flotaId,
+                  flotaNombre: flotaData.nombre || "Sin nombre",
+                  ...solicitudDoc.data(),
+                });
+              });
+
+              callback(solicitudes);
+            },
+            (error) => {
+              console.error(
+                `Error escuchando historial de flota ${flotaId}:`,
+                error
+              );
+            }
+          );
+
+          unsubscribers.push(unsubscribe);
+        });
+      })
+      .catch((error) => {
+        console.error("Error obteniendo flotas:", error);
+      });
+  } catch (error) {
+    console.error("Error configurando listener de historial:", error);
+  }
+
+  return () => {
+    unsubscribers.forEach((unsub) => unsub());
+  };
+};
+
+/**
  * Escucha cambios en tiempo real del saldo de una flota
  * @param {string} flotaId - ID de la flota
  * @param {function} callback - Función que se ejecuta cada vez que hay cambios
