@@ -104,87 +104,81 @@ const Referidos = () => {
 
   useEffect(() => {
     // Listeners en tiempo real
-    const setupListeners = async () => {
-      setLoading(true);
-      let unsubscribePasajeros = null;
-      let unsubscribeTrabajadores = null;
-      let pasajerosMap = {};
-      let trabajadoresSnapshot = null;
-      let isInitialLoad = true;
+    setLoading(true);
+    let unsubscribePasajeros = null;
+    let unsubscribeTrabajadores = null;
+    let pasajerosMap = {};
+    let trabajadoresSnapshot = null;
+    let isInitialLoad = true;
 
-      try {
-        // Listener para pasajeros - se actualiza en tiempo real
-        unsubscribePasajeros = onSnapshot(
-          collection(db, "pasajeros"),
-          (snapshot) => {
-            pasajerosMap = {};
-            snapshot.docs.forEach((doc) => {
-              pasajerosMap[doc.id] = doc.data();
-            });
+    try {
+      // Listener para pasajeros - se actualiza en tiempo real
+      unsubscribePasajeros = onSnapshot(
+        collection(db, "pasajeros"),
+        (snapshot) => {
+          pasajerosMap = {};
+          snapshot.docs.forEach((doc) => {
+            pasajerosMap[doc.id] = doc.data();
+          });
 
-            // Procesar datos de donaciones
-            const donacionesData = snapshot.docs
-              .map((doc) => {
-                const pasajero = doc.data();
-                return {
-                  id: doc.id,
-                  nombre: pasajero.perfil?.name || "Sin nombre",
-                  email: pasajero.perfil?.email || "Sin email",
-                  photoUrl: pasajero.perfil?.photoUrl || null,
-                  donacionesAcumuladas: pasajero.donacionesAcumuladas || 0,
-                  ultimaDonacion: pasajero.ultimaDonacion || null,
-                  departamento: pasajero.departamentoActual || "-",
-                };
-              })
-              .filter(p => p.donacionesAcumuladas > 0)
-              .sort((a, b) => b.donacionesAcumuladas - a.donacionesAcumuladas);
+          // Procesar datos de donaciones
+          const donacionesData = snapshot.docs
+            .map((doc) => {
+              const pasajero = doc.data();
+              return {
+                id: doc.id,
+                nombre: pasajero.perfil?.name || "Sin nombre",
+                email: pasajero.perfil?.email || "Sin email",
+                photoUrl: pasajero.perfil?.photoUrl || null,
+                donacionesAcumuladas: pasajero.donacionesAcumuladas || 0,
+                ultimaDonacion: pasajero.ultimaDonacion || null,
+                departamento: pasajero.departamentoActual || "-",
+              };
+            })
+            .filter(p => p.donacionesAcumuladas > 0)
+            .sort((a, b) => b.donacionesAcumuladas - a.donacionesAcumuladas);
 
-            setPasajerosDonaciones(donacionesData);
+          setPasajerosDonaciones(donacionesData);
 
-            // Si ya tenemos datos de trabajadores, actualizar referidos
-            if (trabajadoresSnapshot) {
-              fetchReferidosDataRealtime(trabajadoresSnapshot, pasajerosMap);
-            }
+          // Si ya tenemos datos de trabajadores, actualizar referidos
+          if (trabajadoresSnapshot) {
+            fetchReferidosDataRealtime(trabajadoresSnapshot, pasajerosMap);
+          }
 
-            if (isInitialLoad) {
-              isInitialLoad = false;
-              setLoading(false);
-            }
-          },
-          (error) => {
-            console.error("Error en listener de pasajeros:", error);
+          if (isInitialLoad) {
+            isInitialLoad = false;
             setLoading(false);
           }
-        );
+        },
+        (error) => {
+          console.error("Error en listener de pasajeros:", error);
+          setLoading(false);
+        }
+      );
 
-        // Listener para trabajadores - usado en la pestaña de referidos
-        unsubscribeTrabajadores = onSnapshot(
-          collection(db, "trabajadores"),
-          (snapshot) => {
-            trabajadoresSnapshot = snapshot;
-            fetchReferidosDataRealtime(snapshot, pasajerosMap);
-          },
-          (error) => {
-            console.error("Error en listener de trabajadores:", error);
-          }
-        );
+      // Listener para trabajadores - usado en la pestaña de referidos
+      unsubscribeTrabajadores = onSnapshot(
+        collection(db, "trabajadores"),
+        (snapshot) => {
+          trabajadoresSnapshot = snapshot;
+          fetchReferidosDataRealtime(snapshot, pasajerosMap);
+        },
+        (error) => {
+          console.error("Error en listener de trabajadores:", error);
+        }
+      );
 
-        // Cargar códigos promo
-        await fetchCodigosPromo();
-      } catch (error) {
-        console.error("Error en setup de listeners:", error);
-        setLoading(false);
-      }
+      // Cargar códigos promo de forma async
+      fetchCodigosPromo();
+    } catch (error) {
+      console.error("Error en setup de listeners:", error);
+      setLoading(false);
+    }
 
-      return () => {
-        if (unsubscribePasajeros) unsubscribePasajeros();
-        if (unsubscribeTrabajadores) unsubscribeTrabajadores();
-      };
-    };
-
-    const unsubscribe = setupListeners();
+    // Retornar función de cleanup
     return () => {
-      if (unsubscribe) unsubscribe();
+      if (unsubscribePasajeros) unsubscribePasajeros();
+      if (unsubscribeTrabajadores) unsubscribeTrabajadores();
     };
   }, []);
 
