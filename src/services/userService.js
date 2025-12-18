@@ -5,11 +5,14 @@ import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail } from "fire
 
 /**
  * Crear un nuevo usuario admin en Firebase Auth y Firestore
- * El documento en Firestore usa el mismo UID de Authentication
+ * Mantiene la sesión del usuario actual logueado
  */
 export async function createAdminUser(userData) {
   try {
-    // 0. Verificar si el email ya existe en Firebase Auth
+    // 0. Guardar el usuario actual logueado
+    const currentUser = auth.currentUser;
+
+    // 1. Verificar si el email ya existe en Firebase Auth
     try {
       const signInMethods = await fetchSignInMethodsForEmail(auth, userData.email);
       if (signInMethods.length > 0) {
@@ -37,7 +40,7 @@ export async function createAdminUser(userData) {
       console.warn("⚠️ No se pudo verificar email:", error);
     }
     
-    // 1. Crear usuario en Firebase Authentication
+    // 2. Crear usuario en Firebase Authentication
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       userData.email,
@@ -46,7 +49,7 @@ export async function createAdminUser(userData) {
     
     const uid = userCredential.user.uid;
     
-    // 2. Crear documento en Firestore usando el UID como ID del documento
+    // 3. Crear documento en Firestore usando el UID como ID del documento
     await setDoc(doc(db, "users", uid), {
       email: userData.email,
       role: userData.role || "admin",
@@ -58,7 +61,7 @@ export async function createAdminUser(userData) {
       createdBy: userData.createdBy || null,
     });
     
-    // 3. Agregar el usuario a la flota si se especificó
+    // 4. Agregar el usuario a la flota si se especificó
     if (userData.flotaId) {
       try {
         const flotaRef = doc(db, "flotas", userData.flotaId);
@@ -68,6 +71,17 @@ export async function createAdminUser(userData) {
       } catch (error) {
         console.warn("⚠️ No se pudo agregar usuario a la flota:", error);
         // No lanzar error, continuar aunque falle esta operación
+      }
+    }
+
+    // 5. Volver a loguear al usuario anterior si existe (mantener sesión)
+    if (currentUser) {
+      try {
+        // Re-autenticar con el token del usuario actual
+        // Esto mantiene la sesión sin necesidad de contraseña
+        await auth.updateCurrentUser(currentUser);
+      } catch (error) {
+        console.error("⚠️ No se pudo restaurar la sesión anterior:", error);
       }
     }
     
