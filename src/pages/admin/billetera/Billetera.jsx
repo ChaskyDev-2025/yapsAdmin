@@ -40,6 +40,7 @@ import {
   obtenerFlotas,
   obtenerSaldoTotal,
   obtenerHistorialFlota,
+  obtenerTodasLasTransacciones,
   escucharFlotas,
   escucharSaldoTotal,
 } from "../../../services/bileteraService";
@@ -48,12 +49,11 @@ import {
   escucharSolicitudesPendientes,
   aprobarSolicitud,
   rechazarSolicitud,
-  obtenerHistorialSolicitudes,
-  escucharHistorialSolicitudes,
 } from "../../../services/solicitudesRecargaService";
 import ModalAsignarSaldo from "./components/ModalAsignarSaldo";
 import HistorialTransacciones from "./components/HistorialTransacciones";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
+import DateFilterComponent from "../usuarios/components/DateFilterComponent";
 import { useAuth } from "../../../auth/AuthContext";
 import {
   uploadImageToApi,
@@ -115,6 +115,7 @@ const Billetera = () => {
   const [sortBySolicitudes, setSortBySolicitudes] = useState("fecha-desc");
   const [searchHistorial, setSearchHistorial] = useState("");
   const [sortByHistorial, setSortByHistorial] = useState("fecha-desc");
+  const [periodFilterHistorial, setPeriodFilterHistorial] = useState("todas");
 
   // Estados para paginación
   const ITEMS_PER_PAGE = 10;
@@ -135,6 +136,21 @@ const Billetera = () => {
     setPageHistorial(0);
   }, [searchHistorial]);
 
+  // Recargar historial cuando se accede a la pestaña
+  useEffect(() => {
+    if (tabValue === 2) {
+      const recargarHistorial = async () => {
+        try {
+          const historialData = await obtenerTodasLasTransacciones();
+          setHistorialSolicitudes(historialData);
+        } catch (error) {
+          console.error("Error al recargar historial:", error);
+        }
+      };
+      recargarHistorial();
+    }
+  }, [tabValue]);
+
   const cargarDatos = useCallback(async () => {
     try {
       setLoading(true);
@@ -143,7 +159,7 @@ const Billetera = () => {
           obtenerFlotas(),
           obtenerSaldoTotal(),
           obtenerSolicitudesPendientes(),
-          obtenerHistorialSolicitudes(),
+          obtenerTodasLasTransacciones(),
         ]);
 
       setFlotas(flotasData);
@@ -179,19 +195,19 @@ const Billetera = () => {
       }
     );
 
-    // Listener para historial
-    const unsubscribeHistorial = escucharHistorialSolicitudes(
-      (historialActualizado) => {
-        setHistorialSolicitudes(historialActualizado);
-      }
-    );
+    // Listener para historial - deshabilitado, se carga con cargarDatos()
+    // const unsubscribeHistorial = escucharHistorialSolicitudes(
+    //   (historialActualizado) => {
+    //     setHistorialSolicitudes(historialActualizado);
+    //   }
+    // );
 
     // Cleanup: desuscribirse de todos los listeners
     return () => {
       if (unsubscribeFlotas) unsubscribeFlotas();
       if (unsubscribeSaldo) unsubscribeSaldo();
       if (unsubscribeSolicitudes) unsubscribeSolicitudes();
-      if (unsubscribeHistorial) unsubscribeHistorial();
+      // if (unsubscribeHistorial) unsubscribeHistorial();
     };
   }, [cargarDatos]);
 
@@ -379,14 +395,48 @@ const Billetera = () => {
   const filteredHistorial = useMemo(() => {
     let result = [...historialSolicitudes];
 
+    // Filtrar por período
+    if (periodFilterHistorial !== "todas") {
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfThisWeek = new Date(startOfToday);
+      startOfThisWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+      const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      result = result.filter((transaccion) => {
+        const fecha = transaccion.timestamp?.toDate?.() || transaccion.timestamp;
+        if (!fecha) return false;
+        const fechaDate = new Date(fecha);
+        
+        switch (periodFilterHistorial) {
+          case "hoy":
+            return fechaDate >= startOfToday;
+          case "esta-semana":
+            return fechaDate >= startOfThisWeek;
+          case "este-mes":
+            return fechaDate >= startOfThisMonth;
+          case "ultimos-7":
+            const hace7Dias = new Date(now);
+            hace7Dias.setDate(hace7Dias.getDate() - 7);
+            return fechaDate >= hace7Dias;
+          case "ultimos-30":
+            const hace30Dias = new Date(now);
+            hace30Dias.setDate(hace30Dias.getDate() - 30);
+            return fechaDate >= hace30Dias;
+          default:
+            return true;
+        }
+      });
+    }
+
     // Filtrar por búsqueda
     if (searchHistorial.trim()) {
       const search = searchHistorial.toLowerCase();
       result = result.filter(
-        (sol) =>
-          (sol.flotaNombre || "").toLowerCase().includes(search) ||
-          (sol.concepto || "").toLowerCase().includes(search) ||
-          (sol.nroComprobante || "").toLowerCase().includes(search)
+        (transaccion) =>
+          (transaccion.flotaNombre || "").toLowerCase().includes(search) ||
+          (transaccion.concepto || "").toLowerCase().includes(search) ||
+          (transaccion.nroComprobante || "").toLowerCase().includes(search)
       );
     }
 
@@ -394,14 +444,14 @@ const Billetera = () => {
     if (sortByHistorial === "fecha-asc") {
       result.sort(
         (a, b) =>
-          new Date(a.fechaSolicitud?.toDate?.() || a.fechaSolicitud || 0) -
-          new Date(b.fechaSolicitud?.toDate?.() || b.fechaSolicitud || 0)
+          new Date(a.timestamp?.toDate?.() || a.timestamp || 0) -
+          new Date(b.timestamp?.toDate?.() || b.timestamp || 0)
       );
     } else if (sortByHistorial === "fecha-desc") {
       result.sort(
         (a, b) =>
-          new Date(b.fechaSolicitud?.toDate?.() || b.fechaSolicitud || 0) -
-          new Date(a.fechaSolicitud?.toDate?.() || a.fechaSolicitud || 0)
+          new Date(b.timestamp?.toDate?.() || b.timestamp || 0) -
+          new Date(a.timestamp?.toDate?.() || a.timestamp || 0)
       );
     } else if (sortByHistorial === "monto-asc") {
       result.sort((a, b) => (a.monto || 0) - (b.monto || 0));
@@ -410,7 +460,7 @@ const Billetera = () => {
     }
 
     return result;
-  }, [historialSolicitudes, searchHistorial, sortByHistorial]);
+  }, [historialSolicitudes, searchHistorial, sortByHistorial, periodFilterHistorial]);
 
   // Datos paginados para Historial
   const historialPaginado = useMemo(() => {
@@ -459,13 +509,18 @@ const Billetera = () => {
 
   const handleAbrirHistorial = async (flota) => {
     try {
-      const transacciones = await obtenerHistorialFlota(flota.id);
+      console.log("[DEBUG] Abriendo historial para flota:", flota);
+      // Usar uidFlota si existe, si no usar el ID del documento
+      const flotaId = flota.uidFlota || flota.id;
+      console.log("[DEBUG] Usando flotaId:", flotaId);
+      const transacciones = await obtenerHistorialFlota(flotaId);
+      console.log("[DEBUG] Transacciones cargadas:", transacciones);
       setHistorialFlota(flota);
       setHistorial(transacciones);
       setHistorialOpen(true);
     } catch (error) {
       mostrarSnackbar("Error al cargar historial", "error");
-      console.error(error);
+      console.error("[DEBUG] Error en handleAbrirHistorial:", error);
     }
   };
 
@@ -1085,6 +1140,7 @@ const Billetera = () => {
                 alignItems: "center",
                 mb: 3,
                 gap: 2,
+                flexWrap: "wrap",
               }}
             >
               <Box sx={{ flex: 1 }}>
@@ -1105,6 +1161,10 @@ const Billetera = () => {
                   showClearButton={true}
                 />
               </Box>
+              <DateFilterComponent
+                onFilterChange={setPeriodFilterHistorial}
+                currentDateFilter={periodFilterHistorial}
+              />
             </Box>
             <Paper
               elevation={3}
@@ -1125,6 +1185,17 @@ const Billetera = () => {
                           }}
                         >
                           Flota
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Tipo
                         </TableCell>
                         <TableCell
                           align="right"
@@ -1150,6 +1221,7 @@ const Billetera = () => {
                           Concepto
                         </TableCell>
                         <TableCell
+                          align="right"
                           sx={{
                             backgroundColor: "#000000",
                             color: "white",
@@ -1158,9 +1230,10 @@ const Billetera = () => {
                             fontSize: "0.95rem",
                           }}
                         >
-                          Estado
+                          Saldo Anterior
                         </TableCell>
                         <TableCell
+                          align="right"
                           sx={{
                             backgroundColor: "#000000",
                             color: "white",
@@ -1169,21 +1242,9 @@ const Billetera = () => {
                             fontSize: "0.95rem",
                           }}
                         >
-                          Fecha Solicitud
+                          Saldo Nuevo
                         </TableCell>
                         <TableCell
-                          sx={{
-                            backgroundColor: "#000000",
-                            color: "white",
-                            fontWeight: 700,
-                            fontFamily: "Mulish, sans-serif",
-                            fontSize: "0.95rem",
-                          }}
-                        >
-                          Fecha Respuesta
-                        </TableCell>
-                        <TableCell
-                          align="center"
                           sx={{
                             backgroundColor: "#000000",
                             color: "white",
@@ -1203,14 +1264,25 @@ const Billetera = () => {
                             fontSize: "0.95rem",
                           }}
                         >
+                          Fecha
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
                           Notas
                         </TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {historialPaginado.map((solicitud) => (
+                      {historialPaginado.map((transaccion) => (
                         <TableRow
-                          key={solicitud.id}
+                          key={transaccion.id}
                           hover
                           sx={{ borderBottom: "1px solid #d0d0d0" }}
                         >
@@ -1220,7 +1292,34 @@ const Billetera = () => {
                               fontFamily: "Mulish, sans-serif",
                             }}
                           >
-                            {solicitud.flotaNombre}
+                            {transaccion.flotaNombre || "-"}
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={
+                                transaccion.tipo === "deposito"
+                                  ? "Depósito"
+                                  : transaccion.tipo === "retiro"
+                                  ? "Retiro"
+                                  : "Ajuste"
+                              }
+                              size="small"
+                              sx={{
+                                bgcolor:
+                                  transaccion.tipo === "deposito"
+                                    ? "#e8f5e9"
+                                    : transaccion.tipo === "retiro"
+                                    ? "#ffebee"
+                                    : "#fff3e0",
+                                color:
+                                  transaccion.tipo === "deposito"
+                                    ? "#2e7d32"
+                                    : transaccion.tipo === "retiro"
+                                    ? "#c62828"
+                                    : "#e65100",
+                                fontWeight: 600,
+                              }}
+                            />
                           </TableCell>
                           <TableCell
                             align="right"
@@ -1230,74 +1329,55 @@ const Billetera = () => {
                               fontFamily: "Mulish, sans-serif",
                             }}
                           >
-                            <span style={{ color: "#d7171a" }}>
-                              $
-                              {solicitud.monto.toLocaleString("es-ES", {
-                                minimumFractionDigits: 2,
-                              })}
+                            <span
+                              style={{
+                                color:
+                                  transaccion.tipo === "deposito"
+                                    ? "#2e7d32"
+                                    : "#c62828",
+                              }}
+                            >
+                              {transaccion.tipo === "deposito" ? "+" : "-"}$
+                              {Math.abs(transaccion.monto).toLocaleString(
+                                "es-ES",
+                                { minimumFractionDigits: 2 }
+                              )}
                             </span>
                           </TableCell>
                           <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                            <Chip
-                              label={solicitud.concepto}
-                              size="small"
-                              sx={{
-                                bgcolor: "#ffe0e0",
-                                color: "#b01217",
-                                fontWeight: 600,
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={
-                                solicitud.estado === "aprobada"
-                                  ? "Aprobada"
-                                  : "Rechazada"
-                              }
-                              size="small"
-                              sx={{
-                                bgcolor:
-                                  solicitud.estado === "aprobada"
-                                    ? "#4caf50"
-                                    : "#f44336",
-                                color: "#fff",
-                                fontWeight: 600,
-                              }}
-                            />
+                            {transaccion.concepto || "-"}
                           </TableCell>
                           <TableCell
+                            align="right"
                             sx={{
-                              fontSize: "0.9rem",
                               fontFamily: "Mulish, sans-serif",
                             }}
                           >
-                            {new Date(
-                              solicitud.fechaSolicitud?.toDate?.() ||
-                                solicitud.fechaSolicitud
-                            ).toLocaleDateString("es-ES")}
+                            ${(transaccion.saldoAnterior || 0).toLocaleString(
+                              "es-ES",
+                              { minimumFractionDigits: 2 }
+                            )}
                           </TableCell>
                           <TableCell
+                            align="right"
                             sx={{
-                              fontSize: "0.9rem",
+                              fontWeight: 600,
                               fontFamily: "Mulish, sans-serif",
                             }}
                           >
-                            {solicitud.fechaAprobacion
-                              ? new Date(
-                                  solicitud.fechaAprobacion?.toDate?.() ||
-                                    solicitud.fechaAprobacion
-                                ).toLocaleDateString("es-ES")
-                              : "-"}
+                            ${(transaccion.saldoNuevo || 0).toLocaleString(
+                              "es-ES",
+                              { minimumFractionDigits: 2 }
+                            )}
                           </TableCell>
                           <TableCell align="center">
-                            {solicitud.comprobanteUrl ? (
+                            {transaccion.comprobanteUrl ? (
                               <Tooltip title="Ver comprobante">
                                 <IconButton
                                   size="small"
                                   onClick={() => {
                                     setComprobanteExpandidoUrl(
-                                      solicitud.comprobanteUrl
+                                      transaccion.comprobanteUrl
                                     );
                                     setComprobanteExpandidoOpen(true);
                                   }}
@@ -1318,9 +1398,17 @@ const Billetera = () => {
                                   fontFamily: "Mulish, sans-serif",
                                 }}
                               >
-                                {solicitud.nroComprobante || "-"}
+                                {transaccion.nroComprobante || "-"}
                               </Typography>
                             )}
+                          </TableCell>
+                          <TableCell
+                            sx={{
+                              fontSize: "0.9rem",
+                              fontFamily: "Mulish, sans-serif",
+                            }}
+                          >
+                            {transaccion.fechaRegistro || "-"}
                           </TableCell>
                           <TableCell
                             sx={{
@@ -1329,10 +1417,7 @@ const Billetera = () => {
                               fontFamily: "Mulish, sans-serif",
                             }}
                           >
-                            {solicitud.estado === "rechazada" &&
-                            solicitud.razonRechazo
-                              ? solicitud.razonRechazo
-                              : solicitud.notas || "-"}
+                            {transaccion.notas || "-"}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1340,9 +1425,15 @@ const Billetera = () => {
                   </Table>
                 </TableContainer>
               ) : (
-                <Box sx={{ p: 4, textAlign: "center" }}>
-                  <Typography variant="body1" color="text.secondary">
-                    📋 No hay solicitudes en el historial
+                <Box
+                  sx={{
+                    textAlign: "center",
+                    py: 4,
+                    fontFamily: "Mulish, sans-serif",
+                  }}
+                >
+                  <Typography color="textSecondary">
+                    No hay transacciones registradas
                   </Typography>
                 </Box>
               )}
@@ -1420,7 +1511,6 @@ const Billetera = () => {
                   sortValue={sortByFlotas}
                   onSortChange={setSortByFlotas}
                   filterOptions={[]}
-                  adfsdfsfsdfsfff
                   visibleColumns={{}}
                   onColumnChange={() => {}}
                   showClearButton={true}

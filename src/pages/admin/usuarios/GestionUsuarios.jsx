@@ -50,6 +50,7 @@ import { TableToolbar } from "./components/TableToolbar";
 import ModalDetalleConductor from "./components/ModalDetalleConductor";
 import ModalDetallePasajero from "./components/ModalDetallePasajero";
 import DocumentosConductoresViewModal from "./components/DocumentosConductoresViewModal";
+import DateFilterComponent from "./components/DateFilterComponent";
 
 const DEPARTAMENTOS = [
   "La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", 
@@ -105,6 +106,22 @@ const GestionUsuarios = () => {
   const [sortByAdmin, setSortByAdmin] = useState("email-asc"); // email-asc, email-desc, nombre-asc, nombre-desc
   const [sortByPasajeros, setSortByPasajeros] = useState("nombre-asc"); // nombre-asc, nombre-desc, email-asc, email-desc
   const [sortByConductores, setSortByConductores] = useState("nombre-asc"); // nombre-asc, nombre-desc, email-asc, email-desc
+  
+  // Estados para filtros de fecha
+  const [dateFilterTypeAdmin, setDateFilterTypeAdmin] = useState("todos");
+  const [customStartDateAdmin, setCustomStartDateAdmin] = useState("");
+  const [customEndDateAdmin, setCustomEndDateAdmin] = useState("");
+  const [sortByDateAdmin, setSortByDateAdmin] = useState("recientes");
+  
+  const [dateFilterTypePasajeros, setDateFilterTypePasajeros] = useState("todos");
+  const [customStartDatePasajeros, setCustomStartDatePasajeros] = useState("");
+  const [customEndDatePasajeros, setCustomEndDatePasajeros] = useState("");
+  const [sortByDatePasajeros, setSortByDatePasajeros] = useState("recientes");
+  
+  const [dateFilterTypeConductores, setDateFilterTypeConductores] = useState("todos");
+  const [customStartDateConductores, setCustomStartDateConductores] = useState("");
+  const [customEndDateConductores, setCustomEndDateConductores] = useState("");
+  const [sortByDateConductores, setSortByDateConductores] = useState("recientes");
   
   // Estados para columnas visibles (todas activas por defecto)
   const [visibleColumnsAdmin, setVisibleColumnsAdmin] = useState({
@@ -199,27 +216,100 @@ const GestionUsuarios = () => {
       });
     }
     
+    // Filtro por fecha
+    if (dateFilterTypeAdmin !== "todos") {
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+      filtered = filtered.filter((u) => {
+        const dateField = u.createdAt;
+        if (!dateField) return false;
+
+        let date;
+        if (typeof dateField === "object" && dateField.seconds) {
+          date = new Date(dateField.seconds * 1000);
+        } else if (typeof dateField === "number") {
+          date = new Date(dateField);
+        } else if (typeof dateField === "string") {
+          date = new Date(dateField);
+        } else {
+          return false;
+        }
+
+        switch (dateFilterTypeAdmin) {
+          case "hoy":
+            return date >= startOfToday && date < endOfToday;
+          case "esta-semana": {
+            const startOfWeek = new Date(startOfToday);
+            startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+            return date >= startOfWeek && date < endOfToday;
+          }
+          case "este-mes": {
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            return date >= startOfMonth && date < endOfMonth;
+          }
+          case "ultimos-7": {
+            const sevenDaysAgo = new Date(now);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            return date >= sevenDaysAgo && date <= now;
+          }
+          case "ultimos-30": {
+            const thirtyDaysAgo = new Date(now);
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            return date >= thirtyDaysAgo && date <= now;
+          }
+          case "custom": {
+            if (customStartDateAdmin && customEndDateAdmin) {
+              const start = new Date(customStartDateAdmin);
+              const end = new Date(customEndDateAdmin);
+              end.setDate(end.getDate() + 1);
+              return date >= start && date < end;
+            }
+            return true;
+          }
+          default:
+            return true;
+        }
+      });
+    }
+    
     // Ordenamiento
     const sorted = [...filtered];
-    switch (sortByAdmin) {
+    switch (sortByDateAdmin) {
       case "email-asc":
-        sorted.sort((a, b) => ((a.email || "") || "").localeCompare((b.email || "") || ""));
+        sorted.sort((a, b) => (a.email || "").localeCompare((b.email || "")));
         break;
       case "email-desc":
-        sorted.sort((a, b) => ((b.email || "") || "").localeCompare((a.email || "") || ""));
+        sorted.sort((a, b) => (b.email || "").localeCompare((a.email || "")));
         break;
       case "nombre-asc":
-        sorted.sort((a, b) => ((a.nombre || "") || "").localeCompare((b.nombre || "") || ""));
+        sorted.sort((a, b) => (a.nombre || "").localeCompare((b.nombre || "")));
         break;
       case "nombre-desc":
-        sorted.sort((a, b) => ((b.nombre || "") || "").localeCompare((a.nombre || "") || ""));
+        sorted.sort((a, b) => (b.nombre || "").localeCompare((a.nombre || "")));
+        break;
+      case "recientes":
+        sorted.sort((a, b) => {
+          const dateA = a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date(0);
+          const dateB = b.createdAt?.seconds ? new Date(b.createdAt.seconds * 1000) : new Date(0);
+          return dateB - dateA;
+        });
+        break;
+      case "antiguos":
+        sorted.sort((a, b) => {
+          const dateA = a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date(0);
+          const dateB = b.createdAt?.seconds ? new Date(b.createdAt.seconds * 1000) : new Date(0);
+          return dateA - dateB;
+        });
         break;
       default:
         break;
     }
     
     return sorted;
-  }, [usuarios, searchAdmin, filterEstado, sortByAdmin]);
+  }, [usuarios, searchAdmin, filterEstado, sortByDateAdmin, dateFilterTypeAdmin, customStartDateAdmin, customEndDateAdmin]);
 
   const pasajerosFiltrados = useMemo(() => {
     let filtered = pasajeros;
@@ -230,6 +320,67 @@ const GestionUsuarios = () => {
         (p.name || p.perfil?.name || "").toLowerCase().includes(search) ||
         (p.email || p.perfil?.email || "").toLowerCase().includes(search)
       );
+    }
+
+    // Filtro por fecha
+    if (dateFilterTypePasajeros !== "todos") {
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+      filtered = filtered.filter((p) => {
+        const dateField = p.createdAt;
+        if (!dateField) return false;
+
+        let date;
+        if (typeof dateField === "object" && dateField.seconds) {
+          date = new Date(dateField.seconds * 1000);
+        } else if (typeof dateField === "object" && dateField.toDate) {
+          date = dateField.toDate();
+        } else if (typeof dateField === "number") {
+          date = new Date(dateField);
+        } else if (typeof dateField === "string") {
+          date = new Date(dateField);
+        } else {
+          return false;
+        }
+
+        switch (dateFilterTypePasajeros) {
+          case "hoy":
+            return date >= startOfToday && date < endOfToday;
+          case "esta-semana": {
+            const startOfWeek = new Date(startOfToday);
+            startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+            return date >= startOfWeek && date < endOfToday;
+          }
+          case "este-mes": {
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            return date >= startOfMonth && date < endOfMonth;
+          }
+          case "ultimos-7": {
+            const sevenDaysAgo = new Date(now);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            return date >= sevenDaysAgo && date <= now;
+          }
+          case "ultimos-30": {
+            const thirtyDaysAgo = new Date(now);
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            return date >= thirtyDaysAgo && date <= now;
+          }
+          case "custom": {
+            if (customStartDatePasajeros && customEndDatePasajeros) {
+              const start = new Date(customStartDatePasajeros);
+              const end = new Date(customEndDatePasajeros);
+              end.setDate(end.getDate() + 1);
+              return date >= start && date < end;
+            }
+            return true;
+          }
+          default:
+            return true;
+        }
+      });
     }
     
     // Ordenamiento
@@ -247,17 +398,17 @@ const GestionUsuarios = () => {
       case "email-desc":
         sorted.sort((a, b) => ((b.email || b.perfil?.email || "") || "").localeCompare((a.email || a.perfil?.email || "") || ""));
         break;
-      case "fecha-recientes":
+      case "recientes":
         sorted.sort((a, b) => {
-          const fechaA = a.createdAt?.toDate?.() || new Date(0);
-          const fechaB = b.createdAt?.toDate?.() || new Date(0);
+          const fechaA = a.createdAt?.toDate?.() || a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date(0);
+          const fechaB = b.createdAt?.toDate?.() || b.createdAt?.seconds ? new Date(b.createdAt.seconds * 1000) : new Date(0);
           return fechaB - fechaA;
         });
         break;
-      case "fecha-antiguos":
+      case "antiguos":
         sorted.sort((a, b) => {
-          const fechaA = a.createdAt?.toDate?.() || new Date(0);
-          const fechaB = b.createdAt?.toDate?.() || new Date(0);
+          const fechaA = a.createdAt?.toDate?.() || a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date(0);
+          const fechaB = b.createdAt?.toDate?.() || b.createdAt?.seconds ? new Date(b.createdAt.seconds * 1000) : new Date(0);
           return fechaA - fechaB;
         });
         break;
@@ -266,7 +417,7 @@ const GestionUsuarios = () => {
     }
     
     return sorted;
-  }, [pasajeros, searchPasajeros, sortByPasajeros]);
+  }, [pasajeros, searchPasajeros, sortByPasajeros, dateFilterTypePasajeros, customStartDatePasajeros, customEndDatePasajeros]);
 
   const conductoresFiltrados = useMemo(() => {
     let filtered = trabajadores;
@@ -275,7 +426,9 @@ const GestionUsuarios = () => {
       const search = searchConductores.toLowerCase();
       filtered = filtered.filter(t =>
         (t.perfil?.name || "").toLowerCase().includes(search) ||
-        (t.perfil?.email || "").toLowerCase().includes(search)
+        (t.perfil?.email || "").toLowerCase().includes(search) ||
+        (t.perfil?.categoria || "").toLowerCase().includes(search) ||
+        (t.perfil?.flota || "").toLowerCase().includes(search)
       );
     }
     
@@ -285,6 +438,67 @@ const GestionUsuarios = () => {
         if (filterEstadoConductores === "activos") return t.activo !== false;
         if (filterEstadoConductores === "inactivos") return t.activo === false;
         return true;
+      });
+    }
+
+    // Filtro por fecha
+    if (dateFilterTypeConductores !== "todos") {
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+      filtered = filtered.filter((t) => {
+        const dateField = t.perfil?.createdAt || t.createdAt;
+        if (!dateField) return false;
+
+        let date;
+        if (typeof dateField === "object" && dateField.seconds) {
+          date = new Date(dateField.seconds * 1000);
+        } else if (typeof dateField === "object" && dateField.toDate) {
+          date = dateField.toDate();
+        } else if (typeof dateField === "number") {
+          date = new Date(dateField);
+        } else if (typeof dateField === "string") {
+          date = new Date(dateField);
+        } else {
+          return false;
+        }
+
+        switch (dateFilterTypeConductores) {
+          case "hoy":
+            return date >= startOfToday && date < endOfToday;
+          case "esta-semana": {
+            const startOfWeek = new Date(startOfToday);
+            startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+            return date >= startOfWeek && date < endOfToday;
+          }
+          case "este-mes": {
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            return date >= startOfMonth && date < endOfMonth;
+          }
+          case "ultimos-7": {
+            const sevenDaysAgo = new Date(now);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            return date >= sevenDaysAgo && date <= now;
+          }
+          case "ultimos-30": {
+            const thirtyDaysAgo = new Date(now);
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            return date >= thirtyDaysAgo && date <= now;
+          }
+          case "custom": {
+            if (customStartDateConductores && customEndDateConductores) {
+              const start = new Date(customStartDateConductores);
+              const end = new Date(customEndDateConductores);
+              end.setDate(end.getDate() + 1);
+              return date >= start && date < end;
+            }
+            return true;
+          }
+          default:
+            return true;
+        }
       });
     }
     
@@ -303,17 +517,17 @@ const GestionUsuarios = () => {
       case "email-desc":
         sorted.sort((a, b) => ((b.perfil?.email || "") || "").localeCompare((a.perfil?.email || "") || ""));
         break;
-      case "fecha-recientes":
+      case "recientes":
         sorted.sort((a, b) => {
-          const fechaA = a.perfil?.createdAt?.toDate?.() || new Date(0);
-          const fechaB = b.perfil?.createdAt?.toDate?.() || new Date(0);
+          const fechaA = a.perfil?.createdAt?.toDate?.() || a.perfil?.createdAt?.seconds ? new Date(a.perfil.createdAt.seconds * 1000) : new Date(0);
+          const fechaB = b.perfil?.createdAt?.toDate?.() || b.perfil?.createdAt?.seconds ? new Date(b.perfil.createdAt.seconds * 1000) : new Date(0);
           return fechaB - fechaA;
         });
         break;
-      case "fecha-antiguos":
+      case "antiguos":
         sorted.sort((a, b) => {
-          const fechaA = a.perfil?.createdAt?.toDate?.() || new Date(0);
-          const fechaB = b.perfil?.createdAt?.toDate?.() || new Date(0);
+          const fechaA = a.perfil?.createdAt?.toDate?.() || a.perfil?.createdAt?.seconds ? new Date(a.perfil.createdAt.seconds * 1000) : new Date(0);
+          const fechaB = b.perfil?.createdAt?.toDate?.() || b.perfil?.createdAt?.seconds ? new Date(b.perfil.createdAt.seconds * 1000) : new Date(0);
           return fechaA - fechaB;
         });
         break;
@@ -322,7 +536,7 @@ const GestionUsuarios = () => {
     }
     
     return sorted;
-  }, [trabajadores, searchConductores, sortByConductores, filterEstadoConductores]);
+  }, [trabajadores, searchConductores, sortByConductores, filterEstadoConductores, dateFilterTypeConductores, customStartDateConductores, customEndDateConductores]);
 
   // Datos paginados para Administradores
   const usuariosPaginados = useMemo(() => {
@@ -409,6 +623,70 @@ const GestionUsuarios = () => {
       unsubscribeFlotas();
     };
   }, []);
+
+  // Handlers para filtros de fecha - Administradores
+  const handleDateFilterChangeAdmin = (filterType, startDate, endDate) => {
+    setDateFilterTypeAdmin(filterType);
+    if (filterType === "custom") {
+      setCustomStartDateAdmin(startDate || "");
+      setCustomEndDateAdmin(endDate || "");
+    }
+    setPageAdmin(0);
+  };
+
+  const handleSortByDateAdmin = (sortType) => {
+    setSortByDateAdmin(sortType);
+  };
+
+  // Handlers para filtros de fecha - Pasajeros
+  const handleDateFilterChangePasajeros = (filterType, startDate, endDate) => {
+    setDateFilterTypePasajeros(filterType);
+    if (filterType === "custom") {
+      setCustomStartDatePasajeros(startDate || "");
+      setCustomEndDatePasajeros(endDate || "");
+    }
+    setPagePasajeros(0);
+  };
+
+  const handleSortByDatePasajeros = (sortType) => {
+    setSortByDatePasajeros(sortType);
+  };
+
+  // Handlers para filtros de fecha - Conductores
+  const handleDateFilterChangeConductores = (filterType, startDate, endDate) => {
+    setDateFilterTypeConductores(filterType);
+    if (filterType === "custom") {
+      setCustomStartDateConductores(startDate || "");
+      setCustomEndDateConductores(endDate || "");
+    }
+    setPageConductores(0);
+  };
+
+  const handleSortByDateConductores = (sortType) => {
+    setSortByDateConductores(sortType);
+  };
+
+  // Funciones para limpiar todos los filtros
+  const handleClearAllAdmin = () => {
+    setDateFilterTypeAdmin("todos");
+    setCustomStartDateAdmin("");
+    setCustomEndDateAdmin("");
+    setPageAdmin(0);
+  };
+
+  const handleClearAllPasajeros = () => {
+    setDateFilterTypePasajeros("todos");
+    setCustomStartDatePasajeros("");
+    setCustomEndDatePasajeros("");
+    setPagePasajeros(0);
+  };
+
+  const handleClearAllConductores = () => {
+    setDateFilterTypeConductores("todos");
+    setCustomStartDateConductores("");
+    setCustomEndDateConductores("");
+    setPageConductores(0);
+  };
 
   const loadUsers = async () => {
     setLoading(true);
@@ -563,39 +841,50 @@ const GestionUsuarios = () => {
       const result = await createAdminUser({
         email: formData.email,
         nombre: formData.nombre,
-        role: "admin",
+        role: formData.role,
         password: formData.password,
         flotaId: formData.flotaId || null,
         createdBy: user.uid,
       });
 
       if (result.success) {
-        if (result.requiresRelogin) {
-          setSuccess("✅ Usuario creado exitosamente. Por seguridad, debes volver a iniciar sesión...");
-          setTimeout(() => {
-            window.location.href = "/login";
-          }, 2000);
-        } else {
-          setSuccess("✅ Usuario creado exitosamente");
-          loadUsers();
-          setTimeout(() => handleCloseDialog(), 2000);
-        }
+        setSuccess("✅ Usuario creado exitosamente");
+        loadUsers();
+        setTimeout(() => {
+          handleCloseDialog();
+          setSuccess("");
+        }, 2000);
       } else {
         setError(result.error || "Error al crear usuario");
+        setTimeout(() => setError(""), 3000);
       }
     }
   };
 
   const handleDeleteUser = async (userId) => {
     if (window.confirm("¿Estás seguro de eliminar este usuario?")) {
-      const result = await deleteUser(userId);
-      if (result.success) {
-        setSuccess("Usuario eliminado correctamente");
-        loadUsers();
-        setTimeout(() => setSuccess(""), 3000);
-      } else {
-        setError(result.error || "Error al eliminar usuario");
-        setTimeout(() => setError(""), 3000);
+      try {
+        const result = await deleteUser(userId);
+        if (result.success) {
+          setSnackbar({
+            open: true,
+            message: "✅ Usuario eliminado correctamente",
+            severity: "success"
+          });
+          loadUsers();
+        } else {
+          setSnackbar({
+            open: true,
+            message: "❌ " + (result.error || "Error al eliminar usuario"),
+            severity: "error"
+          });
+        }
+      } catch (err) {
+        setSnackbar({
+          open: true,
+          message: "❌ Error al eliminar usuario: " + err.message,
+          severity: "error"
+        });
       }
     }
   };
@@ -727,36 +1016,53 @@ const GestionUsuarios = () => {
 
         {tabValue === 0 && (
           <>
-            {/* Toolbar para Administradores */}
-            <TableToolbar
-              searchValue={searchAdmin}
-              onSearchChange={setSearchAdmin}
-              sortOptions={[
-                { label: "↑ Sort by Email (ASC)", value: "email-asc" },
-                { label: "↓ Sort by Email (DESC)", value: "email-desc" },
-                { label: "↑ Sort by Nombre (ASC)", value: "nombre-asc" },
-                { label: "↓ Sort by Nombre (DESC)", value: "nombre-desc" },
-              ]}
-              sortValue={sortByAdmin}
-              onSortChange={setSortByAdmin}
-              filterOptions={[
-                {
-                  name: "estado",
-                  label: "Estado",
-                  defaultValue: "todos",
-                  options: [
-                    { label: "Todos", value: "todos" },
-                    { label: "Activos", value: "activos" },
-                    { label: "Inactivos", value: "inactivos" },
-                  ],
-                },
-              ]}
-              filterValue={{ estado: filterEstado }}
-              onFilterChange={(name, value) => setFilterEstado(value)}
-              visibleColumns={visibleColumnsAdmin}
-              onColumnChange={(col, visible) => setVisibleColumnsAdmin(prev => ({ ...prev, [col]: visible }))}
-              showClearButton={true}
-            />
+            {/* Toolbar y Filtros Alineados */}
+            <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-end", mb: 2, flexWrap: "wrap" }}>
+              <Box sx={{ flex: 1, minWidth: 280 }}>
+                <TableToolbar
+                  searchValue={searchAdmin}
+                  onSearchChange={setSearchAdmin}
+                  searchPlaceholder="Nombre, Email del Administrador"
+                  sortOptions={[
+                    { label: "↑ Email (ASC)", value: "email-asc" },
+                    { label: "↓ Email (DESC)", value: "email-desc" },
+                    { label: "↑ Nombre (ASC)", value: "nombre-asc" },
+                    { label: "↓ Nombre (DESC)", value: "nombre-desc" },
+                    { label: "↑ Más Recientes", value: "recientes" },
+                    { label: "↓ Más Antiguos", value: "antiguos" },
+                  ]}
+                  sortValue={sortByAdmin}
+                  onSortChange={setSortByAdmin}
+                  filterOptions={[
+                    {
+                      name: "estado",
+                      label: "Estado",
+                      defaultValue: "todos",
+                      options: [
+                        { label: "Todos", value: "todos" },
+                        { label: "Activos", value: "activos" },
+                        { label: "Inactivos", value: "inactivos" },
+                      ],
+                    },
+                  ]}
+                  filterValue={{ estado: filterEstado }}
+                  onFilterChange={(name, value) => setFilterEstado(value)}
+                  visibleColumns={visibleColumnsAdmin}
+                  onColumnChange={(col, visible) => setVisibleColumnsAdmin(prev => ({ ...prev, [col]: visible }))}
+                  showClearButton={true}
+                  onClearAll={handleClearAllAdmin}
+                  dateFilter={dateFilterTypeAdmin}
+                />
+              </Box>
+              
+              {/* Filtro de Fecha */}
+              <DateFilterComponent
+                onFilterChange={handleDateFilterChangeAdmin}
+                onSortChange={handleSortByDateAdmin}
+                currentSort={sortByDateAdmin}
+                currentDateFilter={dateFilterTypeAdmin}
+              />
+            </Box>
 
             <Paper sx={{ boxShadow: "0 2px 8px rgba(0,0,0,0.1)", borderRadius: 2, overflow: "hidden" }}>
               <TableContainer>
@@ -950,24 +1256,39 @@ const GestionUsuarios = () => {
 
     {tabValue === 1 && (
       <>
-            {/* Toolbar para Pasajeros */}
-            <TableToolbar
-              searchValue={searchPasajeros}
-              onSearchChange={setSearchPasajeros}
-              sortOptions={[
-                { label: "↑ Sort by Nombre (ASC)", value: "nombre-asc" },
-                { label: "↓ Sort by Nombre (DESC)", value: "nombre-desc" },
-                { label: "↑ Sort by Email (ASC)", value: "email-asc" },
-                { label: "↓ Sort by Email (DESC)", value: "email-desc" },
-                { label: "↓ Más Recientes", value: "fecha-recientes" },
-                { label: "↑ Más Antiguos", value: "fecha-antiguos" },
-              ]}
-              sortValue={sortByPasajeros}
-              onSortChange={setSortByPasajeros}
-              visibleColumns={visibleColumnsPasajeros}
-              onColumnChange={(col, visible) => setVisibleColumnsPasajeros(prev => ({ ...prev, [col]: visible }))}
-              showClearButton={true}
-            />
+            {/* Toolbar y Filtros Alineados */}
+            <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-end", mb: 2, flexWrap: "wrap" }}>
+              <Box sx={{ flex: 1, minWidth: 280 }}>
+                <TableToolbar
+                  searchValue={searchPasajeros}
+                  onSearchChange={setSearchPasajeros}
+                  searchPlaceholder="Nombre, Email del Pasajero"
+                  sortOptions={[
+                    { label: "↑ Nombre (ASC)", value: "nombre-asc" },
+                    { label: "↓ Nombre (DESC)", value: "nombre-desc" },
+                    { label: "↑ Email (ASC)", value: "email-asc" },
+                    { label: "↓ Email (DESC)", value: "email-desc" },
+                    { label: "↑ Más Recientes", value: "recientes" },
+                    { label: "↓ Más Antiguos", value: "antiguos" },
+                  ]}
+                  sortValue={sortByPasajeros}
+                  onSortChange={setSortByPasajeros}
+                  visibleColumns={visibleColumnsPasajeros}
+                  onColumnChange={(col, visible) => setVisibleColumnsPasajeros(prev => ({ ...prev, [col]: visible }))}
+                  showClearButton={true}
+                  onClearAll={handleClearAllPasajeros}
+                  dateFilter={dateFilterTypePasajeros}
+                />
+              </Box>
+              
+              {/* Filtro de Fecha para Pasajeros */}
+              <DateFilterComponent
+                onFilterChange={handleDateFilterChangePasajeros}
+                onSortChange={handleSortByDatePasajeros}
+                currentSort={sortByDatePasajeros}
+                currentDateFilter={dateFilterTypePasajeros}
+              />
+            </Box>
 
             <Paper sx={{ boxShadow: "0 2px 8px rgba(0,0,0,0.1)", borderRadius: 2, overflow: "hidden" }}>
               <TableContainer>
@@ -1156,38 +1477,53 @@ const GestionUsuarios = () => {
 
         {tabValue === 2 && (
           <>
-            {/* Toolbar para Conductores */}
-            <TableToolbar
-              searchValue={searchConductores}
-              onSearchChange={setSearchConductores}
-              sortOptions={[
-                { label: "↑ Sort by Nombre (ASC)", value: "nombre-asc" },
-                { label: "↓ Sort by Nombre (DESC)", value: "nombre-desc" },
-                { label: "↑ Sort by Email (ASC)", value: "email-asc" },
-                { label: "↓ Sort by Email (DESC)", value: "email-desc" },
-                { label: "↓ Más Recientes", value: "fecha-recientes" },
-                { label: "↑ Más Antiguos", value: "fecha-antiguos" },
-              ]}
-              sortValue={sortByConductores}
-              onSortChange={setSortByConductores}
-              filterOptions={[
-                {
-                  name: "estado",
-                  label: "Estado",
-                  defaultValue: "todos",
-                  options: [
-                    { label: "Todos", value: "todos" },
-                    { label: "Activos", value: "activos" },
-                    { label: "Inactivos", value: "inactivos" },
-                  ],
-                },
-              ]}
-              filterValue={{ estado: filterEstadoConductores }}
-              onFilterChange={(name, value) => setFilterEstadoConductores(value)}
-              visibleColumns={visibleColumnsConductores}
-              onColumnChange={(col, visible) => setVisibleColumnsConductores(prev => ({ ...prev, [col]: visible }))}
-              showClearButton={true}
-            />
+            {/* Toolbar y Filtros Alineados */}
+            <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-end", mb: 2, flexWrap: "wrap" }}>
+              <Box sx={{ flex: 1, minWidth: 280 }}>
+                <TableToolbar
+                  searchValue={searchConductores}
+                  onSearchChange={setSearchConductores}
+                  searchPlaceholder="Nombre, Email, Categoría, Flota"
+                  sortOptions={[
+                    { label: "↑ Nombre (ASC)", value: "nombre-asc" },
+                    { label: "↓ Nombre (DESC)", value: "nombre-desc" },
+                    { label: "↑ Email (ASC)", value: "email-asc" },
+                    { label: "↓ Email (DESC)", value: "email-desc" },
+                    { label: "↑ Más Recientes", value: "recientes" },
+                    { label: "↓ Más Antiguos", value: "antiguos" },
+                  ]}
+                  sortValue={sortByConductores}
+                  onSortChange={setSortByConductores}
+                  filterOptions={[
+                    {
+                      name: "estado",
+                      label: "Estado",
+                      defaultValue: "todos",
+                      options: [
+                        { label: "Todos", value: "todos" },
+                        { label: "Activos", value: "activos" },
+                        { label: "Inactivos", value: "inactivos" },
+                      ],
+                    },
+                  ]}
+                  filterValue={{ estado: filterEstadoConductores }}
+                  onFilterChange={(name, value) => setFilterEstadoConductores(value)}
+                  visibleColumns={visibleColumnsConductores}
+                  onColumnChange={(col, visible) => setVisibleColumnsConductores(prev => ({ ...prev, [col]: visible }))}
+                  showClearButton={true}
+                  onClearAll={handleClearAllConductores}
+                  dateFilter={dateFilterTypeConductores}
+                />
+              </Box>
+              
+              {/* Filtro de Fecha para Conductores */}
+              <DateFilterComponent
+                onFilterChange={handleDateFilterChangeConductores}
+                onSortChange={handleSortByDateConductores}
+                currentSort={sortByDateConductores}
+                currentDateFilter={dateFilterTypeConductores}
+              />
+            </Box>
 
             <Paper sx={{ boxShadow: "0 2px 8px rgba(0,0,0,0.1)", borderRadius: 2, overflow: "hidden" }}>
               <TableContainer>
@@ -1447,6 +1783,20 @@ const GestionUsuarios = () => {
             value={formData.nombre}
             onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
           />
+
+          {!editingUser && (
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Rol</InputLabel>
+              <Select
+                value={formData.role}
+                label="Rol"
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              >
+                <MenuItem value="admin">Admin</MenuItem>
+                <MenuItem value="superadmin">Super Admin</MenuItem>
+              </Select>
+            </FormControl>
+          )}
 
           {editingUser?.modo === "pasajero" && (
             <>

@@ -27,6 +27,7 @@ import AddIcon from "@mui/icons-material/Add";
 import QrCodeIcon from "@mui/icons-material/QrCode";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
+import DateFilterComponent from "../usuarios/components/DateFilterComponent";
 import { useAuth } from "../../../auth/AuthContext";
 import {
   uploadImageToApi,
@@ -75,8 +76,10 @@ const BilleteraFlota = () => {
   });
   const [searchSolicitudes, setSearchSolicitudes] = useState("");
   const [sortBySolicitudes, setSortBySolicitudes] = useState("fecha-desc");
+  const [periodFilterSolicitudes, setPeriodFilterSolicitudes] = useState("todos");
   const [searchHistorial, setSearchHistorial] = useState("");
   const [sortByHistorial, setSortByHistorial] = useState("fecha-desc");
+  const [periodFilterHistorial, setPeriodFilterHistorial] = useState("todos");
 
   // Estados para el modal QR
   const [qrModalOpen, setQrModalOpen] = useState(false);
@@ -405,6 +408,58 @@ const BilleteraFlota = () => {
   const solicitudesFiltradas = useMemo(() => {
     let filtered = solicitudes;
 
+    // Filtro por período
+    if (periodFilterSolicitudes !== "todos") {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      filtered = filtered.filter((s) => {
+        if (!s.fechaSolicitud) return false;
+        
+        let fechaDate;
+        if (s.fechaSolicitud?.toDate && typeof s.fechaSolicitud.toDate === 'function') {
+          fechaDate = s.fechaSolicitud.toDate();
+        } else if (typeof s.fechaSolicitud === 'string') {
+          fechaDate = new Date(s.fechaSolicitud);
+        } else if (s.fechaSolicitud instanceof Date) {
+          fechaDate = s.fechaSolicitud;
+        } else if (s.fechaSolicitud?.seconds) {
+          fechaDate = new Date(s.fechaSolicitud.seconds * 1000);
+        } else {
+          return false;
+        }
+        
+        // Obtener solo la fecha (ignorar hora)
+        const registroDate = new Date(fechaDate.getFullYear(), fechaDate.getMonth(), fechaDate.getDate());
+        
+        switch (periodFilterSolicitudes) {
+          case "hoy":
+            return registroDate.getTime() === today.getTime();
+          case "esta-semana": {
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - today.getDay());
+            return registroDate >= startOfWeek && registroDate <= today;
+          }
+          case "este-mes": {
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            return registroDate >= startOfMonth && registroDate <= today;
+          }
+          case "ultimos-7": {
+            const hace7Dias = new Date(today);
+            hace7Dias.setDate(hace7Dias.getDate() - 7);
+            return registroDate >= hace7Dias && registroDate <= today;
+          }
+          case "ultimos-30": {
+            const hace30Dias = new Date(today);
+            hace30Dias.setDate(hace30Dias.getDate() - 30);
+            return registroDate >= hace30Dias && registroDate <= today;
+          }
+          default:
+            return true;
+        }
+      });
+    }
+
     // Filtro por búsqueda
     if (searchSolicitudes) {
       const search = searchSolicitudes.toLowerCase();
@@ -443,7 +498,7 @@ const BilleteraFlota = () => {
     }
 
     return sorted;
-  }, [solicitudes, searchSolicitudes, sortBySolicitudes]);
+  }, [solicitudes, searchSolicitudes, sortBySolicitudes, periodFilterSolicitudes]);
 
   // Paginación para solicitudes
   const solicitudesPaginadas = useMemo(() => {
@@ -459,6 +514,60 @@ const BilleteraFlota = () => {
   // Filtrado y ordenamiento para historial
   const historialFiltrado = useMemo(() => {
     let filtered = historial;
+
+    // Filtro por período
+    if (periodFilterHistorial !== "todos") {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      filtered = filtered.filter((h) => {
+        if (!h.timestamp && !h.fechaRegistro) return false;
+        
+        // Usar timestamp o fechaRegistro
+        let fechaDate;
+        const fecha = h.timestamp || h.fechaRegistro;
+        if (fecha?.toDate && typeof fecha.toDate === 'function') {
+          fechaDate = fecha.toDate();
+        } else if (typeof fecha === 'string') {
+          fechaDate = new Date(fecha);
+        } else if (fecha instanceof Date) {
+          fechaDate = fecha;
+        } else if (fecha?.seconds) {
+          fechaDate = new Date(fecha.seconds * 1000);
+        } else {
+          return false;
+        }
+        
+        // Obtener solo la fecha (ignorar hora)
+        const registroDate = new Date(fechaDate.getFullYear(), fechaDate.getMonth(), fechaDate.getDate());
+        
+        switch (periodFilterHistorial) {
+          case "hoy":
+            return registroDate.getTime() === today.getTime();
+          case "esta-semana": {
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - today.getDay());
+            return registroDate >= startOfWeek && registroDate <= today;
+          }
+          case "este-mes": {
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            return registroDate >= startOfMonth && registroDate <= today;
+          }
+          case "ultimos-7": {
+            const hace7Dias = new Date(today);
+            hace7Dias.setDate(hace7Dias.getDate() - 7);
+            return registroDate >= hace7Dias && registroDate <= today;
+          }
+          case "ultimos-30": {
+            const hace30Dias = new Date(today);
+            hace30Dias.setDate(hace30Dias.getDate() - 30);
+            return registroDate >= hace30Dias && registroDate <= today;
+          }
+          default:
+            return true;
+        }
+      });
+    }
 
     // Filtro por búsqueda
     if (searchHistorial) {
@@ -496,7 +605,7 @@ const BilleteraFlota = () => {
     }
 
     return sorted;
-  }, [historial, searchHistorial, sortByHistorial]);
+  }, [historial, searchHistorial, sortByHistorial, periodFilterHistorial]);
 
   // Paginación para historial
   const historialPaginado = useMemo(() => {
@@ -673,6 +782,10 @@ const BilleteraFlota = () => {
                   ]}
                 />
               </Box>
+              <DateFilterComponent
+                onFilterChange={setPeriodFilterSolicitudes}
+                currentDateFilter={periodFilterSolicitudes}
+              />
             </Box>
             <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
               <Table stickyHeader>
@@ -876,6 +989,10 @@ const BilleteraFlota = () => {
                   ]}
                 />
               </Box>
+              <DateFilterComponent
+                onFilterChange={setPeriodFilterHistorial}
+                currentDateFilter={periodFilterHistorial}
+              />
             </Box>
             <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
               <Table stickyHeader>

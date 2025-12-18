@@ -8,7 +8,6 @@ import {
   addDoc,
   serverTimestamp,
   query,
-  orderBy,
   onSnapshot,
 } from "firebase/firestore";
 import { db } from "../data/firebase/firebase";
@@ -19,11 +18,10 @@ import { db } from "../data/firebase/firebase";
 const FLOTAS_PATH = "flotas";
 
 // Funciones helper para construir rutas correctamente
-// Estructura: flotas/{uidFlota}/billetera/ (DOCUMENTO)
-//                       saldo/ (DOCUMENTO dentro de billetera)
-//                         - saldo: number
-//                         - createdAt, updatedAt: timestamps
-//                         - transacciones/ (SUBCOLLECCIÓN dentro de saldo)
+// Estructura: flotas/{uidFlota}/billetera/saldo (DOCUMENTO)
+//                       - monto: number
+//                       - createdAt, updatedAt: timestamps
+//                       - transacciones/ (SUBCOLLECCIÓN dentro de saldo)
 //                           - {transactionId}: { tipo, monto, ... }
 
 const getBilleteraRef = (flotaId) => doc(db, "flotas", flotaId, "billetera", "saldo");
@@ -127,21 +125,135 @@ export const obtenerFlota = async (flotaId) => {
 
 /**
  * Obtiene el historial de transacciones de una flota
- * Estructura: flotas/{uidFlota}/billetera/{billeteraDoc}/transacciones/
+ * Estructura: flotas/{uidFlota}/billetera/saldo/transacciones/
  */
 export const obtenerHistorialFlota = async (flotaId) => {
   try {
     const transaccionesRef = getTransaccionesRef(flotaId);
-    const q = query(transaccionesRef, orderBy("timestamp", "desc"));
     
-    const snapshot = await getDocs(q);
+    // Primero intentar sin orderBy (sin requerir índice)
+    const snapshot = await getDocs(transaccionesRef);
     
-    return snapshot.docs.map(doc => ({
+    console.log(`[DEBUG] Historial para flota ${flotaId}:`, {
+      ruta: `flotas/${flotaId}/billetera/saldo/transacciones`,
+      cantidad: snapshot.docs.length,
+      datos: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    });
+    
+    // Ordenar en el cliente
+    const transacciones = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-    }));
+    })).sort((a, b) => {
+      // Ordenar por timestamp descendente
+      const timestampA = a.timestamp?.seconds || 0;
+      const timestampB = b.timestamp?.seconds || 0;
+      return timestampB - timestampA;
+    });
+    
+    return transacciones;
   } catch (error) {
     console.error("Error al obtener historial:", error);
+    console.error("[DEBUG] Error details:", {
+      mensaje: error.message,
+      codigo: error.code
+    });
+    throw error;
+  }
+};
+
+/**
+ * Obtiene todas las transacciones de todas las flotas (historial consolidado)
+ * @returns {Array} Array con todas las transacciones ordenadas por fecha descendente
+ */
+/**
+ * Obtiene todas las transacciones de todas las flotas enriquecidas con datos de solicitudes
+ * Lee desde flotas/{flotaId}/billetera/saldo/transacciones
+ * Para cada transacción, busca la solicitud relacionada y agrega comprobante
+ */
+export const obtenerTodasLasTransacciones = async () => {
+  try {
+    const flotasRef = collection(db, FLOTAS_PATH);
+    const flotasSnapshot = await getDocs(flotasRef);
+    
+    let todasLasTransacciones = [];
+    
+    // Para cada flota, obtener sus transacciones
+    await Promise.all(
+      flotasSnapshot.docs.map(async (flotaDoc) => {
+        try {
+          const flotaId = flotaDoc.id;
+          const flotaData = flotaDoc.data();
+          
+          // Obtener transacciones de este flota
+          const transaccionesRef = getTransaccionesRef(flotaId);
+          const transaccionesSnapshot = await getDocs(transaccionesRef);
+          
+          // Para cada transacción, buscar su solicitud relacionada
+          await Promise.all(
+            transaccionesSnapshot.docs.map(async (transDoc) => {
+              try {
+                const transaccionData = transDoc.data();
+                const solicitudId = transaccionData.solicitudId;
+                
+                let comprobanteUrl = null;
+                let estado = null;
+                let nroComprobante = null;
+                let razonRechazo = null;
+                
+                // Si tiene solicitudId, buscar la solicitud para obtener el comprobante
+                if (solicitudId) {
+                  try {
+                    const solicitudRef = doc(db, FLOTAS_PATH, flotaId, "solicitudesRecarga", solicitudId);
+                    const solicitudSnapshot = await getDoc(solicitudRef);
+                    if (solicitudSnapshot.exists()) {
+                      const solicitudData = solicitudSnapshot.data();
+                      comprobanteUrl = solicitudData.comprobanteUrl || null;
+                      estado = solicitudData.estado || null;
+                      nroComprobante = solicitudData.nroComprobante || null;
+                      razonRechazo = solicitudData.razonRechazo || null;
+                    }
+                  } catch (err) {
+                    console.warn(`Error obteniendo solicitud ${solicitudId}:`, err);
+                  }
+                }
+                
+                todasLasTransacciones.push({
+                  id: transDoc.id,
+                  flotaId: flotaId,
+                  flotaNombre: flotaData.nombre || "Sin nombre",
+                  comprobanteUrl,
+                  estado,
+                  nroComprobante,
+                  razonRechazo,
+                  ...transaccionData,
+                });
+              } catch (err) {
+                console.warn(`Error procesando transacción:`, err);
+              }
+            })
+          );
+        } catch (err) {
+          console.warn(`Error obteniendo transacciones de flota ${flotaDoc.id}:`, err);
+        }
+      })
+    );
+    
+    // Ordenar por timestamp descendente (más recientes primero)
+    todasLasTransacciones.sort((a, b) => {
+      const timestampA = a.timestamp?.seconds || 0;
+      const timestampB = b.timestamp?.seconds || 0;
+      return timestampB - timestampA;
+    });
+    
+    console.log("[DEBUG] Todas las transacciones obtenidas:", {
+      cantidad: todasLasTransacciones.length,
+      datos: todasLasTransacciones
+    });
+    
+    return todasLasTransacciones;
+  } catch (error) {
+    console.error("Error obteniendo transacciones:", error);
     throw error;
   }
 };

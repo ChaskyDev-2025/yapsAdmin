@@ -11,6 +11,7 @@ import { InputAdornment } from "@mui/material";
  * Componente reutilizable para barra de herramientas de tabla
  * @param {string} searchValue - Valor actual de búsqueda
  * @param {function} onSearchChange - Callback cuando cambia búsqueda
+ * @param {string} searchPlaceholder - Texto placeholder de búsqueda
  * @param {array} sortOptions - Opciones de ordenamiento [{label, value}]
  * @param {string} sortValue - Valor actual de ordenamiento
  * @param {function} onSortChange - Callback cuando cambia ordenamiento
@@ -20,10 +21,13 @@ import { InputAdornment } from "@mui/material";
  * @param {object} visibleColumns - Objeto con columnas visibles {col1: true, col2: false}
  * @param {function} onColumnChange - Callback cuando cambia visibilidad de columna
  * @param {boolean} showClearButton - Mostrar botón limpiar
+ * @param {function} onClearAll - Callback para limpiar todos los filtros incluyendo fecha
+ * @param {string} dateFilter - Estado actual del filtro de período (todos, hoy, esta-semana, etc)
  */
 export const TableToolbar = ({
   searchValue = "",
   onSearchChange = () => {},
+  searchPlaceholder = "",
   sortOptions = [],
   sortValue = "",
   onSortChange = () => {},
@@ -33,24 +37,26 @@ export const TableToolbar = ({
   visibleColumns = {},
   onColumnChange = () => {},
   showClearButton = false,
+  onClearAll = () => {},
+  dateFilter = "todos",
 }) => {
   const [openSort, setOpenSort] = useState(false);
   const [openColumns, setOpenColumns] = useState(false);
   const sortRef = useRef(null);
   const columnsRef = useRef(null);
 
-  const hasActiveFilters = searchValue || Object.values(filterValue).some(v => v && v !== "todos");
+  const hasActiveFilters = searchValue || Object.values(filterValue).some(v => v && v !== "todos") || (dateFilter && dateFilter !== "todos");
 
   return (
-    <Box sx={{ p: 2, bgcolor: "#f5f5f5", mb: 2, borderRadius: 1 }}>
-      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
-        {/* Buscador */}
+    <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "flex-end" }}>
+      {/* Buscador con placeholder */}
+      <Box sx={{ flex: 1, minWidth: "250px" }}>
         <TextField
-          placeholder="Buscar..."
+          placeholder={searchPlaceholder}
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
           size="small"
-          sx={{ flex: 1, minWidth: "250px" }}
+          fullWidth
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -70,8 +76,10 @@ export const TableToolbar = ({
             ),
           }}
         />
+      </Box>
 
-        {/* Filtros */}
+      {/* Filtros */}
+      <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end", flexWrap: "wrap" }}>
         {filterOptions.length > 0 && filterOptions.map((filter) => (
           <TextField
             key={filter.name}
@@ -186,6 +194,7 @@ export const TableToolbar = ({
             onClick={() => {
               onSearchChange("");
               filterOptions.forEach(f => onFilterChange(f.name, f.defaultValue || ""));
+              onClearAll();
             }}
             sx={{ color: "#d7171a", borderColor: "#d7171a" }}
           >

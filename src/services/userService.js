@@ -1,7 +1,7 @@
 // src/services/userService.js
 import { db, auth } from "../data/firebase/firebase";
-import { collection, getDocs, doc, updateDoc, setDoc, query, where, arrayUnion, arrayRemove } from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { collection, getDocs, doc, updateDoc, setDoc, query, where, arrayUnion, arrayRemove, deleteDoc } from "firebase/firestore";
+import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail } from "firebase/auth";
 
 /**
  * Crear un nuevo usuario admin en Firebase Auth y Firestore
@@ -9,6 +9,33 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
  */
 export async function createAdminUser(userData) {
   try {
+    // 0. Verificar si el email ya existe en Firebase Auth
+    try {
+      const signInMethods = await fetchSignInMethodsForEmail(auth, userData.email);
+      if (signInMethods.length > 0) {
+        // Email existe en Auth, verificar si existe en Firestore
+        const userQuery = query(collection(db, "users"), where("email", "==", userData.email));
+        const userSnapshot = await getDocs(userQuery);
+        
+        if (userSnapshot.empty) {
+          // Email en Auth pero NO en Firestore - usuario huérfano
+          return { 
+            success: false, 
+            error: `El email ${userData.email} ya está registrado en el sistema pero no tiene perfil. Contacta al administrador.`,
+            orphaned: true 
+          };
+        } else {
+          // Email en ambos - usuario ya existe
+          return { 
+            success: false, 
+            error: "Este email ya está registrado" 
+          };
+        }
+      }
+    } catch (error) {
+      // Si hay error verificando, continuar igual (puede ser limitación de rate limit)
+      console.warn("⚠️ No se pudo verificar email:", error);
+    }
     
     // 1. Crear usuario en Firebase Authentication
     const userCredential = await createUserWithEmailAndPassword(
@@ -44,14 +71,9 @@ export async function createAdminUser(userData) {
       }
     }
     
-    // 4. Cerrar sesión del usuario recién creado
-    // Nota: Esto cerrará la sesión actual, por lo que el SuperAdmin debe volver a iniciar sesión
-    await auth.signOut();
-    
     return {
       success: true,
       id: uid,
-      requiresRelogin: true, // Flag para indicar que se necesita re-login
     };
 
   } catch (error) {
@@ -161,15 +183,37 @@ export async function updateUser(userId, userData) {
 }
 
 /**
- * Eliminar un usuario (soft delete - marcar como inactivo)
+ * Eliminar un usuario (hard delete - elimina completamente de Firestore)
  */
 export async function deleteUser(userId) {
   try {
+    // 1. Obtener datos del usuario para remover de flotas si es necesario
+    let userFlotaId = null;
+    try {
+      const userSnapshot = await getDocs(query(collection(db, "users"), where("__name__", "==", userId)));
+      userSnapshot.forEach((doc) => {
+        userFlotaId = doc.data().flotaId;
+      });
+    } catch (error) {
+      console.warn("⚠️ No se pudo obtener datos del usuario:", error);
+    }
+
+    // 2. Remover de flota si existe
+    if (userFlotaId) {
+      try {
+        const flotaRef = doc(db, "flotas", userFlotaId);
+        await updateDoc(flotaRef, {
+          uidPropietarios: arrayRemove(userId),
+        });
+      } catch (error) {
+        console.warn("⚠️ No se pudo remover usuario de flota:", error);
+      }
+    }
+
+    // 3. Eliminar documento del usuario de Firestore
     const userRef = doc(db, "users", userId);
-    await updateDoc(userRef, {
-      active: false,
-      deletedAt: new Date().toISOString(),
-    });
+    await deleteDoc(userRef);
+    
     return { success: true };
   } catch (error) {
     console.error("❌ Error eliminando usuario:", error);

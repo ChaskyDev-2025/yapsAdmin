@@ -14,6 +14,10 @@ import {
   IconButton,
   Typography,
   Pagination,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
 } from "@mui/material";
 import { useAuth } from "../../../auth/AuthContext";
 import { useUserFlota, useDocumentosPendientes } from "./hooks/useDocumentosPendientes";
@@ -32,6 +36,7 @@ const DocumentosPendientes = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchDocumentos, setSearchDocumentos] = useState("");
   const [sortByDocumentos, setSortByDocumentos] = useState("nombre-asc");
+  const [filterEstadoDocumentos, setFilterEstadoDocumentos] = useState("todos");
   const [visibleColumnsDocumentos, setVisibleColumnsDocumentos] = useState({
     foto: true,
     nombre: true,
@@ -88,6 +93,35 @@ const DocumentosPendientes = () => {
   const trabajadoresFiltrados = useMemo(() => {
     let filtered = trabajadores;
 
+    // Filtro por estado de documentos
+    if (filterEstadoDocumentos !== "todos") {
+      filtered = filtered.filter(t => {
+        const documentos = t.documentos || {};
+        const tieneDocumentos = Object.keys(documentos).length > 0;
+        
+        if (!tieneDocumentos) return false;
+        
+        if (filterEstadoDocumentos === "pendientes") {
+          const docsPendientes = getDocumentosPendientes(documentos);
+          return docsPendientes.length > 0;
+        } else if (filterEstadoDocumentos === "aprobados") {
+          const docsAprobados = Object.values(documentos).filter(
+            d => d && typeof d === 'object' && d.estado === "aprobado"
+          );
+          return docsAprobados.length > 0;
+        } else if (filterEstadoDocumentos === "rechazados") {
+          const docsRechazados = Object.values(documentos).filter(
+            d => d && typeof d === 'object' && d.estado === "rechazado"
+          );
+          return docsRechazados.length > 0;
+        } else if (filterEstadoDocumentos === "sin-docs") {
+          return !tieneDocumentos || Object.keys(documentos).length === 0;
+        }
+        return true;
+      });
+    }
+
+    // Búsqueda
     if (searchDocumentos) {
       const search = searchDocumentos.toLowerCase();
       filtered = filtered.filter(t =>
@@ -112,7 +146,7 @@ const DocumentosPendientes = () => {
     }
 
     return sorted;
-  }, [trabajadores, searchDocumentos, sortByDocumentos]);
+  }, [trabajadores, searchDocumentos, sortByDocumentos, filterEstadoDocumentos]);
 
   // Paginación
   const trabajadoresPaginados = useMemo(() => {
@@ -129,26 +163,45 @@ const DocumentosPendientes = () => {
         <DocumentosHeader nombreFlota={nombreFlota} hasFlota={!!userFlotaId}>
           {userFlotaId && (
             <Box>
-              <TableToolbar
-                searchValue={searchDocumentos}
-                onSearchChange={setSearchDocumentos}
-                sortValue={sortByDocumentos}
-                onSortChange={setSortByDocumentos}
-                sortOptions={[
-                  { label: "↑ Sort by Nombre (ASC)", value: "nombre-asc" },
-                  { label: "↓ Sort by Nombre (DESC)", value: "nombre-desc" },
-                  { label: "↓ Sort by Documentos Pendientes", value: "pendientes-desc" },
-                ]}
-                placeholder="Buscar por nombre o email..."
-                sx={{ mb: 3 }}
-                visibleColumns={visibleColumnsDocumentos}
-                onColumnChange={(col, visible) => setVisibleColumnsDocumentos(prev => ({ ...prev, [col]: visible }))}
-                showClearButton={searchDocumentos !== ""}
-                onClear={() => {
-                  setSearchDocumentos("");
-                  setSortByDocumentos("nombre-asc");
-                }}
-              />
+              <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <Box sx={{ flex: 1 }}>
+                  <TableToolbar
+                    searchValue={searchDocumentos}
+                    onSearchChange={setSearchDocumentos}
+                    sortValue={sortByDocumentos}
+                    onSortChange={setSortByDocumentos}
+                    sortOptions={[
+                      { label: "↑ Sort by Nombre (ASC)", value: "nombre-asc" },
+                      { label: "↓ Sort by Nombre (DESC)", value: "nombre-desc" },
+                      { label: "↓ Sort by Documentos Pendientes", value: "pendientes-desc" },
+                    ]}
+                    placeholder="Buscar por nombre o email..."
+                    visibleColumns={visibleColumnsDocumentos}
+                    onColumnChange={(col, visible) => setVisibleColumnsDocumentos(prev => ({ ...prev, [col]: visible }))}
+                    showClearButton={searchDocumentos !== ""}
+                    onClear={() => {
+                      setSearchDocumentos("");
+                      setSortByDocumentos("nombre-asc");
+                      setFilterEstadoDocumentos("todos");
+                    }}
+                  />
+                </Box>
+                <FormControl sx={{ minWidth: 200 }} size="small">
+                  <InputLabel sx={{ fontSize: "0.875rem" }}>Estado de Documentos</InputLabel>
+                  <Select
+                    value={filterEstadoDocumentos}
+                    label="Estado de Documentos"
+                    onChange={(e) => setFilterEstadoDocumentos(e.target.value)}
+                    size="small"
+                  >
+                    <MenuItem value="todos">Todos</MenuItem>
+                    <MenuItem value="pendientes">Con Documentos Pendientes</MenuItem>
+                    <MenuItem value="aprobados">Con Documentos Aprobados</MenuItem>
+                    <MenuItem value="rechazados">Con Documentos Rechazados</MenuItem>
+                    <MenuItem value="sin-docs">Sin Documentos</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
 
               <TableContainer>
                 <Table>

@@ -45,8 +45,8 @@ export function useTrabajadoresPorFlota(flotaId) {
             const nombreUsuario = trabajador.perfil?.name || "Trabajador sin nombre";
             const telefono = trabajador.telefono || "Sin teléfono";
             const email = trabajador.perfil?.email || trabajador.email || "Sin email";
-            const fecha = formatearFecha(trabajador.perfil?.createdAt);
             const fotoUrl = trabajador.perfil?.photoUrl || "";
+            const createdAt = trabajador.perfil?.createdAt || null;
 
             return {
               id: doc.id,
@@ -55,7 +55,6 @@ export function useTrabajadoresPorFlota(flotaId) {
               nombreEmpresa: nombreUsuario,
               telefono,
               email,
-              fecha,
               representante: email,
               logoUrl: fotoUrl,
               logo: fotoUrl,
@@ -70,6 +69,7 @@ export function useTrabajadoresPorFlota(flotaId) {
               flotaId: trabajador.flotaId || "-",
               flotaNombre: trabajador.flotaNombre || "-",
               servicio: trabajador.servicio || "-",
+              createdAt: createdAt,
             };
           })
           .filter(item => {

@@ -30,6 +30,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DetalleModal from "./components/modalGenerico";
 import TableToolbar from "../usuarios/components/TableToolbar";
+import DateFilterComponent from "../usuarios/components/DateFilterComponent";
 import { useAuth } from "../../../auth/AuthContext";
 import { doc, getDoc, deleteDoc, updateDoc, collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
@@ -54,6 +55,7 @@ const Radiotaxis = () => {
   const [searchRadiotaxis, setSearchRadiotaxis] = useState("");
   const [sortByRadiotaxis, setSortByRadiotaxis] = useState("nombre-asc");
   const [pageRadiotaxis, setPageRadiotaxis] = useState(0);
+  const [periodFilterRadiotaxis, setPeriodFilterRadiotaxis] = useState("todas");
   const [visibleColumnsRadiotaxis, setVisibleColumnsRadiotaxis] = useState({
     nombre: true,
     email: true,
@@ -81,6 +83,7 @@ const Radiotaxis = () => {
         const telefono = trabajador.telefono || "Sin teléfono";
         const email = trabajador.perfil?.email || trabajador.email || "Sin email";
         const fotoUrl = trabajador.perfil?.photoUrl || "";
+        const createdAt = trabajador.perfil?.createdAt || null;
 
         return {
           id: docSnap.id,
@@ -102,6 +105,7 @@ const Radiotaxis = () => {
           flotaId: trabajador.flotaId || "-",
           flotaNombre: trabajador.flotaNombre || "-",
           servicio: trabajador.servicio || "-",
+          createdAt: createdAt,
         };
       });
       setAllRadiotaxis(data);
@@ -239,6 +243,59 @@ const Radiotaxis = () => {
   const radiotaxisFiltrados = useMemo(() => {
     let filtered = displayRows;
     
+    // Filtro por período
+    if (periodFilterRadiotaxis !== "todas") {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      filtered = filtered.filter((radio) => {
+        if (!radio.createdAt) return false;
+        
+        // Convertir timestamp de Firebase a Date
+        let fechaDate;
+        if (radio.createdAt?.toDate && typeof radio.createdAt.toDate === 'function') {
+          fechaDate = radio.createdAt.toDate();
+        } else if (typeof radio.createdAt === 'string') {
+          fechaDate = new Date(radio.createdAt);
+        } else if (radio.createdAt instanceof Date) {
+          fechaDate = radio.createdAt;
+        } else if (radio.createdAt?.seconds) {
+          fechaDate = new Date(radio.createdAt.seconds * 1000);
+        } else {
+          return false;
+        }
+        
+        // Obtener solo la fecha (ignorar hora)
+        const registroDate = new Date(fechaDate.getFullYear(), fechaDate.getMonth(), fechaDate.getDate());
+        
+        switch (periodFilterRadiotaxis) {
+          case "hoy":
+            return registroDate.getTime() === today.getTime();
+          case "esta-semana": {
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - today.getDay());
+            return registroDate >= startOfWeek && registroDate <= today;
+          }
+          case "este-mes": {
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            return registroDate >= startOfMonth && registroDate <= today;
+          }
+          case "ultimos-7": {
+            const hace7Dias = new Date(today);
+            hace7Dias.setDate(hace7Dias.getDate() - 7);
+            return registroDate >= hace7Dias && registroDate <= today;
+          }
+          case "ultimos-30": {
+            const hace30Dias = new Date(today);
+            hace30Dias.setDate(hace30Dias.getDate() - 30);
+            return registroDate >= hace30Dias && registroDate <= today;
+          }
+          default:
+            return true;
+        }
+      });
+    }
+    
     // Filtro por búsqueda
     if (searchRadiotaxis) {
       const search = searchRadiotaxis.toLowerCase();
@@ -262,7 +319,7 @@ const Radiotaxis = () => {
     }
     
     return sorted;
-  }, [displayRows, searchRadiotaxis, sortByRadiotaxis]);
+  }, [displayRows, searchRadiotaxis, sortByRadiotaxis, periodFilterRadiotaxis]);
 
   // Paginación
   const radiotaxisPaginados = useMemo(() => {
@@ -283,7 +340,7 @@ const Radiotaxis = () => {
           Aquí puedes gestionar los radiotaxis que han enviado sus documentos.
         </Typography>
 
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2, mt: 3 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2, mt: 3, flexWrap: "wrap" }}>
           <Box sx={{ flex: 1 }}>
             <TableToolbar
               searchValue={searchRadiotaxis}
@@ -303,6 +360,10 @@ const Radiotaxis = () => {
               }}
             />
           </Box>
+          <DateFilterComponent
+            onFilterChange={setPeriodFilterRadiotaxis}
+            currentDateFilter={periodFilterRadiotaxis}
+          />
         </Box>
 
         {cargando ? (
@@ -327,6 +388,9 @@ const Radiotaxis = () => {
                     Teléfono
                   </TableCell>
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                    Fecha Registro
+                  </TableCell>
+                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
                     Documentos Aprobados
                   </TableCell>
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
@@ -340,7 +404,7 @@ const Radiotaxis = () => {
               <TableBody>
                 {radiotaxisPaginados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={8} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                         No hay radiotaxis registrados
                       </Typography>
@@ -374,6 +438,23 @@ const Radiotaxis = () => {
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                         {radio.telefono || "-"}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontSize: "0.9rem" }}>
+                        {radio.createdAt
+                          ? (() => {
+                              let date;
+                              if (radio.createdAt?.toDate && typeof radio.createdAt.toDate === 'function') {
+                                date = radio.createdAt.toDate();
+                              } else if (typeof radio.createdAt === 'string') {
+                                date = new Date(radio.createdAt);
+                              } else if (radio.createdAt instanceof Date) {
+                                date = radio.createdAt;
+                              } else {
+                                return "-";
+                              }
+                              return date.toLocaleDateString("es-ES");
+                            })()
+                          : "-"}
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                         <Typography

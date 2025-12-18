@@ -34,6 +34,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
+import DateFilterComponent from "../usuarios/components/DateFilterComponent";
 import GenerarOfertaModal from "./components/GenerarOfertaModal";
 
 const SolicitudesAsignadas = () => {
@@ -72,6 +73,7 @@ const SolicitudesAsignadas = () => {
   const [ofertaDialogOpen, setOfertaDialogOpen] = useState(false);
   const [solicitudOferta, setSolicitudOferta] = useState(null);
   const [pageSolicitudes, setPageSolicitudes] = useState(0);
+  const [periodFilterSolicitudes, setPeriodFilterSolicitudes] = useState("todos");
   const ITEMS_PER_PAGE = 10;
 
   // Resetear página al cambiar búsqueda
@@ -241,6 +243,59 @@ const SolicitudesAsignadas = () => {
   const solicitudesFiltradas = useMemo(() => {
     let resultado = solicitudes;
 
+    // Filtro por período
+    if (periodFilterSolicitudes !== "todos") {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      resultado = resultado.filter((sol) => {
+        if (!sol.solicitud?.fechaCreacion) return false;
+        
+        let fechaDate;
+        const fecha = sol.solicitud.fechaCreacion;
+        if (fecha?.toDate && typeof fecha.toDate === 'function') {
+          fechaDate = fecha.toDate();
+        } else if (typeof fecha === 'string') {
+          fechaDate = new Date(fecha);
+        } else if (fecha instanceof Date) {
+          fechaDate = fecha;
+        } else if (fecha?.seconds) {
+          fechaDate = new Date(fecha.seconds * 1000);
+        } else {
+          return false;
+        }
+        
+        // Obtener solo la fecha (ignorar hora)
+        const registroDate = new Date(fechaDate.getFullYear(), fechaDate.getMonth(), fechaDate.getDate());
+        
+        switch (periodFilterSolicitudes) {
+          case "hoy":
+            return registroDate.getTime() === today.getTime();
+          case "esta-semana": {
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - today.getDay());
+            return registroDate >= startOfWeek && registroDate <= today;
+          }
+          case "este-mes": {
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            return registroDate >= startOfMonth && registroDate <= today;
+          }
+          case "ultimos-7": {
+            const hace7Dias = new Date(today);
+            hace7Dias.setDate(hace7Dias.getDate() - 7);
+            return registroDate >= hace7Dias && registroDate <= today;
+          }
+          case "ultimos-30": {
+            const hace30Dias = new Date(today);
+            hace30Dias.setDate(hace30Dias.getDate() - 30);
+            return registroDate >= hace30Dias && registroDate <= today;
+          }
+          default:
+            return true;
+        }
+      });
+    }
+
     // Búsqueda
     if (searchSolicitudes) {
       const searchLower = searchSolicitudes.toLowerCase();
@@ -267,7 +322,7 @@ const SolicitudesAsignadas = () => {
     });
 
     return resultado;
-  }, [solicitudes, searchSolicitudes, filterEstado, sortBySolicitudes]);
+  }, [solicitudes, searchSolicitudes, filterEstado, sortBySolicitudes, periodFilterSolicitudes]);
 
   // Paginación
   const solicitudesPaginadas = useMemo(() => {
@@ -423,28 +478,36 @@ const SolicitudesAsignadas = () => {
           Gestiona las solicitudes de servicio asignadas a tu flota
         </Typography>
 
-        <TableToolbar
-          searchValue={searchSolicitudes}
-          onSearchChange={setSearchSolicitudes}
-          sortOptions={sortOptions}
-          sortValue={sortBySolicitudes}
-          onSortChange={setSortBySolicitudes}
-          filterOptions={filterOptions}
-          filterValue={{ estado: filterEstado }}
-          onFilterChange={(filterName, value) => {
-            if (filterName === "estado") {
-              setFilterEstado(value);
-            }
-          }}
-          visibleColumns={visibleColumnsSolicitudes}
-          onColumnChange={(col, visible) => setVisibleColumnsSolicitudes(prev => ({ ...prev, [col]: visible }))}
-          showClearButton={searchSolicitudes !== "" || filterEstado !== "todas"}
-          onClear={() => {
-            setSearchSolicitudes("");
-            setFilterEstado("todas");
-            setSortBySolicitudes("fecha-desc");
-          }}
-        />
+        <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <Box sx={{ flex: 1 }}>
+            <TableToolbar
+              searchValue={searchSolicitudes}
+              onSearchChange={setSearchSolicitudes}
+              sortOptions={sortOptions}
+              sortValue={sortBySolicitudes}
+              onSortChange={setSortBySolicitudes}
+              filterOptions={filterOptions}
+              filterValue={{ estado: filterEstado }}
+              onFilterChange={(filterName, value) => {
+                if (filterName === "estado") {
+                  setFilterEstado(value);
+                }
+              }}
+              visibleColumns={visibleColumnsSolicitudes}
+              onColumnChange={(col, visible) => setVisibleColumnsSolicitudes(prev => ({ ...prev, [col]: visible }))}
+              showClearButton={searchSolicitudes !== "" || filterEstado !== "todas"}
+              onClear={() => {
+                setSearchSolicitudes("");
+                setFilterEstado("todas");
+                setSortBySolicitudes("fecha-desc");
+              }}
+            />
+          </Box>
+          <DateFilterComponent
+            onFilterChange={setPeriodFilterSolicitudes}
+            currentDateFilter={periodFilterSolicitudes}
+          />
+        </Box>
 
         <TableContainer sx={{ mt: 3 }}>
           <Table>

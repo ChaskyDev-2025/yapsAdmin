@@ -18,6 +18,7 @@ import { FlotaFormDialog } from "./components/FlotaFormDialog";
 import { DocsManagerModal } from "./components/DocsManagerModal";
 import ServiciosManagerModalNew from "./components/ServiciosManagerModalNew";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
+import DateFilterComponent from "../usuarios/components/DateFilterComponent";
 
 const GestionFlotas = () => {
   // Hooks personalizados
@@ -42,6 +43,11 @@ const GestionFlotas = () => {
   const [searchFlotas, setSearchFlotas] = useState("");
   const [sortByFlotas, setSortByFlotas] = useState("nombre-asc");
   const [filterEstadoFlotas, setFilterEstadoFlotas] = useState("todos");
+  
+  // Estados para filtro de fecha
+  const [dateFilterTypeFlotas, setDateFilterTypeFlotas] = useState("todos");
+  const [customStartDateFlotas, setCustomStartDateFlotas] = useState("");
+  const [customEndDateFlotas, setCustomEndDateFlotas] = useState("");
   
   // Estados para paginación
   const ITEMS_PER_PAGE = 10;
@@ -113,6 +119,94 @@ const GestionFlotas = () => {
         return true;
       });
     }
+
+    // Filtro por período de fecha
+    if (dateFilterTypeFlotas !== "todos") {
+      const now = new Date();
+      
+      filtered = filtered.filter((f) => {
+        // Obtener la fecha - intentar múltiples ubicaciones
+        let dateField = f.createdAt || f.createdAt;
+        if (!dateField) return false;
+
+        let date;
+        // Convertir a Date según el tipo
+        if (dateField instanceof Date) {
+          date = new Date(dateField);
+        } else if (typeof dateField === "object" && dateField.seconds) {
+          date = new Date(dateField.seconds * 1000);
+        } else if (typeof dateField === "object" && dateField.toDate) {
+          date = dateField.toDate();
+        } else if (typeof dateField === "number") {
+          date = new Date(dateField);
+        } else if (typeof dateField === "string") {
+          date = new Date(dateField);
+        } else {
+          return false;
+        }
+
+        if (isNaN(date.getTime())) return false;
+
+        // Normalizar fecha a medianoche para comparación consistente
+        const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        switch (dateFilterTypeFlotas) {
+          case "hoy":
+            return dateOnly.getTime() === today.getTime();
+          
+          case "esta-semana": {
+            const startOfWeek = new Date(today);
+            const day = startOfWeek.getDay();
+            const diff = startOfWeek.getDate() - day;
+            startOfWeek.setDate(diff);
+            
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(endOfWeek.getDate() + 7);
+            
+            return dateOnly >= startOfWeek && dateOnly < endOfWeek;
+          }
+          
+          case "este-mes": {
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+            return dateOnly >= startOfMonth && dateOnly < endOfMonth;
+          }
+          
+          case "ultimos-7": {
+            const sevenDaysAgo = new Date(today);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            return dateOnly >= sevenDaysAgo && dateOnly <= today;
+          }
+          
+          case "ultimos-30": {
+            const thirtyDaysAgo = new Date(today);
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            return dateOnly >= thirtyDaysAgo && dateOnly <= today;
+          }
+          
+          case "custom": {
+            if (customStartDateFlotas && customEndDateFlotas) {
+              const start = new Date(customStartDateFlotas);
+              const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+              
+              const end = new Date(customEndDateFlotas);
+              const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+              const endDateNextDay = new Date(endDate);
+              endDateNextDay.setDate(endDateNextDay.getDate() + 1);
+              
+              return dateOnly >= startDate && dateOnly < endDateNextDay;
+            }
+            return true;
+          }
+          
+          default:
+            return true;
+        }
+      });
+    }
     
     // Ordenamiento
     const sorted = [...filtered];
@@ -123,18 +217,26 @@ const GestionFlotas = () => {
       case "nombre-desc":
         sorted.sort((a, b) => (b.nombre || "").localeCompare(a.nombre || ""));
         break;
-      case "nit-asc":
-        sorted.sort((a, b) => (a.documentosFlota?.nit || "").localeCompare(b.documentosFlota?.nit || ""));
+      case "recientes":
+        sorted.sort((a, b) => {
+          const fechaA = a.createdAt instanceof Date ? a.createdAt : (a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0));
+          const fechaB = b.createdAt instanceof Date ? b.createdAt : (b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0));
+          return new Date(fechaB) - new Date(fechaA);
+        });
         break;
-      case "nit-desc":
-        sorted.sort((a, b) => (b.documentosFlota?.nit || "").localeCompare(a.documentosFlota?.nit || ""));
+      case "antiguos":
+        sorted.sort((a, b) => {
+          const fechaA = a.createdAt instanceof Date ? a.createdAt : (a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0));
+          const fechaB = b.createdAt instanceof Date ? b.createdAt : (b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0));
+          return new Date(fechaA) - new Date(fechaB);
+        });
         break;
       default:
         break;
     }
     
     return sorted;
-  }, [flotas, searchFlotas, filterEstadoFlotas, sortByFlotas]);
+  }, [flotas, searchFlotas, filterEstadoFlotas, sortByFlotas, dateFilterTypeFlotas, customStartDateFlotas, customEndDateFlotas]);
 
   // Datos paginados para Flotas
   const flotasPaginadas = useMemo(() => {
@@ -449,35 +551,56 @@ const GestionFlotas = () => {
         </Box>
 
         {/* Toolbar para Flotas */}
-        <TableToolbar
-          searchValue={searchFlotas}
-          onSearchChange={setSearchFlotas}
-          sortOptions={[
-            { label: "↑ Sort by Nombre (ASC)", value: "nombre-asc" },
-            { label: "↓ Sort by Nombre (DESC)", value: "nombre-desc" },
-            { label: "↑ Sort by NIT (ASC)", value: "nit-asc" },
-            { label: "↓ Sort by NIT (DESC)", value: "nit-desc" },
-          ]}
-          sortValue={sortByFlotas}
-          onSortChange={setSortByFlotas}
-          filterOptions={[
-            {
-              name: "estado",
-              label: "Estado",
-              defaultValue: "todos",
-              options: [
-                { label: "Todas", value: "todos" },
-                { label: "Habilitadas", value: "habilitadas" },
-                { label: "Deshabilitadas", value: "deshabilitadas" },
-              ],
-            },
-          ]}
-          filterValue={{ estado: filterEstadoFlotas }}
-          onFilterChange={(name, value) => setFilterEstadoFlotas(value)}
-          visibleColumns={visibleColumnsFlotas}
-          onColumnChange={(col, visible) => setVisibleColumnsFlotas(prev => ({ ...prev, [col]: visible }))}
-          showClearButton={true}
-        />
+        <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-end", mb: 2 }}>
+          <Box sx={{ flex: 1, minWidth: 280 }}>
+            <TableToolbar
+              searchValue={searchFlotas}
+              onSearchChange={setSearchFlotas}
+              sortOptions={[
+                { label: "↑ Nombre A-Z", value: "nombre-asc" },
+                { label: "↓ Nombre Z-A", value: "nombre-desc" },
+                { label: "↑ Más Recientes", value: "recientes" },
+                { label: "↓ Más Antiguos", value: "antiguos" },
+              ]}
+              sortValue={sortByFlotas}
+              onSortChange={setSortByFlotas}
+              filterOptions={[
+                {
+                  name: "estado",
+                  label: "Estado",
+                  defaultValue: "todos",
+                  options: [
+                    { label: "Todas", value: "todos" },
+                    { label: "Habilitadas", value: "habilitadas" },
+                    { label: "Deshabilitadas", value: "deshabilitadas" },
+                  ],
+                },
+              ]}
+              filterValue={{ estado: filterEstadoFlotas }}
+              onFilterChange={(name, value) => setFilterEstadoFlotas(value)}
+              visibleColumns={visibleColumnsFlotas}
+              onColumnChange={(col, visible) => setVisibleColumnsFlotas(prev => ({ ...prev, [col]: visible }))}
+              showClearButton={true}
+              dateFilter={dateFilterTypeFlotas}
+            />
+          </Box>
+
+          {/* Filtro de Fecha para Flotas */}
+          <DateFilterComponent
+            onFilterChange={(dateType, startDate, endDate) => {
+              setDateFilterTypeFlotas(dateType);
+              if (dateType === "custom") {
+                setCustomStartDateFlotas(startDate || "");
+                setCustomEndDateFlotas(endDate || "");
+              } else {
+                setCustomStartDateFlotas("");
+                setCustomEndDateFlotas("");
+              }
+              setPageFlotas(0);
+            }}
+            currentDateFilter={dateFilterTypeFlotas}
+          />
+        </Box>
 
         <FlotasTable
           flotas={flotasPaginadas}
