@@ -34,6 +34,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
+import QrCodeIcon from "@mui/icons-material/QrCode";
 import {
   obtenerFlotas,
   obtenerSaldoTotal,
@@ -50,6 +51,14 @@ import {
 import ModalAsignarSaldo from "./components/ModalAsignarSaldo";
 import HistorialTransacciones from "./components/HistorialTransacciones";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
+import { useAuth } from "../../../auth/AuthContext";
+import {
+  uploadImageToApi,
+  saveQrImageUrl,
+} from "../../../services/imageUploadService";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../../data/firebase/firebase";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 
 const Billetera = () => {
   const [tabValue, setTabValue] = useState(0);
@@ -81,6 +90,15 @@ const Billetera = () => {
     severity: "success",
   });
 
+  // Estados para el modal QR
+  const { user } = useAuth();
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrImage, setQrImage] = useState(null);
+  const [qrImagePreview, setQrImagePreview] = useState(null);
+  const [currentQrUrl, setCurrentQrUrl] = useState(null);
+  const [qrUpdatedAt, setQrUpdatedAt] = useState(null);
+  const [uploadingQr, setUploadingQr] = useState(false);
+
   // Estados para búsqueda y filtros
   const [searchFlotas, setSearchFlotas] = useState("");
   const [sortByFlotas, setSortByFlotas] = useState("nombre-asc");
@@ -104,11 +122,9 @@ const Billetera = () => {
   const cargarDatos = useCallback(async () => {
     try {
       setLoading(true);
-      const [flotasData, estadisticasData, solicitudesData] = await Promise.all([
-        obtenerFlotas(),
-        obtenerSaldoTotal(),
-        obtenerSolicitudesPendientes(),
-      ]);
+      const [flotasData, estadisticasData, solicitudesData] = await Promise.all(
+        [obtenerFlotas(), obtenerSaldoTotal(), obtenerSolicitudesPendientes()]
+      );
 
       setFlotas(flotasData);
       setEstadisticas(estadisticasData);
@@ -123,23 +139,25 @@ const Billetera = () => {
   // Cargar datos iniciales
   useEffect(() => {
     cargarDatos();
-    
+
     // Configurar listeners en tiempo real
     // Listener para flotas
     const unsubscribeFlotas = escucharFlotas((flotasActualizadas) => {
       setFlotas(flotasActualizadas);
     });
-    
+
     // Listener para saldo total
     const unsubscribeSaldo = escucharSaldoTotal((estadisticasActualizadas) => {
       setEstadisticas(estadisticasActualizadas);
     });
-    
+
     // Listener para solicitudes
-    const unsubscribeSolicitudes = escucharSolicitudesPendientes((solicitudesActualizadas) => {
-      setSolicitudes(solicitudesActualizadas);
-    });
-    
+    const unsubscribeSolicitudes = escucharSolicitudesPendientes(
+      (solicitudesActualizadas) => {
+        setSolicitudes(solicitudesActualizadas);
+      }
+    );
+
     // Cleanup: desuscribirse de todos los listeners
     return () => {
       if (unsubscribeFlotas) unsubscribeFlotas();
@@ -152,20 +170,112 @@ const Billetera = () => {
     setSnackbar({ open: true, message, severity });
   };
 
+  // Cargar QR actual del usuario
+  const cargarQrActual = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setCurrentQrUrl(userData.qrImage || null);
+        setQrUpdatedAt(userData.qrImageUpdatedAt || null);
+      }
+    } catch (error) {
+      console.error("Error cargando QR actual:", error);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    cargarQrActual();
+  }, [cargarQrActual]);
+
+  const handleOpenQrModal = () => {
+    setQrImage(null);
+    setQrImagePreview(null);
+    setQrModalOpen(true);
+  };
+
+  const handleCloseQrModal = () => {
+    setQrModalOpen(false);
+    setQrImage(null);
+    setQrImagePreview(null);
+  };
+
+  const handleQrImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validar que sea una imagen
+      if (!file.type.startsWith("image/")) {
+        mostrarSnackbar("Por favor selecciona un archivo de imagen", "error");
+        return;
+      }
+
+      // Validar tamaño (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        mostrarSnackbar("La imagen no debe superar los 5MB", "error");
+        return;
+      }
+
+      setQrImage(file);
+
+      // Crear preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setQrImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmitQr = async () => {
+    if (!qrImage) {
+      mostrarSnackbar("Por favor selecciona una imagen", "error");
+      return;
+    }
+
+    if (!user?.uid) {
+      mostrarSnackbar("No se pudo identificar el usuario", "error");
+      return;
+    }
+
+    try {
+      setUploadingQr(true);
+
+      // Subir imagen a la API
+      const imageUrl = await uploadImageToApi(qrImage, "Qryaaps");
+
+      // Guardar URL en Firebase
+      await saveQrImageUrl(user.uid, imageUrl);
+
+      // Actualizar estado local
+      setCurrentQrUrl(imageUrl);
+      setQrUpdatedAt(new Date().toISOString());
+
+      mostrarSnackbar("QR actualizado exitosamente", "success");
+      handleCloseQrModal();
+    } catch (error) {
+      console.error("Error subiendo QR:", error);
+      mostrarSnackbar(error.message || "Error al subir la imagen", "error");
+    } finally {
+      setUploadingQr(false);
+    }
+  };
+
   // Filtrar y ordenar flotas
   const filteredFlotas = useMemo(() => {
     let result = [...flotas];
-    
+
     // Filtrar por búsqueda
     if (searchFlotas.trim()) {
       const search = searchFlotas.toLowerCase();
-      result = result.filter(flota =>
-        (flota.nombre || "").toLowerCase().includes(search) ||
-        (flota.email || "").toLowerCase().includes(search) ||
-        (flota.contacto || "").toLowerCase().includes(search)
+      result = result.filter(
+        (flota) =>
+          (flota.nombre || "").toLowerCase().includes(search) ||
+          (flota.email || "").toLowerCase().includes(search) ||
+          (flota.contacto || "").toLowerCase().includes(search)
       );
     }
-    
+
     // Ordenar
     if (sortByFlotas === "nombre-asc") {
       result.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
@@ -176,40 +286,43 @@ const Billetera = () => {
     } else if (sortByFlotas === "saldo-desc") {
       result.sort((a, b) => (b.saldo || 0) - (a.saldo || 0));
     }
-    
+
     return result;
   }, [flotas, searchFlotas, sortByFlotas]);
 
   // Filtrar y ordenar solicitudes
   const filteredSolicitudes = useMemo(() => {
     let result = [...solicitudes];
-    
+
     // Filtrar por búsqueda
     if (searchSolicitudes.trim()) {
       const search = searchSolicitudes.toLowerCase();
-      result = result.filter(sol =>
-        (sol.flotaNombre || "").toLowerCase().includes(search) ||
-        (sol.concepto || "").toLowerCase().includes(search)
+      result = result.filter(
+        (sol) =>
+          (sol.flotaNombre || "").toLowerCase().includes(search) ||
+          (sol.concepto || "").toLowerCase().includes(search)
       );
     }
-    
+
     // Ordenar
     if (sortBySolicitudes === "fecha-asc") {
-      result.sort((a, b) => 
-        new Date(a.fechaSolicitud?.toDate?.() || a.fechaSolicitud || 0) - 
-        new Date(b.fechaSolicitud?.toDate?.() || b.fechaSolicitud || 0)
+      result.sort(
+        (a, b) =>
+          new Date(a.fechaSolicitud?.toDate?.() || a.fechaSolicitud || 0) -
+          new Date(b.fechaSolicitud?.toDate?.() || b.fechaSolicitud || 0)
       );
     } else if (sortBySolicitudes === "fecha-desc") {
-      result.sort((a, b) => 
-        new Date(b.fechaSolicitud?.toDate?.() || b.fechaSolicitud || 0) - 
-        new Date(a.fechaSolicitud?.toDate?.() || a.fechaSolicitud || 0)
+      result.sort(
+        (a, b) =>
+          new Date(b.fechaSolicitud?.toDate?.() || b.fechaSolicitud || 0) -
+          new Date(a.fechaSolicitud?.toDate?.() || a.fechaSolicitud || 0)
       );
     } else if (sortBySolicitudes === "monto-asc") {
       result.sort((a, b) => (a.monto || 0) - (b.monto || 0));
     } else if (sortBySolicitudes === "monto-desc") {
       result.sort((a, b) => (b.monto || 0) - (a.monto || 0));
     }
-    
+
     return result;
   }, [solicitudes, searchSolicitudes, sortBySolicitudes]);
 
@@ -229,7 +342,9 @@ const Billetera = () => {
     return filteredSolicitudes.slice(start, end);
   }, [filteredSolicitudes, pageSolicitudes]);
 
-  const totalPagesSolicitudes = Math.ceil(filteredSolicitudes.length / ITEMS_PER_PAGE);
+  const totalPagesSolicitudes = Math.ceil(
+    filteredSolicitudes.length / ITEMS_PER_PAGE
+  );
 
   const handleAbrirModal = (flota, tipo) => {
     setSelectedFlota(flota);
@@ -243,11 +358,14 @@ const Billetera = () => {
   };
 
   const handleModalSuccess = (resultado) => {
-    mostrarSnackbar(`Transacción completada. Nuevo saldo: $${resultado.nuevoSaldo.toLocaleString("es-ES", { minimumFractionDigits: 2 })}`, "success");
-    
+    mostrarSnackbar(
+      `Transacción completada. Nuevo saldo: $${resultado.nuevoSaldo.toLocaleString("es-ES", { minimumFractionDigits: 2 })}`,
+      "success"
+    );
+
     // Actualizar solo la flota en el estado local sin recargar todo
-    setFlotas(prevFlotas => 
-      prevFlotas.map(flota =>
+    setFlotas((prevFlotas) =>
+      prevFlotas.map((flota) =>
         flota.id === selectedFlota.id
           ? { ...flota, saldo: resultado.nuevoSaldo }
           : flota
@@ -255,9 +373,10 @@ const Billetera = () => {
     );
 
     // Actualizar estadísticas
-    setEstadisticas(prev => ({
+    setEstadisticas((prev) => ({
       ...prev,
-      saldoTotal: prev.saldoTotal + (resultado.nuevoSaldo - selectedFlota.saldo)
+      saldoTotal:
+        prev.saldoTotal + (resultado.nuevoSaldo - selectedFlota.saldo),
     }));
   };
 
@@ -283,10 +402,10 @@ const Billetera = () => {
     try {
       setProcessingId(solicitud.id);
       await aprobarSolicitud(solicitud.flotaId, solicitud.id, "superadmin");
-      
+
       // Remover la solicitud de la lista (listener en tiempo real actualizará luego)
-      setSolicitudes(prev => prev.filter(s => s.id !== solicitud.id));
-      
+      setSolicitudes((prev) => prev.filter((s) => s.id !== solicitud.id));
+
       // Recargar solo flotas y estadísticas (solicitudes se actualizan vía listener)
       const [flotasData, estadisticasData] = await Promise.all([
         obtenerFlotas(),
@@ -319,12 +438,14 @@ const Billetera = () => {
       );
 
       // Remover la solicitud de la lista
-      setSolicitudes(prev => prev.filter(s => s.id !== selectedSolicitud.id));
+      setSolicitudes((prev) =>
+        prev.filter((s) => s.id !== selectedSolicitud.id)
+      );
 
       setRejectDialogOpen(false);
       setRejectReason("");
       setSelectedSolicitud(null);
-      
+
       mostrarSnackbar("Solicitud rechazada", "success");
     } catch (error) {
       mostrarSnackbar(error.message || "Error al rechazar solicitud", "error");
@@ -356,9 +477,19 @@ const Billetera = () => {
   return (
     <Box sx={{ p: 3 }}>
       {/* Contenedor Principal */}
-      <Paper elevation={6} sx={{ p: 3, borderRadius: 2, backgroundColor: "#f9f9f9" }}>
+      <Paper
+        elevation={6}
+        sx={{ p: 3, borderRadius: 2, backgroundColor: "#f9f9f9" }}
+      >
         {/* Encabezado */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 3,
+          }}
+        >
           <div>
             <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
               💳 Billetera - Gestión de Saldo
@@ -367,26 +498,64 @@ const Billetera = () => {
               Control centralizado de recarga de saldo para las flotas
             </Typography>
           </div>
-          <Tooltip title="Recargar datos">
-            <IconButton
-              onClick={cargarDatos}
-              disabled={loading}
-              sx={{ bgcolor: "#f5f5f5" }}
+
+          <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+            <Button
+              variant="contained"
+              startIcon={<QrCodeIcon />}
+              onClick={handleOpenQrModal}
+              sx={{
+                background: "linear-gradient(135deg, #4caf50 0%, #388e3c 100%)",
+                color: "#fff",
+                fontWeight: 600,
+                px: 3,
+                py: 1,
+                borderRadius: 2,
+                textTransform: "none",
+                boxShadow: "0 4px 12px rgba(76, 175, 80, 0.3)",
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  background:
+                    "linear-gradient(135deg, #388e3c 0%, #2e7d32 100%)",
+                  transform: "translateY(-2px)",
+                  boxShadow: "0 6px 20px rgba(76, 175, 80, 0.4)",
+                },
+              }}
             >
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
+              Mi QR
+            </Button>
+
+            <Tooltip title="Recargar datos">
+              <IconButton
+                onClick={cargarDatos}
+                disabled={loading}
+                sx={{ bgcolor: "#f5f5f5" }}
+              >
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
 
         {/* Estadísticas */}
         <Grid container spacing={2} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)" }}>
+            <Card
+              sx={{
+                background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
+              }}
+            >
               <CardContent>
-                <Typography color="textSecondary" sx={{ color: "#fff", opacity: 0.8 }}>
+                <Typography
+                  color="textSecondary"
+                  sx={{ color: "#fff", opacity: 0.8 }}
+                >
                   Saldo Total
                 </Typography>
-                <Typography variant="h5" sx={{ color: "#fff", fontWeight: 700, mt: 1 }}>
+                <Typography
+                  variant="h5"
+                  sx={{ color: "#fff", fontWeight: 700, mt: 1 }}
+                >
                   ${saldoTotalFormato}
                 </Typography>
               </CardContent>
@@ -394,12 +563,22 @@ const Billetera = () => {
           </Grid>
 
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ background: "linear-gradient(135deg, #484848 0%, #2c2c2c 100%)" }}>
+            <Card
+              sx={{
+                background: "linear-gradient(135deg, #484848 0%, #2c2c2c 100%)",
+              }}
+            >
               <CardContent>
-                <Typography color="textSecondary" sx={{ color: "#fff", opacity: 0.8 }}>
+                <Typography
+                  color="textSecondary"
+                  sx={{ color: "#fff", opacity: 0.8 }}
+                >
                   Flotas Activas
                 </Typography>
-                <Typography variant="h5" sx={{ color: "#fff", fontWeight: 700, mt: 1 }}>
+                <Typography
+                  variant="h5"
+                  sx={{ color: "#fff", fontWeight: 700, mt: 1 }}
+                >
                   {estadisticas.flotasActivas}
                 </Typography>
               </CardContent>
@@ -407,12 +586,22 @@ const Billetera = () => {
           </Grid>
 
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ background: "linear-gradient(135deg, #000000 0%, #1a1a1a 100%)" }}>
+            <Card
+              sx={{
+                background: "linear-gradient(135deg, #000000 0%, #1a1a1a 100%)",
+              }}
+            >
               <CardContent>
-                <Typography color="textSecondary" sx={{ color: "#fff", opacity: 0.8 }}>
+                <Typography
+                  color="textSecondary"
+                  sx={{ color: "#fff", opacity: 0.8 }}
+                >
                   Total de Flotas
                 </Typography>
-                <Typography variant="h5" sx={{ color: "#fff", fontWeight: 700, mt: 1 }}>
+                <Typography
+                  variant="h5"
+                  sx={{ color: "#fff", fontWeight: 700, mt: 1 }}
+                >
                   {estadisticas.totalFlotas}
                 </Typography>
               </CardContent>
@@ -420,16 +609,44 @@ const Billetera = () => {
           </Grid>
 
           <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ background: "linear-gradient(135deg, #a01012 0%, #7a0c0e 100%)" }}>
+            <Card
+              sx={{
+                background: "linear-gradient(135deg, #a01012 0%, #7a0c0e 100%)",
+              }}
+            >
               <CardContent>
-                <Typography color="textSecondary" sx={{ color: "#fff", opacity: 0.8 }}>
+                <Typography
+                  color="textSecondary"
+                  sx={{ color: "#fff", opacity: 0.8 }}
+                >
                   Flotas Inactivas
                 </Typography>
-                <Typography variant="h5" sx={{ color: "#fff", fontWeight: 700, mt: 1 }}>
+                <Typography
+                  variant="h5"
+                  sx={{ color: "#fff", fontWeight: 700, mt: 1 }}
+                >
                   {estadisticas.totalFlotas - estadisticas.flotasActivas}
                 </Typography>
               </CardContent>
             </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Card
+              sx={{
+                background: "linear-gradient(135deg, #4caf50 0%, #388e3c 100%)",
+                cursor: "pointer",
+                transition: "transform 0.2s, box-shadow 0.2s",
+                "&:hover": {
+                  transform: "translateY(-4px)",
+                  boxShadow: "0 8px 16px rgba(76, 175, 80, 0.3)",
+                },
+              }}
+              onClick={() => {
+                // Acción del botón QR
+                console.log("Mi QR clickeado");
+              }}
+            ></Card>
           </Grid>
         </Grid>
 
@@ -461,7 +678,15 @@ const Billetera = () => {
         {/* Contenido de Solicitudes Pendientes */}
         {tabValue === 1 && (
           <>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 3,
+                gap: 2,
+              }}
+            >
               <Box sx={{ flex: 1 }}>
                 <TableToolbar
                   searchValue={searchSolicitudes}
@@ -481,105 +706,232 @@ const Billetera = () => {
                 />
               </Box>
             </Box>
-            <Paper elevation={3} sx={{ borderRadius: 2, overflow: "hidden", mb: 4 }}>
-            {solicitudes.length > 0 ? (
-              <TableContainer sx={{ maxHeight: "calc(100vh - 400px)" }}>
-                <Table stickyHeader>
-                  <TableHead sx={{ backgroundColor: "#000000" }}>
-                    <TableRow>
-                      <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Flota</TableCell>
-                      <TableCell align="right" sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                        Monto
-                      </TableCell>
-                      <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Concepto</TableCell>
-                      <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Notas</TableCell>
-                      <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Fecha</TableCell>
-                      <TableCell align="center" sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                        Acciones
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {solicitudesPaginadas.map((solicitud) => (
-                      <TableRow
-                        key={solicitud.id}
-                        hover
-                        sx={{ borderBottom: "1px solid #d0d0d0" }}
-                      >
-                        <TableCell sx={{ fontWeight: 600, fontFamily: "Mulish, sans-serif" }}>{solicitud.flotaNombre}</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, fontSize: "1.05rem", fontFamily: "Mulish, sans-serif" }}>
-                          <span style={{ color: "#d7171a" }}>
-                            ${solicitud.monto.toLocaleString("es-ES", {
-                              minimumFractionDigits: 2,
-                            })}
-                          </span>
+            <Paper
+              elevation={3}
+              sx={{ borderRadius: 2, overflow: "hidden", mb: 4 }}
+            >
+              {solicitudes.length > 0 ? (
+                <TableContainer sx={{ maxHeight: "calc(100vh - 400px)" }}>
+                  <Table stickyHeader>
+                    <TableHead sx={{ backgroundColor: "#000000" }}>
+                      <TableRow>
+                        <TableCell
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Flota
                         </TableCell>
-                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                          <Chip label={solicitud.concepto} size="small" sx={{ bgcolor: "#ffe0e0", color: "#b01217", fontWeight: 600 }} />
+                        <TableCell
+                          align="right"
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Monto
                         </TableCell>
-                        <TableCell sx={{ fontSize: "0.9rem", color: "#666", fontFamily: "Mulish, sans-serif" }}>
-                          {solicitud.notas || "-"}
+                        <TableCell
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Concepto
                         </TableCell>
-                        <TableCell sx={{ fontSize: "0.9rem", fontFamily: "Mulish, sans-serif" }}>
-                          {new Date(solicitud.fechaSolicitud?.toDate?.() || solicitud.fechaSolicitud).toLocaleDateString("es-ES")}
+                        <TableCell
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Notas
                         </TableCell>
-                        <TableCell align="center">
-                          <Box sx={{ display: "flex", gap: 0.5, justifyContent: "center" }}>
-                            <Tooltip title="Aprobar">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleAprobarSolicitud(solicitud)}
-                                disabled={processingId === solicitud.id}
-                                sx={{
-                                  bgcolor: "#ffe0e0",
-                                  color: "#d7171a",
-                                  "&:hover": { bgcolor: "#ffb3b8" },
-                                }}
-                              >
-                                <CheckIcon />
-                              </IconButton>
-                            </Tooltip>
-
-                            <Tooltip title="Rechazar">
-                              <IconButton
-                                size="small"
-                                onClick={() => {
-                                  setSelectedSolicitud(solicitud);
-                                  setRejectDialogOpen(true);
-                                }}
-                                disabled={processingId === solicitud.id}
-                                sx={{
-                                  bgcolor: "#ffebee",
-                                  color: "#d7171a",
-                                  "&:hover": { bgcolor: "#ffcdd2" },
-                                }}
-                              >
-                                <CloseIcon />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
+                        <TableCell
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Fecha
+                        </TableCell>
+                        <TableCell
+                          align="center"
+                          sx={{
+                            backgroundColor: "#000000",
+                            color: "white",
+                            fontWeight: 700,
+                            fontFamily: "Mulish, sans-serif",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          Acciones
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Box sx={{ p: 4, textAlign: "center" }}>
-                <Typography variant="body1" color="text.secondary">
-                  ✅ No hay solicitudes pendientes
-                </Typography>
-              </Box>
-            )}
+                    </TableHead>
+                    <TableBody>
+                      {solicitudesPaginadas.map((solicitud) => (
+                        <TableRow
+                          key={solicitud.id}
+                          hover
+                          sx={{ borderBottom: "1px solid #d0d0d0" }}
+                        >
+                          <TableCell
+                            sx={{
+                              fontWeight: 600,
+                              fontFamily: "Mulish, sans-serif",
+                            }}
+                          >
+                            {solicitud.flotaNombre}
+                          </TableCell>
+                          <TableCell
+                            align="right"
+                            sx={{
+                              fontWeight: 700,
+                              fontSize: "1.05rem",
+                              fontFamily: "Mulish, sans-serif",
+                            }}
+                          >
+                            <span style={{ color: "#d7171a" }}>
+                              $
+                              {solicitud.monto.toLocaleString("es-ES", {
+                                minimumFractionDigits: 2,
+                              })}
+                            </span>
+                          </TableCell>
+                          <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                            <Chip
+                              label={solicitud.concepto}
+                              size="small"
+                              sx={{
+                                bgcolor: "#ffe0e0",
+                                color: "#b01217",
+                                fontWeight: 600,
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell
+                            sx={{
+                              fontSize: "0.9rem",
+                              color: "#666",
+                              fontFamily: "Mulish, sans-serif",
+                            }}
+                          >
+                            {solicitud.notas || "-"}
+                          </TableCell>
+                          <TableCell
+                            sx={{
+                              fontSize: "0.9rem",
+                              fontFamily: "Mulish, sans-serif",
+                            }}
+                          >
+                            {new Date(
+                              solicitud.fechaSolicitud?.toDate?.() ||
+                                solicitud.fechaSolicitud
+                            ).toLocaleDateString("es-ES")}
+                          </TableCell>
+                          <TableCell align="center">
+                            <Box
+                              sx={{
+                                display: "flex",
+                                gap: 0.5,
+                                justifyContent: "center",
+                              }}
+                            >
+                              <Tooltip title="Aprobar">
+                                <IconButton
+                                  size="small"
+                                  onClick={() =>
+                                    handleAprobarSolicitud(solicitud)
+                                  }
+                                  disabled={processingId === solicitud.id}
+                                  sx={{
+                                    bgcolor: "#ffe0e0",
+                                    color: "#d7171a",
+                                    "&:hover": { bgcolor: "#ffb3b8" },
+                                  }}
+                                >
+                                  <CheckIcon />
+                                </IconButton>
+                              </Tooltip>
+
+                              <Tooltip title="Rechazar">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => {
+                                    setSelectedSolicitud(solicitud);
+                                    setRejectDialogOpen(true);
+                                  }}
+                                  disabled={processingId === solicitud.id}
+                                  sx={{
+                                    bgcolor: "#ffebee",
+                                    color: "#d7171a",
+                                    "&:hover": { bgcolor: "#ffcdd2" },
+                                  }}
+                                >
+                                  <CloseIcon />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Box sx={{ p: 4, textAlign: "center" }}>
+                  <Typography variant="body1" color="text.secondary">
+                    ✅ No hay solicitudes pendientes
+                  </Typography>
+                </Box>
+              )}
             </Paper>
-            
+
             {/* Paginación Solicitudes */}
             {filteredSolicitudes.length > 0 && (
-              <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 3, gap: 2, flexWrap: "wrap" }}>
-                <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
-                  Mostrando {solicitudesPaginadas.length > 0 ? (pageSolicitudes * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pageSolicitudes + 1) * ITEMS_PER_PAGE, filteredSolicitudes.length)} de {filteredSolicitudes.length}
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  mt: 3,
+                  gap: 2,
+                  flexWrap: "wrap",
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{ fontFamily: "Mulish, sans-serif" }}
+                >
+                  Mostrando{" "}
+                  {solicitudesPaginadas.length > 0
+                    ? pageSolicitudes * ITEMS_PER_PAGE + 1
+                    : 0}{" "}
+                  -{" "}
+                  {Math.min(
+                    (pageSolicitudes + 1) * ITEMS_PER_PAGE,
+                    filteredSolicitudes.length
+                  )}{" "}
+                  de {filteredSolicitudes.length}
                 </Typography>
-                <Pagination 
+                <Pagination
                   count={totalPagesSolicitudes}
                   page={pageSolicitudes + 1}
                   onChange={(e, page) => setPageSolicitudes(page - 1)}
@@ -602,7 +954,15 @@ const Billetera = () => {
         {/* Contenido de Gestión de Flotas */}
         {tabValue === 0 && (
           <>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 3,
+                gap: 2,
+              }}
+            >
               <Box sx={{ flex: 1 }}>
                 <TableToolbar
                   searchValue={searchFlotas}
@@ -615,7 +975,8 @@ const Billetera = () => {
                   ]}
                   sortValue={sortByFlotas}
                   onSortChange={setSortByFlotas}
-                  filterOptions={[]}adfsdfsfsdfsfff
+                  filterOptions={[]}
+                  adfsdfsfsdfsfff
                   visibleColumns={{}}
                   onColumnChange={() => {}}
                   showClearButton={true}
@@ -623,131 +984,238 @@ const Billetera = () => {
               </Box>
             </Box>
             <Paper elevation={3} sx={{ borderRadius: 2, overflow: "hidden" }}>
-            <TableContainer sx={{ maxHeight: "calc(100vh - 400px)" }}>
-              <Table stickyHeader>
-                <TableHead sx={{ backgroundColor: "#000000" }}>
-                  <TableRow>
-                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Flota</TableCell>
-                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Contacto</TableCell>
-                    <TableCell align="right" sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                      Saldo Actual
-                    </TableCell>
-                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Estado</TableCell>
-                    <TableCell align="center" sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                      Acciones
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                {flotasPaginadas.map((flota) => (
-                  <TableRow
-                    key={flota.id}
-                    hover
-                    sx={{ borderBottom: "1px solid #d0d0d0" }}
-                  >
-                    <TableCell sx={{ fontWeight: 600, fontFamily: "Mulish, sans-serif" }}>{flota.nombre}</TableCell>
-                    <TableCell sx={{ fontSize: "0.9rem", color: "#666", fontFamily: "Mulish, sans-serif" }}>
-                      {flota.contacto || flota.email || "-"}
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700, fontSize: "1.05rem", fontFamily: "Mulish, sans-serif" }}>
-                      <span style={{ color: "#d7171a" }}>
-                        ${(flota.saldo || 0).toLocaleString("es-ES", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={flota.estado === "activa" ? "Activa" : "Inactiva"}
-                        size="small"
+              <TableContainer sx={{ maxHeight: "calc(100vh - 400px)" }}>
+                <Table stickyHeader>
+                  <TableHead sx={{ backgroundColor: "#000000" }}>
+                    <TableRow>
+                      <TableCell
                         sx={{
-                          bgcolor: flota.estado === "activa" ? "#d7171a" : "#bdbdbd",
-                          color: "#fff",
-                          fontWeight: 600,
+                          backgroundColor: "#000000",
+                          color: "white",
+                          fontWeight: 700,
+                          fontFamily: "Mulish, sans-serif",
+                          fontSize: "0.95rem",
                         }}
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      <Box sx={{ display: "flex", gap: 0.5, justifyContent: "center" }}>
-                        <Tooltip title="Asignar Saldo (+)">
-                          <IconButton
+                      >
+                        Flota
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          backgroundColor: "#000000",
+                          color: "white",
+                          fontWeight: 700,
+                          fontFamily: "Mulish, sans-serif",
+                          fontSize: "0.95rem",
+                        }}
+                      >
+                        Contacto
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          backgroundColor: "#000000",
+                          color: "white",
+                          fontWeight: 700,
+                          fontFamily: "Mulish, sans-serif",
+                          fontSize: "0.95rem",
+                        }}
+                      >
+                        Saldo Actual
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          backgroundColor: "#000000",
+                          color: "white",
+                          fontWeight: 700,
+                          fontFamily: "Mulish, sans-serif",
+                          fontSize: "0.95rem",
+                        }}
+                      >
+                        Estado
+                      </TableCell>
+                      <TableCell
+                        align="center"
+                        sx={{
+                          backgroundColor: "#000000",
+                          color: "white",
+                          fontWeight: 700,
+                          fontFamily: "Mulish, sans-serif",
+                          fontSize: "0.95rem",
+                        }}
+                      >
+                        Acciones
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {flotasPaginadas.map((flota) => (
+                      <TableRow
+                        key={flota.id}
+                        hover
+                        sx={{ borderBottom: "1px solid #d0d0d0" }}
+                      >
+                        <TableCell
+                          sx={{
+                            fontWeight: 600,
+                            fontFamily: "Mulish, sans-serif",
+                          }}
+                        >
+                          {flota.nombre}
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            fontSize: "0.9rem",
+                            color: "#666",
+                            fontFamily: "Mulish, sans-serif",
+                          }}
+                        >
+                          {flota.contacto || flota.email || "-"}
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            fontWeight: 700,
+                            fontSize: "1.05rem",
+                            fontFamily: "Mulish, sans-serif",
+                          }}
+                        >
+                          <span style={{ color: "#d7171a" }}>
+                            $
+                            {(flota.saldo || 0).toLocaleString("es-ES", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={
+                              flota.estado === "activa" ? "Activa" : "Inactiva"
+                            }
                             size="small"
-                            onClick={() => handleAbrirModal(flota, "deposito")}
                             sx={{
-                              bgcolor: "#ffe0e0",
-                              color: "#d7171a",
-                              "&:hover": { bgcolor: "#ffb3b8" },
+                              bgcolor:
+                                flota.estado === "activa"
+                                  ? "#d7171a"
+                                  : "#bdbdbd",
+                              color: "#fff",
+                              fontWeight: 600,
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <Box
+                            sx={{
+                              display: "flex",
+                              gap: 0.5,
+                              justifyContent: "center",
                             }}
                           >
-                            <AddIcon />
-                          </IconButton>
-                        </Tooltip>
+                            <Tooltip title="Asignar Saldo (+)">
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  handleAbrirModal(flota, "deposito")
+                                }
+                                sx={{
+                                  bgcolor: "#ffe0e0",
+                                  color: "#d7171a",
+                                  "&:hover": { bgcolor: "#ffb3b8" },
+                                }}
+                              >
+                                <AddIcon />
+                              </IconButton>
+                            </Tooltip>
 
-                        <Tooltip title="Retirar Saldo (-)">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleAbrirModal(flota, "retiro")}
-                            sx={{
-                              bgcolor: "#ffebee",
-                              color: "#d7171a",
-                              "&:hover": { bgcolor: "#ffcdd2" },
-                            }}
-                          >
-                            <RemoveIcon />
-                          </IconButton>
-                        </Tooltip>
+                            <Tooltip title="Retirar Saldo (-)">
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  handleAbrirModal(flota, "retiro")
+                                }
+                                sx={{
+                                  bgcolor: "#ffebee",
+                                  color: "#d7171a",
+                                  "&:hover": { bgcolor: "#ffcdd2" },
+                                }}
+                              >
+                                <RemoveIcon />
+                              </IconButton>
+                            </Tooltip>
 
-                        <Tooltip title="Ver Historial">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleAbrirHistorial(flota)}
-                            sx={{
-                              bgcolor: "#f5f5f5",
-                              color: "#d7171a",
-                              "&:hover": { bgcolor: "#e0e0e0" },
-                            }}
-                          >
-                            <HistoryIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          </Paper>
-          
-          {/* Paginación Flotas */}
-          {filteredFlotas.length > 0 && (
-            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
-              <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
-                Mostrando {flotasPaginadas.length > 0 ? (pageFlotas * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pageFlotas + 1) * ITEMS_PER_PAGE, filteredFlotas.length)} de {filteredFlotas.length}
-              </Typography>
-              <Pagination 
-                count={totalPagesFlotas}
-                page={pageFlotas + 1}
-                onChange={(e, page) => setPageFlotas(page - 1)}
+                            <Tooltip title="Ver Historial">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleAbrirHistorial(flota)}
+                                sx={{
+                                  bgcolor: "#f5f5f5",
+                                  color: "#d7171a",
+                                  "&:hover": { bgcolor: "#e0e0e0" },
+                                }}
+                              >
+                                <HistoryIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+
+            {/* Paginación Flotas */}
+            {filteredFlotas.length > 0 && (
+              <Box
                 sx={{
-                  "& .MuiPaginationItem-root": {
-                    fontFamily: "Mulish, sans-serif",
-                    color: "#000",
-                  },
-                  "& .Mui-selected": {
-                    backgroundColor: "#aaaaaa !important",
-                    color: "white",
-                  },
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  mt: 2,
+                  gap: 2,
                 }}
-              />
-            </Box>
-          )}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{ fontFamily: "Mulish, sans-serif" }}
+                >
+                  Mostrando{" "}
+                  {flotasPaginadas.length > 0
+                    ? pageFlotas * ITEMS_PER_PAGE + 1
+                    : 0}{" "}
+                  -{" "}
+                  {Math.min(
+                    (pageFlotas + 1) * ITEMS_PER_PAGE,
+                    filteredFlotas.length
+                  )}{" "}
+                  de {filteredFlotas.length}
+                </Typography>
+                <Pagination
+                  count={totalPagesFlotas}
+                  page={pageFlotas + 1}
+                  onChange={(e, page) => setPageFlotas(page - 1)}
+                  sx={{
+                    "& .MuiPaginationItem-root": {
+                      fontFamily: "Mulish, sans-serif",
+                      color: "#000",
+                    },
+                    "& .Mui-selected": {
+                      backgroundColor: "#aaaaaa !important",
+                      color: "white",
+                    },
+                  }}
+                />
+              </Box>
+            )}
           </>
         )}
       </Paper>
 
       {/* Dialog para rechazar */}
-      <Dialog open={rejectDialogOpen} onClose={() => setRejectDialogOpen(false)}>
+      <Dialog
+        open={rejectDialogOpen}
+        onClose={() => setRejectDialogOpen(false)}
+      >
         <DialogTitle>Rechazar Solicitud</DialogTitle>
         <DialogContent sx={{ minWidth: 400 }}>
           <Box sx={{ pt: 2 }}>
@@ -755,7 +1223,8 @@ const Billetera = () => {
               <strong>Flota:</strong> {selectedSolicitud?.flotaNombre}
             </Typography>
             <Typography variant="body2" sx={{ mb: 2 }}>
-              <strong>Monto:</strong> ${selectedSolicitud?.monto.toLocaleString("es-ES", {
+              <strong>Monto:</strong> $
+              {selectedSolicitud?.monto.toLocaleString("es-ES", {
                 minimumFractionDigits: 2,
               })}
             </Typography>
@@ -798,6 +1267,167 @@ const Billetera = () => {
         flota={historialFlota}
         transacciones={historial}
       />
+
+      {/* Modal QR */}
+      <Dialog
+        open={qrModalOpen}
+        onClose={handleCloseQrModal}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            background: "linear-gradient(135deg, #4caf50 0%, #388e3c 100%)",
+            color: "#fff",
+            fontWeight: 700,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <QrCodeIcon />
+          Mi Código QR
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {/* Mostrar QR actual si existe */}
+          {currentQrUrl && !qrImagePreview && (
+            <Box sx={{ mb: 3, textAlign: "center" }}>
+              <Typography variant="body2" sx={{ mb: 2, color: "#666" }}>
+                QR Actual:
+              </Typography>
+              <Box
+                component="img"
+                src={currentQrUrl}
+                alt="QR Actual"
+                sx={{
+                  maxWidth: "100%",
+                  maxHeight: "300px",
+                  border: "2px solid #e0e0e0",
+                  borderRadius: 2,
+                  objectFit: "contain",
+                }}
+              />
+              {qrUpdatedAt && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: "block",
+                    mt: 1,
+                    color: "#999",
+                    fontStyle: "italic",
+                  }}
+                >
+                  Última edición:{" "}
+                  {new Date(qrUpdatedAt).toLocaleString("es-ES", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Typography>
+              )}
+            </Box>
+          )}
+
+          {/* Preview de nueva imagen */}
+          {qrImagePreview && (
+            <Box sx={{ mb: 3, textAlign: "center" }}>
+              <Typography
+                variant="body2"
+                sx={{ mb: 2, color: "#666", fontWeight: 600 }}
+              >
+                Vista Previa:
+              </Typography>
+              <Box
+                component="img"
+                src={qrImagePreview}
+                alt="Preview"
+                sx={{
+                  maxWidth: "100%",
+                  maxHeight: "300px",
+                  border: "2px solid #4caf50",
+                  borderRadius: 2,
+                  objectFit: "contain",
+                  boxShadow: "0 4px 12px rgba(76, 175, 80, 0.2)",
+                }}
+              />
+            </Box>
+          )}
+
+          {/* Bot\u00f3n de selecci\u00f3n de archivo */}
+          <Box sx={{ textAlign: "center" }}>
+            <input
+              accept="image/*"
+              style={{ display: "none" }}
+              id="qr-image-upload"
+              type="file"
+              onChange={handleQrImageChange}
+            />
+            <label htmlFor="qr-image-upload">
+              <Button
+                variant="outlined"
+                component="span"
+                startIcon={<CloudUploadIcon />}
+                sx={{
+                  borderColor: "#4caf50",
+                  color: "#4caf50",
+                  fontWeight: 600,
+                  px: 3,
+                  py: 1.5,
+                  "&:hover": {
+                    borderColor: "#388e3c",
+                    backgroundColor: "rgba(76, 175, 80, 0.04)",
+                  },
+                }}
+              >
+                {qrImage ? "Cambiar Imagen" : "Seleccionar Imagen"}
+              </Button>
+            </label>
+
+            {qrImage && (
+              <Typography
+                variant="caption"
+                sx={{ display: "block", mt: 1, color: "#666" }}
+              >
+                {qrImage.name} ({(qrImage.size / 1024).toFixed(2)} KB)
+              </Typography>
+            )}
+          </Box>
+
+          <Typography
+            variant="caption"
+            sx={{ display: "block", mt: 2, color: "#999", textAlign: "center" }}
+          >
+            Formatos aceptados: JPG, PNG, GIF (M\u00e1x. 5MB)
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button onClick={handleCloseQrModal} sx={{ color: "#666" }}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSubmitQr}
+            variant="contained"
+            disabled={!qrImage || uploadingQr}
+            sx={{
+              background: "linear-gradient(135deg, #4caf50 0%, #388e3c 100%)",
+              color: "#fff",
+              fontWeight: 600,
+              px: 3,
+              "&:hover": {
+                background: "linear-gradient(135deg, #388e3c 0%, #2e7d32 100%)",
+              },
+              "&:disabled": {
+                background: "#e0e0e0",
+                color: "#999",
+              },
+            }}
+          >
+            {uploadingQr ? "Subiendo..." : "Guardar QR"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar */}
       <Snackbar

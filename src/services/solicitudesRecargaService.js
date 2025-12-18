@@ -26,7 +26,10 @@ const getBilleteraRef = (flotaId) =>
   doc(db, FLOTAS_PATH, flotaId, "billetera", "saldo");
 
 const getTransaccionesRef = (flotaId) =>
-  collection(doc(db, FLOTAS_PATH, flotaId, "billetera", "saldo"), "transacciones");
+  collection(
+    doc(db, FLOTAS_PATH, flotaId, "billetera", "saldo"),
+    "transacciones"
+  );
 
 // ============================================
 // FUNCIONES DE LECTURA
@@ -81,7 +84,10 @@ export const obtenerSolicitudesPendientes = async () => {
           });
         });
       } catch (error) {
-        console.error(`Error obteniendo solicitudes de flota ${flotaDoc.id}:`, error);
+        console.error(
+          `Error obteniendo solicitudes de flota ${flotaDoc.id}:`,
+          error
+        );
         // Continuar con la siguiente flota
       }
     }
@@ -103,48 +109,57 @@ export const obtenerSolicitudesPendientes = async () => {
  */
 export const escucharSolicitudesPendientes = (callback) => {
   let unsubscribers = [];
-  
+
   try {
     const flotasRef = collection(db, FLOTAS_PATH);
-    
+
     // Obtener flotas una sola vez y luego escuchar cada una
-    getDocs(flotasRef).then((flotasSnapshot) => {
-      flotasSnapshot.docs.forEach((flotaDoc) => {
-        const flotaId = flotaDoc.id;
-        const flotaData = flotaDoc.data();
-        const solicitudesRef = getSolicitudesRef(flotaId);
-        const q = query(solicitudesRef, where("estado", "==", "pendiente"));
-        
-        // Listener en tiempo real para cada flota
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          const solicitudes = [];
-          
-          snapshot.docs.forEach((solicitudDoc) => {
-            solicitudes.push({
-              id: solicitudDoc.id,
-              flotaId,
-              flotaNombre: flotaData.nombre || "Sin nombre",
-              ...solicitudDoc.data(),
-            });
-          });
-          
-          callback(solicitudes);
-        }, (error) => {
-          console.error(`Error escuchando solicitudes de flota ${flotaId}:`, error);
+    getDocs(flotasRef)
+      .then((flotasSnapshot) => {
+        flotasSnapshot.docs.forEach((flotaDoc) => {
+          const flotaId = flotaDoc.id;
+          const flotaData = flotaDoc.data();
+          const solicitudesRef = getSolicitudesRef(flotaId);
+          const q = query(solicitudesRef, where("estado", "==", "pendiente"));
+
+          // Listener en tiempo real para cada flota
+          const unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+              const solicitudes = [];
+
+              snapshot.docs.forEach((solicitudDoc) => {
+                solicitudes.push({
+                  id: solicitudDoc.id,
+                  flotaId,
+                  flotaNombre: flotaData.nombre || "Sin nombre",
+                  ...solicitudDoc.data(),
+                });
+              });
+
+              callback(solicitudes);
+            },
+            (error) => {
+              console.error(
+                `Error escuchando solicitudes de flota ${flotaId}:`,
+                error
+              );
+            }
+          );
+
+          unsubscribers.push(unsubscribe);
         });
-        
-        unsubscribers.push(unsubscribe);
+      })
+      .catch((error) => {
+        console.error("Error obteniendo flotas:", error);
       });
-    }).catch((error) => {
-      console.error("Error obteniendo flotas:", error);
-    });
   } catch (error) {
     console.error("Error configurando listener de solicitudes:", error);
   }
-  
+
   // Retornar función para desuscribirse de todos los listeners
   return () => {
-    unsubscribers.forEach(unsub => unsub());
+    unsubscribers.forEach((unsub) => unsub());
   };
 };
 
@@ -158,25 +173,32 @@ export const escucharSolicitudesFlota = (flotaId, callback) => {
   try {
     const solicitudesRef = getSolicitudesRef(flotaId);
     const q = query(solicitudesRef, orderBy("fechaSolicitud", "desc"));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const solicitudes = [];
-      
-      snapshot.docs.forEach((solicitudDoc) => {
-        solicitudes.push({
-          id: solicitudDoc.id,
-          ...solicitudDoc.data(),
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const solicitudes = [];
+
+        snapshot.docs.forEach((solicitudDoc) => {
+          solicitudes.push({
+            id: solicitudDoc.id,
+            ...solicitudDoc.data(),
+          });
         });
-      });
-      
-      callback(solicitudes);
-    }, (error) => {
-      console.error("Error escuchando solicitudes de flota:", error);
-    });
-    
+
+        callback(solicitudes);
+      },
+      (error) => {
+        console.error("Error escuchando solicitudes de flota:", error);
+      }
+    );
+
     return unsubscribe;
   } catch (error) {
-    console.error("Error configurando listener de solicitudes de flota:", error);
+    console.error(
+      "Error configurando listener de solicitudes de flota:",
+      error
+    );
   }
 };
 
@@ -186,10 +208,10 @@ export const escucharSolicitudesFlota = (flotaId, callback) => {
 export const obtenerHistorialTransacciones = async (flotaId) => {
   try {
     const transaccionesRef = getTransaccionesRef(flotaId);
-    
+
     // Primero verificamos si existen transacciones
     const allSnapshot = await getDocs(transaccionesRef);
-    
+
     if (allSnapshot.empty) {
       return [];
     }
@@ -220,7 +242,9 @@ export const crearSolicitudRecarga = async (
   flotaId,
   monto,
   concepto = "recarga",
-  notas = ""
+  notas = "",
+  comprobanteUrl = null,
+  nroComprobante = ""
 ) => {
   try {
     if (monto <= 0) {
@@ -236,6 +260,8 @@ export const crearSolicitudRecarga = async (
       fechaAprobacion: null,
       respondidoPor: null,
       razonRechazo: null,
+      comprobanteUrl: comprobanteUrl || null,
+      nroComprobante: nroComprobante || "",
     };
 
     const solicitudesRef = getSolicitudesRef(flotaId);
@@ -254,11 +280,7 @@ export const crearSolicitudRecarga = async (
 /**
  * Aprueba una solicitud de recarga y actualiza el saldo
  */
-export const aprobarSolicitud = async (
-  flotaId,
-  solicitudId,
-  adminId
-) => {
+export const aprobarSolicitud = async (flotaId, solicitudId, adminId) => {
   try {
     const batch = writeBatch(db);
 
@@ -384,21 +406,25 @@ export const escucharHistorialTransacciones = (flotaId, callback) => {
     const transaccionesRef = getTransaccionesRef(flotaId);
     const q = query(transaccionesRef, orderBy("timestamp", "desc"));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const transacciones = [];
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const transacciones = [];
 
-      snapshot.docs.forEach((doc) => {
-        transacciones.push({
-          id: doc.id,
-          ...doc.data(),
+        snapshot.docs.forEach((doc) => {
+          transacciones.push({
+            id: doc.id,
+            ...doc.data(),
+          });
         });
-      });
 
-      callback(transacciones);
-    }, (error) => {
-      console.error("Error escuchando historial de transacciones:", error);
-      callback([]); // Retornar array vacío en error
-    });
+        callback(transacciones);
+      },
+      (error) => {
+        console.error("Error escuchando historial de transacciones:", error);
+        callback([]); // Retornar array vacío en error
+      }
+    );
 
     return unsubscribe;
   } catch (error) {
@@ -416,16 +442,20 @@ export const escucharSaldoFlota = (flotaId, callback) => {
   try {
     const saldoRef = doc(db, "flotas", flotaId, "billetera", "saldo");
 
-    const unsubscribe = onSnapshot(saldoRef, (docSnapshot) => {
-      if (docSnapshot.exists()) {
-        const saldo = docSnapshot.data().monto || 0;
-        callback(saldo);
-      } else {
+    const unsubscribe = onSnapshot(
+      saldoRef,
+      (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const saldo = docSnapshot.data().monto || 0;
+          callback(saldo);
+        } else {
+          callback(0);
+        }
+      },
+      (error) => {
         callback(0);
       }
-    }, (error) => {
-      callback(0);
-    });
+    );
 
     return unsubscribe;
   } catch (error) {
