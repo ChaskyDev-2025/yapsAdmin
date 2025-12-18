@@ -80,7 +80,7 @@ const Radiotaxis = () => {
       const data = snapshot.docs.map((docSnap) => {
         const trabajador = docSnap.data();
         const nombreUsuario = trabajador.perfil?.name || "Trabajador sin nombre";
-        const telefono = trabajador.telefono || "Sin teléfono";
+        const telefono = trabajador.phoneNumber || "Sin teléfono";
         const email = trabajador.perfil?.email || trabajador.email || "Sin email";
         const fotoUrl = trabajador.perfil?.photoUrl || "";
         const createdAt = trabajador.perfil?.createdAt || null;
@@ -90,6 +90,7 @@ const Radiotaxis = () => {
           firebaseId: docSnap.id,
           nombreEmpresa: nombreUsuario,
           telefono,
+          phoneVerified: trabajador.phoneVerified || false,
           email,
           representante: email,
           logoUrl: fotoUrl,
@@ -437,7 +438,21 @@ const Radiotaxis = () => {
                         {radio.email || "-"}
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        {radio.telefono || "-"}
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <span>{radio.telefono || "-"}</span>
+                          <Tooltip title={radio.phoneVerified ? "Teléfono verificado" : "Teléfono sin verificar"}>
+                            <Box
+                              sx={{
+                                display: "inline-block",
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                backgroundColor: radio.phoneVerified ? "#4caf50" : "#f44336",
+                                flexShrink: 0,
+                              }}
+                            />
+                          </Tooltip>
+                        </Box>
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontSize: "0.9rem" }}>
                         {radio.createdAt

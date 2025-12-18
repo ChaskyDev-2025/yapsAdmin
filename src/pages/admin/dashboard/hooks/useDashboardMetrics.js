@@ -13,6 +13,7 @@ export const useDashboardMetrics = () => {
     solicitudes: { completadas: 0, canceladas: 0, total: 0, pendientes: 0 },
     usuarios: { totalPasajeros: 0, totalTrabajadores: 0, nuevosHoy: 0, nuevosEstaSemana: 0 },
     ordenes: { total: 0, completadas: 0, canceladas: 0, promedioCosto: 0 },
+    donaciones: { totalAcumuladas: 0 },
     actividad: { nuevosHoy: 0, usuariosActivos: 0, alertas: 0 },
   });
   const [cargando, setCargando] = useState(true);
@@ -84,6 +85,12 @@ export const useDashboardMetrics = () => {
       ? ordenesCompletadas.reduce((sum, doc) => sum + (parseFloat(doc.precio) || 0), 0) / ordenesCompletadas.length
       : 0;
 
+    // Procesar donaciones acumuladas
+    const totalDonacionesAcumuladas = pasajerosData.reduce((sum, pasajero) => {
+      const donaciones = parseFloat(pasajero.donacionesAcumuladas) || 0;
+      return sum + donaciones;
+    }, 0);
+
     // Calcular alertas
     const alertas = pendientesSolicitudes + canceladas + documentosPendientes;
 
@@ -93,6 +100,7 @@ export const useDashboardMetrics = () => {
       solicitudes: { completadas, canceladas, total: solicitudesData.length, pendientes: pendientesSolicitudes },
       usuarios: { totalPasajeros: pasajerosData.length, totalTrabajadores, nuevosHoy, nuevosEstaSemana },
       ordenes: { total: ordenesData.length, completadas: completadasOrdenes, canceladas: canceladasOrdenes, promedioCosto },
+      donaciones: { totalAcumuladas: totalDonacionesAcumuladas },
       actividad: { nuevosHoy, usuariosActivos: activosTrabajadores, alertas },
     };
   };

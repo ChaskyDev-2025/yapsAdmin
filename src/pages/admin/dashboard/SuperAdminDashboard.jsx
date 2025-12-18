@@ -14,6 +14,7 @@ import {
   LocalTaxi,
   CancelOutlined,
   Description,
+  FavoriteBorder,
 } from "@mui/icons-material";
 import { useDashboardMetrics } from "./hooks/useDashboardMetrics";
 
@@ -79,6 +80,12 @@ const SuperAdminDashboard = () => {
             title="Órdenes Canceladas"
             value={metricas.ordenes.canceladas}
             icon={CancelOutlined}
+            color="#d7171a"
+          />
+          <StatCard
+            title="Total Donaciones"
+            value={`Bs. ${metricas.donaciones.totalAcumuladas.toFixed(2)}`}
+            icon={FavoriteBorder}
             color="#d7171a"
           />
         </CardGrid>

@@ -1540,6 +1540,9 @@ const GestionUsuarios = () => {
                     Email
                   </TableCell>
                   <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                    Teléfono
+                  </TableCell>
+                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
                     Rol
                   </TableCell>
                   <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
@@ -1559,7 +1562,7 @@ const GestionUsuarios = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center">
+                    <TableCell colSpan={9} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                         Cargando trabajadores...
                       </Typography>
@@ -1567,7 +1570,7 @@ const GestionUsuarios = () => {
                   </TableRow>
                 ) : conductoresFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center">
+                    <TableCell colSpan={9} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                         {trabajadores.length === 0 ? "No hay trabajadores registrados" : "No hay resultados para la búsqueda"}
                       </Typography>
@@ -1590,6 +1593,23 @@ const GestionUsuarios = () => {
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                         {trabajador.perfil?.email || "-"}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <span>{trabajador.phoneNumber || "-"}</span>
+                          <Tooltip title={trabajador.phoneVerified ? "Teléfono verificado" : "Teléfono sin verificar"}>
+                            <Box
+                              sx={{
+                                display: "inline-block",
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                backgroundColor: trabajador.phoneVerified ? "#4caf50" : "#f44336",
+                                flexShrink: 0,
+                              }}
+                            />
+                          </Tooltip>
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Chip

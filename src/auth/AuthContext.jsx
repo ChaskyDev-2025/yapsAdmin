@@ -1,7 +1,7 @@
 // src/auth/AuthContext.jsx
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "../data/firebase/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
 const Ctx = createContext({ user: null, userRole: null, userFlotaId: null, loading: true });
@@ -24,6 +24,19 @@ export function AuthProvider({ children }) {
           
           if (userDoc.exists()) {
             const userData = userDoc.data();
+            
+            // Verificar si el usuario está activo
+            if (userData.active === false) {
+              // Usuario está inactivo, cerrar sesión automáticamente
+              console.warn("⚠️ Usuario inactivo. Cerrando sesión...");
+              await auth.signOut();
+              setUser(null);
+              setUserRole(null);
+              setUserFlotaId(null);
+              setLoading(false);
+              return;
+            }
+            
             setUserRole(userData.role || "admin");
             setUserFlotaId(userData.flotaId || null);
           } else {

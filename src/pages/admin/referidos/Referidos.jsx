@@ -25,7 +25,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import HistoryIcon from "@mui/icons-material/History";
 import TableToolbar from "../usuarios/components/TableToolbar";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, onSnapshot } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 import { obtenerTodosLosCodeigos } from "../../../services/codigosPromoService";
 
@@ -39,6 +39,7 @@ const Referidos = () => {
   const [referidosData, setReferidosData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState(0);
+  const [pasajerosDonaciones, setPasajerosDonaciones] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
     totalReferidos: 0,
@@ -73,11 +74,20 @@ const Referidos = () => {
     referidos: true,
     acciones: true,
   });
+  const [searchDonaciones, setSearchDonaciones] = useState("");
+  const [sortByDonaciones, setSortByDonaciones] = useState("donaciones-desc");
+  const [visibleColumnsDonaciones, setVisibleColumnsDonaciones] = useState({
+    usuario: true,
+    donacionesAcumuladas: true,
+    ultimaDonacion: true,
+    monto: true,
+  });
 
   // Estados para paginación
   const ITEMS_PER_PAGE = 10;
   const [pageTrabajadores, setPageTrabajadores] = useState(0);
   const [pagePasajeros, setPagePasajeros] = useState(0);
+  const [pageDonaciones, setPageDonaciones] = useState(0);
 
   // Resetear página al cambiar búsqueda
   useEffect(() => {
@@ -89,38 +99,97 @@ const Referidos = () => {
   }, [searchPasajeros]);
 
   useEffect(() => {
-    // Cargar datos en paralelo para optimizar (SOLO LECTURA)
-    const inicializar = async () => {
+    setPageDonaciones(0);
+  }, [searchDonaciones]);
+
+  useEffect(() => {
+    // Listeners en tiempo real
+    const setupListeners = async () => {
       setLoading(true);
+      let unsubscribePasajeros = null;
+      let unsubscribeTrabajadores = null;
+      let pasajerosMap = {};
+      let trabajadoresSnapshot = null;
+      let isInitialLoad = true;
+
       try {
-        // Ejecutar todas las cargas en paralelo
-        await Promise.all([
-          fetchReferidosData(),
-          fetchCodigosPromo(),
-        ]);
+        // Listener para pasajeros - se actualiza en tiempo real
+        unsubscribePasajeros = onSnapshot(
+          collection(db, "pasajeros"),
+          (snapshot) => {
+            pasajerosMap = {};
+            snapshot.docs.forEach((doc) => {
+              pasajerosMap[doc.id] = doc.data();
+            });
+
+            // Procesar datos de donaciones
+            const donacionesData = snapshot.docs
+              .map((doc) => {
+                const pasajero = doc.data();
+                return {
+                  id: doc.id,
+                  nombre: pasajero.perfil?.name || "Sin nombre",
+                  email: pasajero.perfil?.email || "Sin email",
+                  photoUrl: pasajero.perfil?.photoUrl || null,
+                  donacionesAcumuladas: pasajero.donacionesAcumuladas || 0,
+                  ultimaDonacion: pasajero.ultimaDonacion || null,
+                  departamento: pasajero.departamentoActual || "-",
+                };
+              })
+              .filter(p => p.donacionesAcumuladas > 0)
+              .sort((a, b) => b.donacionesAcumuladas - a.donacionesAcumuladas);
+
+            setPasajerosDonaciones(donacionesData);
+
+            // Si ya tenemos datos de trabajadores, actualizar referidos
+            if (trabajadoresSnapshot) {
+              fetchReferidosDataRealtime(trabajadoresSnapshot, pasajerosMap);
+            }
+
+            if (isInitialLoad) {
+              isInitialLoad = false;
+              setLoading(false);
+            }
+          },
+          (error) => {
+            console.error("Error en listener de pasajeros:", error);
+            setLoading(false);
+          }
+        );
+
+        // Listener para trabajadores - usado en la pestaña de referidos
+        unsubscribeTrabajadores = onSnapshot(
+          collection(db, "trabajadores"),
+          (snapshot) => {
+            trabajadoresSnapshot = snapshot;
+            fetchReferidosDataRealtime(snapshot, pasajerosMap);
+          },
+          (error) => {
+            console.error("Error en listener de trabajadores:", error);
+          }
+        );
+
+        // Cargar códigos promo
+        await fetchCodigosPromo();
       } catch (error) {
-        console.error("Error en inicialización:", error);
-      } finally {
+        console.error("Error en setup de listeners:", error);
         setLoading(false);
       }
+
+      return () => {
+        if (unsubscribePasajeros) unsubscribePasajeros();
+        if (unsubscribeTrabajadores) unsubscribeTrabajadores();
+      };
     };
-    
-    inicializar();
+
+    const unsubscribe = setupListeners();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
-  const fetchReferidosData = async () => {
+  const fetchReferidosDataRealtime = (trabajadoresSnapshot, pasajerosMap) => {
     try {
-      // Cargar pasajeros y trabajadores EN PARALELO (SOLO LECTURA)
-      const [pasajerosSnapshot, trabajadoresSnapshot] = await Promise.all([
-        getDocs(collection(db, "pasajeros")),
-        getDocs(collection(db, "trabajadores")),
-      ]);
-
-      const pasajerosMap = {};
-      pasajerosSnapshot.docs.forEach((doc) => {
-        pasajerosMap[doc.id] = doc.data();
-      });
-
       let totalReferidos = 0;
       let totalTickets = 0;
 
@@ -154,10 +223,8 @@ const Referidos = () => {
         };
       });
 
-      // Procesar pasajeros
-      const dataPasajeros = pasajerosSnapshot.docs.map((doc) => {
-        const pasajero = doc.data();
-        
+      // Procesar pasajeros desde pasajerosMap
+      const dataPasajeros = Object.entries(pasajerosMap).map(([id, pasajero]) => {
         const referidosCount = pasajero.referidosAplicados?.length || 0;
         const ticketsCount = typeof pasajero.tickets === 'object' && !Array.isArray(pasajero.tickets)
           ? Object.values(pasajero.tickets)
@@ -169,7 +236,7 @@ const Referidos = () => {
         totalTickets += ticketsCount;
 
         return {
-          id: doc.id,
+          id: id,
           nombre: pasajero.perfil?.name || "Sin nombre",
           email: pasajero.perfil?.email || "Sin email",
           codigo: pasajero.codigoReferido || "-",
@@ -184,7 +251,7 @@ const Referidos = () => {
         };
       });
 
-      // Combinar y ordenar por TICKETS (no por referidos, ya que referidos están incluidos en tickets)
+      // Combinar y ordenar
       const allData = [...data, ...dataPasajeros];
       allData.sort((a, b) => {
         if (b.tickets !== a.tickets) {
@@ -199,6 +266,25 @@ const Referidos = () => {
         totalReferidos,
         totalTickets,
       });
+    } catch (error) {
+      console.error("Error al procesar datos de referidos en tiempo real:", error);
+    }
+  };
+
+  const fetchReferidosData = async () => {
+    try {
+      // Cargar pasajeros y trabajadores EN PARALELO (SOLO LECTURA)
+      const [pasajerosSnapshot, trabajadoresSnapshot] = await Promise.all([
+        getDocs(collection(db, "pasajeros")),
+        getDocs(collection(db, "trabajadores")),
+      ]);
+
+      const pasajerosMap = {};
+      pasajerosSnapshot.docs.forEach((doc) => {
+        pasajerosMap[doc.id] = doc.data();
+      });
+
+      fetchReferidosDataRealtime(trabajadoresSnapshot, pasajerosMap);
     } catch (error) {
       console.error("Error al cargar referidos:", error);
     }
@@ -338,6 +424,7 @@ const Referidos = () => {
         >
           <Tab label="👷 Trabajadores" icon={undefined} />
           <Tab label="👤 Pasajeros" icon={undefined} />
+          <Tab label="💝 Donaciones" icon={undefined} />
           <Tab label="🎟️ Códigos Promocionales" icon={undefined} />
         </Tabs>
       </Box>
@@ -690,8 +777,178 @@ const Referidos = () => {
             </Box>
           )}
 
-          {/* TABLA DE CÓDIGOS PROMOCIONALES */}
+          {/* TABLA DE DONACIONES */}
           {selectedTab === 2 && (
+            <Box>
+              <Box sx={{ mb: 2 }}>
+                <TableToolbar
+                  searchValue={searchDonaciones}
+                  onSearchChange={setSearchDonaciones}
+                  searchPlaceholder="Nombre, Email, Departamento"
+                  sortOptions={[
+                    { label: "Donaciones (Mayor)", value: "donaciones-desc" },
+                    { label: "Donaciones (Menor)", value: "donaciones-asc" },
+                    { label: "Nombre (A-Z)", value: "nombre-asc" },
+                    { label: "Nombre (Z-A)", value: "nombre-desc" },
+                  ]}
+                  sortValue={sortByDonaciones}
+                  onSortChange={setSortByDonaciones}
+                  visibleColumns={visibleColumnsDonaciones}
+                  onColumnChange={(col, visible) => setVisibleColumnsDonaciones(prev => ({ ...prev, [col]: visible }))}
+                  showClearButton={false}
+                />
+              </Box>
+
+              {pasajerosDonaciones.length > 0 ? (
+                <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e0e0e0" }}>
+                  <Table>
+                    <TableHead sx={{ backgroundColor: "#000000" }}>
+                      <TableRow>
+                        {visibleColumnsDonaciones.usuario && (
+                          <>
+                            <TableCell sx={{ color: "white", fontWeight: 700 }}>Usuario</TableCell>
+                            <TableCell sx={{ color: "white", fontWeight: 700 }}>Email</TableCell>
+                            <TableCell sx={{ color: "white", fontWeight: 700 }}>Departamento</TableCell>
+                          </>
+                        )}
+                        {visibleColumnsDonaciones.donacionesAcumuladas && (
+                          <TableCell sx={{ color: "white", fontWeight: 700 }}>Donaciones Acumuladas</TableCell>
+                        )}
+                        {visibleColumnsDonaciones.ultimaDonacion && (
+                          <>
+                            <TableCell sx={{ color: "white", fontWeight: 700 }}>Última Donación</TableCell>
+                            <TableCell sx={{ color: "white", fontWeight: 700 }}>Monto</TableCell>
+                          </>
+                        )}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {pasajerosDonaciones
+                        .filter(p => {
+                          const search = searchDonaciones.toLowerCase();
+                          return (
+                            p.nombre.toLowerCase().includes(search) ||
+                            p.email.toLowerCase().includes(search) ||
+                            p.departamento.toLowerCase().includes(search)
+                          );
+                        })
+                        .sort((a, b) => {
+                          if (sortByDonaciones === "donaciones-desc") {
+                            return b.donacionesAcumuladas - a.donacionesAcumuladas;
+                          }
+                          if (sortByDonaciones === "donaciones-asc") {
+                            return a.donacionesAcumuladas - b.donacionesAcumuladas;
+                          }
+                          if (sortByDonaciones === "nombre-asc") {
+                            return a.nombre.localeCompare(b.nombre);
+                          }
+                          if (sortByDonaciones === "nombre-desc") {
+                            return b.nombre.localeCompare(a.nombre);
+                          }
+                          return 0;
+                        })
+                        .slice(pageDonaciones * ITEMS_PER_PAGE, (pageDonaciones + 1) * ITEMS_PER_PAGE)
+                        .map((pasajero) => (
+                          <TableRow key={pasajero.id} hover>
+                            {visibleColumnsDonaciones.usuario && (
+                              <>
+                                <TableCell>
+                                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                    <Avatar
+                                      src={pasajero.photoUrl}
+                                      sx={{ width: 36, height: 36, bgcolor: "#d7171a" }}
+                                    >
+                                      {pasajero.nombre?.charAt(0).toUpperCase() || "?"}
+                                    </Avatar>
+                                    <Typography sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                                      {pasajero.nombre}
+                                    </Typography>
+                                  </Box>
+                                </TableCell>
+                                <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                                  {pasajero.email}
+                                </TableCell>
+                                <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                                  {pasajero.departamento}
+                                </TableCell>
+                              </>
+                            )}
+                            {visibleColumnsDonaciones.donacionesAcumuladas && (
+                              <TableCell>
+                                <Chip
+                                  label={`Bs. ${pasajero.donacionesAcumuladas.toFixed(2)}`}
+                                  sx={{
+                                    backgroundColor: "#d7171a",
+                                    color: "white",
+                                    fontWeight: 700,
+                                    fontFamily: "Mulish, sans-serif",
+                                  }}
+                                />
+                              </TableCell>
+                            )}
+                            {visibleColumnsDonaciones.ultimaDonacion && (
+                              <>
+                                <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                                  {pasajero.ultimaDonacion ? (
+                                    pasajero.ultimaDonacion.fecha?.toDate
+                                      ? pasajero.ultimaDonacion.fecha.toDate().toLocaleDateString("es-ES", {
+                                          year: "numeric",
+                                          month: "2-digit",
+                                          day: "2-digit",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })
+                                      : new Date(pasajero.ultimaDonacion.fecha).toLocaleDateString("es-ES", {
+                                          year: "numeric",
+                                          month: "2-digit",
+                                          day: "2-digit",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })
+                                  ) : (
+                                    "-"
+                                  )}
+                                </TableCell>
+                                <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                                  {pasajero.ultimaDonacion?.monto ? `Bs. ${pasajero.ultimaDonacion.monto.toFixed(2)}` : "-"}
+                                </TableCell>
+                              </>
+                            )}
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Typography align="center" color="text.secondary" sx={{ py: 3 }}>
+                  No hay pasajeros con donaciones
+                </Typography>
+              )}
+
+              {pasajerosDonaciones.length > ITEMS_PER_PAGE && (
+                <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                  <Pagination
+                    count={Math.ceil(
+                      pasajerosDonaciones.filter(p => {
+                        const search = searchDonaciones.toLowerCase();
+                        return (
+                          p.nombre.toLowerCase().includes(search) ||
+                          p.email.toLowerCase().includes(search) ||
+                          p.departamento.toLowerCase().includes(search)
+                        );
+                      }).length / ITEMS_PER_PAGE
+                    )}
+                    page={pageDonaciones + 1}
+                    onChange={(e, value) => setPageDonaciones(value - 1)}
+                    color="standard"
+                  />
+                </Box>
+              )}
+            </Box>
+          )}
+
+          {/* TABLA DE CÓDIGOS PROMOCIONALES */}
+          {selectedTab === 3 && (
             <Box>
               <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end" }}>
                 <Button

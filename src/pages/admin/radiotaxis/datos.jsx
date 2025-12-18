@@ -79,7 +79,8 @@ export function useRadiotaxisRows() {
           .map((doc, idx) => {
             const empresa = doc.data()?.empresa || {};
             const nombreEmpresa = empresa?.nombreEmpresa || "";
-            const telefono = empresa?.telefono || "";
+            const telefono = doc.data()?.phoneNumber || "";
+            const phoneVerified = doc.data()?.phoneVerified || false;
             const representante = empresa?.representante || "";
             const logoUrl = empresa?.logoUrl || "";
             const fecha = formatearFecha(empresa?.createdAt); // ← NUEVO
@@ -98,6 +99,7 @@ export function useRadiotaxisRows() {
               firebaseId: doc.id, // para acciones/modales
               nombreEmpresa,
               telefono,
+              phoneVerified,
               fecha, // ← NUEVO
               representante,
               logoUrl,        // ← DISPONIBLE para el modal (no hay columna en la tabla)
@@ -119,7 +121,8 @@ export function useRadiotaxisRows() {
             .map((doc, idx) => {
               const empresa = doc.data()?.empresa || {};
               const nombreEmpresa = empresa?.nombreEmpresa || "";
-              const telefono = empresa?.telefono || "";   // ← NUEVO
+              const telefono = doc.data()?.phoneNumber || "";   // ← NUEVO
+              const phoneVerified = doc.data()?.phoneVerified || false;
               const logoUrl = empresa?.logoUrl || "";
               const fecha = formatearFecha(empresa?.createdAt); // ← NUEVO
               const representante = empresa?.representante || "";
@@ -138,6 +141,7 @@ export function useRadiotaxisRows() {
                 firebaseId: doc.id,
                 nombreEmpresa,
                 telefono,           // ← NUEVO
+                phoneVerified,
                 fecha, // ← NUEVO
                 representante,
                 logoUrl,        // ← DISPONIBLE para el modal (no hay columna en la tabla)

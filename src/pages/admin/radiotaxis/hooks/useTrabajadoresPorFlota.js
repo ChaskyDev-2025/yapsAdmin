@@ -43,7 +43,7 @@ export function useTrabajadoresPorFlota(flotaId) {
           .map((doc, idx) => {
             const trabajador = doc.data();
             const nombreUsuario = trabajador.perfil?.name || "Trabajador sin nombre";
-            const telefono = trabajador.telefono || "Sin teléfono";
+            const telefono = trabajador.phoneNumber || "Sin teléfono";
             const email = trabajador.perfil?.email || trabajador.email || "Sin email";
             const fotoUrl = trabajador.perfil?.photoUrl || "";
             const createdAt = trabajador.perfil?.createdAt || null;
@@ -54,6 +54,7 @@ export function useTrabajadoresPorFlota(flotaId) {
               firebaseId: doc.id,
               nombreEmpresa: nombreUsuario,
               telefono,
+              phoneVerified: trabajador.phoneVerified || false,
               email,
               representante: email,
               logoUrl: fotoUrl,
