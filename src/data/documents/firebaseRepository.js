@@ -191,15 +191,44 @@ export class FirebaseDocumentRepository extends DocumentRepository {
   
   async remove(id) {
     if (this.flotaId) {
-      // Eliminar del map documentos
-      return updateDoc(doc(db, "flotas", this.flotaId), {
-        [`documentos.${id}`]: deleteField()
-      });
-    } else {
-      // Eliminar del array documentosPorCiudad
-      // Necesitamos buscar en todas las ciudades
+      // Admin de flota: eliminar de su estructura de documentos
+      // Estructura: documentos/{ciudad}/{categoria}/{slug} -> { id, nombre }
       const CIUDADES = ["La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", "Oruro", "Potosí", "Tarija", "Pando", "Beni"];
       
+      const flotaRef = doc(db, "flotas", this.flotaId);
+      const flotaSnap = await getDoc(flotaRef);
+      
+      if (flotaSnap.exists()) {
+        const flotaData = flotaSnap.data();
+        const documentos = flotaData.documentos || {};
+        
+        // Buscar recursivamente el documento por su id
+        for (const [ciudad, ciudadData] of Object.entries(documentos)) {
+          if (typeof ciudadData !== 'object' || ciudadData === null) continue;
+          
+          for (const [categoria, categoriaData] of Object.entries(ciudadData)) {
+            if (typeof categoriaData !== 'object' || categoriaData === null) continue;
+            
+            // Buscar en los slugs
+            for (const [slug, docValue] of Object.entries(categoriaData)) {
+              if (typeof docValue === 'object' && docValue?.id === id) {
+                // Encontrado, eliminar
+                await updateDoc(flotaRef, {
+                  [`documentos.${ciudad}.${categoria}.${slug}`]: deleteField()
+                });
+                console.log(`✅ Documento ${id} eliminado de flota ${this.flotaId}`);
+                return;
+              }
+            }
+          }
+        }
+      }
+    } else {
+      // SuperAdmin: obtener el documento completo primero
+      let docToDelete = null;
+      const CIUDADES = ["La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", "Oruro", "Potosí", "Tarija", "Pando", "Beni"];
+      
+      // Buscar en crear-documentos
       for (const ciudad of CIUDADES) {
         const docId = this._getCiudadDocId(ciudad);
         const docRef = doc(db, "crear-documentos", docId);
@@ -207,13 +236,48 @@ export class FirebaseDocumentRepository extends DocumentRepository {
         
         if (docSnap.exists()) {
           const documentosPorCiudad = docSnap.data().documentosPorCiudad || [];
-          const filtered = documentosPorCiudad.filter(d => d.id !== id && d.firebaseId !== id);
+          const found = documentosPorCiudad.find(d => d.id === id || d.firebaseId === id);
           
-          if (filtered.length < documentosPorCiudad.length) {
-            // El documento estaba en esta ciudad
-            return updateDoc(docRef, { documentosPorCiudad: filtered });
+          if (found) {
+            docToDelete = found;
+            const filtered = documentosPorCiudad.filter(d => d.id !== id && d.firebaseId !== id);
+            await updateDoc(docRef, { documentosPorCiudad: filtered });
+            break;
           }
         }
+      }
+      
+      // Eliminar de todas las flotas
+      try {
+        const flotasSnapshot = await getDocs(collection(db, "flotas"));
+        
+        for (const flotaDoc of flotasSnapshot.docs) {
+          const flotaData = flotaDoc.data();
+          const documentos = flotaData.documentos || {};
+          
+          // Estructura: documentos/{ciudad}/{categoria}/{slug} -> { id, nombre }
+          for (const [ciudad, ciudadData] of Object.entries(documentos)) {
+            if (typeof ciudadData !== 'object' || ciudadData === null) continue;
+            
+            for (const [categoria, categoriaData] of Object.entries(ciudadData)) {
+              if (typeof categoriaData !== 'object' || categoriaData === null) continue;
+              
+              // Buscar en los slugs
+              for (const [slug, docValue] of Object.entries(categoriaData)) {
+                if (typeof docValue === 'object' && docValue?.id === id) {
+                  // Encontrado, eliminar
+                  await updateDoc(doc(db, "flotas", flotaDoc.id), {
+                    [`documentos.${ciudad}.${categoria}.${slug}`]: deleteField()
+                  });
+                  console.log(`✅ Documento ${id} eliminado de flota: ${flotaDoc.id} (${ciudad}/${categoria}/${slug})`);
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`❌ Error eliminando documento de flotas:`, error);
+        throw error;
       }
     }
   }

@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   Typography, Paper, Stack, Alert, Box, Chip, Tabs, Tab, Button,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Switch, IconButton, Tooltip, Pagination
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Switch, IconButton, Tooltip, Pagination,
+  Dialog, DialogTitle, DialogContent, DialogActions
 } from "@mui/material";
 import { Tabla2 }        from "../../../shared/components/tablas/tabla";
 
@@ -48,6 +49,8 @@ const Documentos = () => {
   const handleClose = () => setOpenCreate(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [docSeleccionado, setDocSeleccionado] = useState(null);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [docToDelete, setDocToDelete] = useState(null);
 
   // Cargar información de la flota si es admin
   useEffect(() => {
@@ -158,20 +161,35 @@ const Documentos = () => {
       <IconActionButton
         icon={<DeleteIcon fontSize="small" />}
         color="error"
-        onClick={async (e) => {
+        onClick={(e) => {
           e.stopPropagation();
-          const confirm = window.confirm(`¿Eliminar "${row.titulo}"?`);
-          if (!confirm) return;
-            await remove(row.id);
-          try {
-            
-          } catch (err) {
-            console.error("❌ Error al eliminar:", err);
-          }
+          console.log("🗑️ Click eliminar sobre:", row.titulo);
+          setDocToDelete(row);
+          setOpenDeleteDialog(true);
         }}
       />
     </Stack>
-  ), [remove]);
+  ), []);
+
+  // Manejador para confirmar eliminación
+  const handleConfirmDelete = async () => {
+    if (!docToDelete) return;
+    try {
+      console.log("✅ Confirmando eliminación de:", docToDelete.titulo);
+      await remove(docToDelete.id);
+      setOpenDeleteDialog(false);
+      setDocToDelete(null);
+    } catch (err) {
+      console.error("❌ Error al eliminar:", err);
+      alert("Error al eliminar el documento");
+    }
+  };
+
+  const handleCancelDelete = () => {
+    console.log("❌ Cancelada eliminación");
+    setOpenDeleteDialog(false);
+    setDocToDelete(null);
+  };
 
   /* ── UI ─────────────────────────── */
   return (
@@ -360,7 +378,9 @@ const Documentos = () => {
                         size="small"
                         onClick={(e) => {
                           e.stopPropagation();
-                          remove(doc.firebaseId);
+                          console.log("🗑️ Click eliminar sobre:", doc.titulo);
+                          setDocToDelete(doc);
+                          setOpenDeleteDialog(true);
                         }}
                         sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcdd2" } }}
                       >
@@ -406,6 +426,37 @@ const Documentos = () => {
         documento={docSeleccionado}
         onSave={handleUpdate}
       />
+
+      {/* Dialog de confirmación de eliminación */}
+      <Dialog
+        open={openDeleteDialog}
+        onClose={handleCancelDelete}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>
+          ⚠️ Eliminar Documento
+        </DialogTitle>
+        <DialogContent sx={{ fontFamily: "Mulish, sans-serif", pt: 2 }}>
+          <Typography sx={{ mb: 2 }}>
+            ¿Deseas eliminar el documento?
+          </Typography>
+          <Box sx={{ backgroundColor: "#f5f5f5", p: 1.5, borderRadius: 1, mb: 2 }}>
+            <Typography sx={{ fontWeight: 700, color: "#d7171a" }}>
+              "{docToDelete?.titulo}"
+            </Typography>
+          </Box>
+          <Typography variant="body2" sx={{ color: "#666" }}>
+            Se eliminará de todas las flotas donde esté asignado.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCancelDelete}>Cancelar</Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained">
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

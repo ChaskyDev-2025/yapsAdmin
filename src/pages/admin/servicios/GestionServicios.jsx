@@ -583,6 +583,10 @@ const GestionServicios = () => {
     acciones: true,
   });
 
+  // Estados para diálogo de eliminación de servicios
+  const [openDeleteServiceDialog, setOpenDeleteServiceDialog] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState(null);
+
   // Load Department Statuses - Solo cargar cuando sea necesario
   useEffect(() => {
     if (tabValue === 0) {
@@ -737,14 +741,27 @@ const GestionServicios = () => {
     setModalOpen(true);
   }, []);
 
-  const memoizedHandleDeleteService = useCallback((serviceId) => {
-    if (!window.confirm('¿Eliminar este servicio?')) return;
-    if (selectedDept) {
-      updateDoc(doc(db, 'Tarifas', selectedDept), {
-        [serviceId]: deleteField()
-      }).catch(err => console.error("Error deleting service:", err));
-    }
-  }, [selectedDept]);
+  const handleOpenDeleteServiceDialog = (service) => {
+    setServiceToDelete(service);
+    setOpenDeleteServiceDialog(true);
+  };
+
+  const handleCloseDeleteServiceDialog = () => {
+    setOpenDeleteServiceDialog(false);
+    setServiceToDelete(null);
+  };
+
+  const handleConfirmDeleteService = () => {
+    if (!serviceToDelete || !selectedDept) return;
+    updateDoc(doc(db, 'Tarifas', selectedDept), {
+      [serviceToDelete.id]: deleteField()
+    }).catch(err => console.error("Error deleting service:", err));
+    handleCloseDeleteServiceDialog();
+  };
+
+  const memoizedHandleDeleteService = useCallback((service) => {
+    handleOpenDeleteServiceDialog(service);
+  }, []);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -966,7 +983,7 @@ const GestionServicios = () => {
                               </IconButton>
                               <IconButton
                                 size="small"
-                                onClick={() => memoizedHandleDeleteService(srv.id)}
+                                onClick={() => memoizedHandleDeleteService(srv)}
                                 sx={{ color: '#d7171a' }}
                               >
                                 <DeleteIcon />
@@ -1014,6 +1031,42 @@ const GestionServicios = () => {
         onSave={handleSaveService}
         modoPrueba={false}
       />
+
+      {/* Dialog de confirmación para eliminar Servicio */}
+      <Dialog
+        open={openDeleteServiceDialog}
+        onClose={handleCloseDeleteServiceDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>
+          ⚠️ Eliminar Servicio
+        </DialogTitle>
+        <DialogContent sx={{ fontFamily: "Mulish, sans-serif", pt: 2 }}>
+          <Typography sx={{ mb: 2 }}>
+            ¿Deseas eliminar este servicio?
+          </Typography>
+          {serviceToDelete && (
+            <Box sx={{ backgroundColor: "#f5f5f5", p: 1.5, borderRadius: 1, mb: 2 }}>
+              <Typography sx={{ fontWeight: 700, color: "#d7171a" }}>
+                {serviceToDelete.nombre_visible}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#666" }}>
+                Categoría: {serviceToDelete.categoria}
+              </Typography>
+            </Box>
+          )}
+          <Typography variant="body2" sx={{ color: "#666" }}>
+            Esta acción no se puede deshacer.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCloseDeleteServiceDialog}>Cancelar</Button>
+          <Button onClick={handleConfirmDeleteService} color="error" variant="contained">
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

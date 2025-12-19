@@ -82,6 +82,14 @@ const GestionUsuarios = () => {
     severity: "success"
   });
   
+  // Estados para diálogos de eliminación
+  const [openDeleteAdminDialog, setOpenDeleteAdminDialog] = useState(false);
+  const [adminToDelete, setAdminToDelete] = useState(null);
+  const [openDeleteConductorDialog, setOpenDeleteConductorDialog] = useState(false);
+  const [conductorToDelete, setConductorToDelete] = useState(null);
+  const [openDeletePasajeroDialog, setOpenDeletePasajeroDialog] = useState(false);
+  const [pasajeroToDelete, setPasajeroToDelete] = useState(null);
+  
   // Estados para búsqueda y filtros
   const [searchAdmin, setSearchAdmin] = useState("");
   const [searchPasajeros, setSearchPasajeros] = useState("");
@@ -861,56 +869,102 @@ const GestionUsuarios = () => {
     }
   };
 
-  const handleDeleteUser = async (userId) => {
-    if (window.confirm("¿Estás seguro de eliminar este usuario?")) {
-      try {
-        const result = await deleteUser(userId);
-        if (result.success) {
-          setSnackbar({
-            open: true,
-            message: "✅ Usuario eliminado correctamente",
-            severity: "success"
-          });
-          loadUsers();
-        } else {
-          setSnackbar({
-            open: true,
-            message: "❌ " + (result.error || "Error al eliminar usuario"),
-            severity: "error"
-          });
-        }
-      } catch (err) {
+  const handleOpenDeleteAdminDialog = (usuario) => {
+    setAdminToDelete(usuario);
+    setOpenDeleteAdminDialog(true);
+  };
+
+  const handleCloseDeleteAdminDialog = () => {
+    setOpenDeleteAdminDialog(false);
+    setAdminToDelete(null);
+  };
+
+  const handleConfirmDeleteAdmin = async () => {
+    if (!adminToDelete) return;
+    try {
+      const result = await deleteUser(adminToDelete.id);
+      if (result.success) {
         setSnackbar({
           open: true,
-          message: "❌ Error al eliminar usuario: " + err.message,
+          message: "✅ Admin eliminado correctamente",
+          severity: "success"
+        });
+        loadUsers();
+      } else {
+        setSnackbar({
+          open: true,
+          message: "❌ " + (result.error || "Error al eliminar admin"),
           severity: "error"
         });
       }
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: "❌ Error al eliminar admin: " + err.message,
+        severity: "error"
+      });
     }
+    handleCloseDeleteAdminDialog();
   };
 
-  const handleDeleteTrabajador = async (trabajadorId) => {
+  const handleOpenDeleteConductorDialog = (conductor) => {
+    setConductorToDelete(conductor);
+    setOpenDeleteConductorDialog(true);
+  };
+
+  const handleCloseDeleteConductorDialog = () => {
+    setOpenDeleteConductorDialog(false);
+    setConductorToDelete(null);
+  };
+
+  const handleConfirmDeleteConductor = async () => {
+    if (!conductorToDelete) return;
     try {
-      await deleteDoc(doc(db, "trabajadores", trabajadorId));
-      setSuccess("Conductor eliminado correctamente");
-      setTimeout(() => setSuccess(""), 3000);
+      await deleteDoc(doc(db, "trabajadores", conductorToDelete.id));
+      setSnackbar({
+        open: true,
+        message: "✅ Conductor eliminado correctamente",
+        severity: "success"
+      });
     } catch (error) {
       console.error("Error al eliminar conductor:", error);
-      setError("Error al eliminar conductor");
-      setTimeout(() => setError(""), 3000);
+      setSnackbar({
+        open: true,
+        message: "❌ Error al eliminar conductor",
+        severity: "error"
+      });
     }
+    handleCloseDeleteConductorDialog();
   };
 
-  const handleDeletePasajero = async (pasajeroId) => {
+  const handleOpenDeletePasajeroDialog = (pasajero) => {
+    setPasajeroToDelete(pasajero);
+    setOpenDeletePasajeroDialog(true);
+  };
+
+  const handleCloseDeletePasajeroDialog = () => {
+    setOpenDeletePasajeroDialog(false);
+    setPasajeroToDelete(null);
+  };
+
+  const handleConfirmDeletePasajero = async () => {
+    if (!pasajeroToDelete) return;
     try {
-      await deleteDoc(doc(db, "pasajeros", pasajeroId));
-      setSuccess("Pasajero eliminado correctamente");
-      setTimeout(() => setSuccess(""), 3000);
+      await deleteDoc(doc(db, "pasajeros", pasajeroToDelete.id));
+      setSnackbar({
+        open: true,
+        message: "✅ Pasajero eliminado correctamente",
+        severity: "success"
+      });
     } catch (error) {
       console.error("Error al eliminar pasajero:", error);
-      setError("Error al eliminar pasajero");
-      setTimeout(() => setError(""), 3000);
+      setSnackbar({
+        open: true,
+        message: "❌ Error al eliminar pasajero",
+        severity: "error"
+      });
     }
+    handleCloseDeletePasajeroDialog();
   };
 
   const handleToggleActivo = async (userId, activo) => {
@@ -1218,7 +1272,7 @@ const GestionUsuarios = () => {
                       </IconButton>
                       <IconButton
                         size="small"
-                        onClick={() => handleDeleteUser(usuario.id)}
+                        onClick={() => handleOpenDeleteAdminDialog(usuario)}
                         sx={{ color: "#d7171a" }}
                       >
                         <DeleteIcon />
@@ -1436,11 +1490,7 @@ const GestionUsuarios = () => {
                         <Tooltip title="Eliminar">
                           <IconButton
                             size="small"
-                            onClick={() => {
-                              if (window.confirm("¿Estás seguro de eliminar este pasajero?")) {
-                                handleDeletePasajero(pasajero.id);
-                              }
-                            }}
+                            onClick={() => handleOpenDeletePasajeroDialog(pasajero)}
                             sx={{ color: "#d7171a" }}
                           >
                             <DeleteIcon />
@@ -1716,11 +1766,7 @@ const GestionUsuarios = () => {
                         <Tooltip title="Eliminar">
                           <IconButton
                             size="small"
-                            onClick={() => {
-                              if (window.confirm("¿Estás seguro de que deseas eliminar este conductor?")) {
-                                handleDeleteTrabajador(trabajador.id);
-                              }
-                            }}
+                            onClick={() => handleOpenDeleteConductorDialog(trabajador)}
                             sx={{ color: "#d7171a" }}
                           >
                             <DeleteIcon />
@@ -1938,6 +1984,114 @@ const GestionUsuarios = () => {
         onClose={() => setDetallesConductorModalOpen(false)}
         rowData={conductorDetalles}
       />
+
+      {/* Dialog de confirmación para eliminar Admin */}
+      <Dialog
+        open={openDeleteAdminDialog}
+        onClose={handleCloseDeleteAdminDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>
+          ⚠️ Eliminar Admin
+        </DialogTitle>
+        <DialogContent sx={{ fontFamily: "Mulish, sans-serif", pt: 2 }}>
+          <Typography sx={{ mb: 2 }}>
+            ¿Deseas eliminar este administrador?
+          </Typography>
+          {adminToDelete && (
+            <Box sx={{ backgroundColor: "#f5f5f5", p: 1.5, borderRadius: 1, mb: 2 }}>
+              <Typography sx={{ fontWeight: 700, color: "#d7171a" }}>
+                {adminToDelete.name || adminToDelete.email}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#666" }}>
+                {adminToDelete.email}
+              </Typography>
+            </Box>
+          )}
+          <Typography variant="body2" sx={{ color: "#666" }}>
+            Esta acción no se puede deshacer.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCloseDeleteAdminDialog}>Cancelar</Button>
+          <Button onClick={handleConfirmDeleteAdmin} color="error" variant="contained">
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog de confirmación para eliminar Conductor */}
+      <Dialog
+        open={openDeleteConductorDialog}
+        onClose={handleCloseDeleteConductorDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>
+          ⚠️ Eliminar Conductor
+        </DialogTitle>
+        <DialogContent sx={{ fontFamily: "Mulish, sans-serif", pt: 2 }}>
+          <Typography sx={{ mb: 2 }}>
+            ¿Deseas eliminar este conductor?
+          </Typography>
+          {conductorToDelete && (
+            <Box sx={{ backgroundColor: "#f5f5f5", p: 1.5, borderRadius: 1, mb: 2 }}>
+              <Typography sx={{ fontWeight: 700, color: "#d7171a" }}>
+                {conductorToDelete.perfil?.name || conductorToDelete.name}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#666" }}>
+                {conductorToDelete.perfil?.email || conductorToDelete.email}
+              </Typography>
+            </Box>
+          )}
+          <Typography variant="body2" sx={{ color: "#666" }}>
+            Esta acción no se puede deshacer.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCloseDeleteConductorDialog}>Cancelar</Button>
+          <Button onClick={handleConfirmDeleteConductor} color="error" variant="contained">
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog de confirmación para eliminar Pasajero */}
+      <Dialog
+        open={openDeletePasajeroDialog}
+        onClose={handleCloseDeletePasajeroDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>
+          ⚠️ Eliminar Pasajero
+        </DialogTitle>
+        <DialogContent sx={{ fontFamily: "Mulish, sans-serif", pt: 2 }}>
+          <Typography sx={{ mb: 2 }}>
+            ¿Deseas eliminar este pasajero?
+          </Typography>
+          {pasajeroToDelete && (
+            <Box sx={{ backgroundColor: "#f5f5f5", p: 1.5, borderRadius: 1, mb: 2 }}>
+              <Typography sx={{ fontWeight: 700, color: "#d7171a" }}>
+                {pasajeroToDelete.perfil?.name || pasajeroToDelete.name}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#666" }}>
+                {pasajeroToDelete.perfil?.email || pasajeroToDelete.email}
+              </Typography>
+            </Box>
+          )}
+          <Typography variant="body2" sx={{ color: "#666" }}>
+            Esta acción no se puede deshacer.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCloseDeletePasajeroDialog}>Cancelar</Button>
+          <Button onClick={handleConfirmDeletePasajero} color="error" variant="contained">
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
 
     </Box>
   );

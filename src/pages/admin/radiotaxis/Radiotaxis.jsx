@@ -69,6 +69,10 @@ const Radiotaxis = () => {
   const [allRadiotaxis, setAllRadiotaxis] = useState([]);
   const ITEMS_PER_PAGE = 10;
   
+  // Estados para diálogo de eliminación de conductor
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [conductorToDelete, setConductorToDelete] = useState(null);
+  
   // Cargar todos los radiotaxis (solo para superadmin)
   useEffect(() => {
     if (!isSuperAdminUser) return;
@@ -186,25 +190,34 @@ const Radiotaxis = () => {
   };
 
   const handleDelete = async (row) => {
-    if (!window.confirm(`¿Está seguro de que desea eliminar a ${row.nombreEmpresa}? Este usuario será eliminado de su sistema.`)) {
-      return;
-    }
+    setConductorToDelete(row);
+    setOpenDeleteDialog(true);
+  };
 
+  const handleCloseDeleteDialog = () => {
+    setOpenDeleteDialog(false);
+    setConductorToDelete(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!conductorToDelete) return;
+    
     setLoading(true);
     try {
       if (isSuperAdminUser) {
         // Superadmin elimina permanentemente
-        await deleteDoc(doc(db, "trabajadores", row.firebaseId));
+        await deleteDoc(doc(db, "trabajadores", conductorToDelete.firebaseId));
         setSuccessMessage("Radiotaxi eliminado permanentemente");
       } else {
         // Admin de flota hace soft delete (marca como eliminado por su flota)
-        await updateDoc(doc(db, "trabajadores", row.firebaseId), {
+        await updateDoc(doc(db, "trabajadores", conductorToDelete.firebaseId), {
           deletedByFlotaId: flotaId,
           deletedAt: new Date(),
         });
         setSuccessMessage("Radiotaxi ocultado para su flota");
       }
       setErrorMessage("");
+      handleCloseDeleteDialog();
       setTimeout(() => {
         setSuccessMessage("");
         refetch();
@@ -626,6 +639,44 @@ const Radiotaxis = () => {
         onClose={() => setOpenModal(false)}
         rowData={selectedRow}
       />
+
+      {/* Dialog de confirmación para eliminar conductor */}
+      <Dialog
+        open={openDeleteDialog}
+        onClose={handleCloseDeleteDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}>
+          ⚠️ Eliminar Conductor
+        </DialogTitle>
+        <DialogContent sx={{ fontFamily: "Mulish, sans-serif", pt: 2 }}>
+          <Typography sx={{ mb: 2 }}>
+            ¿Deseas eliminar este conductor?
+          </Typography>
+          {conductorToDelete && (
+            <Box sx={{ backgroundColor: "#f5f5f5", p: 1.5, borderRadius: 1, mb: 2 }}>
+              <Typography sx={{ fontWeight: 700, color: "#d7171a" }}>
+                {conductorToDelete.nombreEmpresa}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#666" }}>
+                {conductorToDelete.email}
+              </Typography>
+            </Box>
+          )}
+          <Typography variant="body2" sx={{ color: "#666" }}>
+            {isSuperAdminUser 
+              ? "Se eliminará permanentemente del sistema." 
+              : "Se ocultará para su flota."}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCloseDeleteDialog}>Cancelar</Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained" disabled={loading}>
+            {loading ? "Eliminando..." : "Eliminar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
