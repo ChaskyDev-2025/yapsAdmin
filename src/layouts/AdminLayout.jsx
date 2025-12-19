@@ -51,12 +51,12 @@ const AdminLayout = () => {
     // Menú para Admin regular
     return [
       { path: "/admin/dashboard", label: "Inicio", icon: <DashboardIcon /> },
-      { path: "/admin/radiotaxis", label: "Radiotaxis", icon: <LocalTaxiIcon /> },
+      { path: "/admin/radiotaxis", label: "Conductores", icon: <LocalTaxiIcon /> },
       { path: "/admin/billetera-flota", label: "Billetera", icon: <AccountBalanceWalletIcon /> },
       { path: "/admin/solicitudes-asignadas", label: "Solicitudes", icon: <AssignmentIcon /> },
       { path: "/admin/documentos-pendientes", label: "Docs Pendientes", icon: <DescriptionIcon /> },
-      { path: "/admin/ajustes", label: "Ajustes", icon: <SettingsIcon /> },
-      { path: "/admin/personalizar", label: "Personalizar", icon: <BuildIcon /> },
+      { path: "/admin/ajustes", label: "Administradores", icon: <SettingsIcon /> },
+      // { path: "/admin/personalizar", label: "Personalizar", icon: <BuildIcon /> },
       { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },
     ];
   }, [userRole]);

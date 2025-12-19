@@ -22,10 +22,13 @@ import {
   Tabs,
   Tab,
   Pagination,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import QrCodeIcon from "@mui/icons-material/QrCode";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import ImageIcon from "@mui/icons-material/Image";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
 import DateFilterComponent from "../usuarios/components/DateFilterComponent";
 import { useAuth } from "../../../auth/AuthContext";
@@ -81,6 +84,26 @@ const BilleteraFlota = () => {
   const [sortByHistorial, setSortByHistorial] = useState("fecha-desc");
   const [periodFilterHistorial, setPeriodFilterHistorial] = useState("todos");
 
+  // Estados para columnas visibles en Solicitudes
+  const [visibleColumnsSolicitudes, setVisibleColumnsSolicitudes] = useState({
+    fecha: true,
+    monto: true,
+    concepto: true,
+    estado: true,
+    notas: true,
+    comprobante: true,
+  });
+
+  // Estados para columnas visibles en Historial
+  const [visibleColumnsHistorial, setVisibleColumnsHistorial] = useState({
+    fecha: true,
+    tipo: true,
+    monto: true,
+    concepto: true,
+    saldo: true,
+    comprobante: true,
+  });
+
   // Estados para el modal QR
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qrImage, setQrImage] = useState(null);
@@ -96,6 +119,10 @@ const BilleteraFlota = () => {
   const [comprobanteImage, setComprobanteImage] = useState(null);
   const [comprobantePreview, setComprobantePreview] = useState(null);
   const [nroComprobante, setNroComprobante] = useState("");
+
+  // Estados para comprobante expandido
+  const [comprobanteExpandidoOpen, setComprobanteExpandidoOpen] = useState(false);
+  const [comprobanteExpandidoUrl, setComprobanteExpandidoUrl] = useState(null);
 
   useEffect(() => {
     if (!flotaId) {
@@ -780,6 +807,8 @@ const BilleteraFlota = () => {
                     { label: "↑ Monto (Menor)", value: "monto-asc" },
                     { label: "↓ Monto (Mayor)", value: "monto-desc" },
                   ]}
+                  visibleColumns={visibleColumnsSolicitudes}
+                  onColumnChange={(col, visible) => setVisibleColumnsSolicitudes(prev => ({ ...prev, [col]: visible }))}
                 />
               </Box>
               <DateFilterComponent
@@ -791,6 +820,7 @@ const BilleteraFlota = () => {
               <Table stickyHeader>
                 <TableHead sx={{ backgroundColor: "#000000" }}>
                   <TableRow>
+                    {visibleColumnsSolicitudes.fecha && (
                     <TableCell
                       sx={{
                         backgroundColor: "#000000",
@@ -802,6 +832,8 @@ const BilleteraFlota = () => {
                     >
                       Fecha
                     </TableCell>
+                    )}
+                    {visibleColumnsSolicitudes.monto && (
                     <TableCell
                       sx={{
                         backgroundColor: "#000000",
@@ -813,6 +845,8 @@ const BilleteraFlota = () => {
                     >
                       Monto
                     </TableCell>
+                    )}
+                    {visibleColumnsSolicitudes.concepto && (
                     <TableCell
                       sx={{
                         backgroundColor: "#000000",
@@ -824,6 +858,8 @@ const BilleteraFlota = () => {
                     >
                       Concepto
                     </TableCell>
+                    )}
+                    {visibleColumnsSolicitudes.estado && (
                     <TableCell
                       sx={{
                         backgroundColor: "#000000",
@@ -835,6 +871,8 @@ const BilleteraFlota = () => {
                     >
                       Estado
                     </TableCell>
+                    )}
+                    {visibleColumnsSolicitudes.notas && (
                     <TableCell
                       sx={{
                         backgroundColor: "#000000",
@@ -846,12 +884,27 @@ const BilleteraFlota = () => {
                     >
                       Notas
                     </TableCell>
+                    )}
+                    {visibleColumnsSolicitudes.comprobante && (
+                    <TableCell
+                      align="center"
+                      sx={{
+                        backgroundColor: "#000000",
+                        color: "white",
+                        fontWeight: 700,
+                        fontFamily: "Mulish, sans-serif",
+                        fontSize: "0.95rem",
+                      }}
+                    >
+                      Comprobante
+                    </TableCell>
+                    )}
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {solicitudesFiltradas.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} align="center">
+                      <TableCell colSpan={6} align="center">
                         <Typography
                           sx={{
                             py: 3,
@@ -869,11 +922,14 @@ const BilleteraFlota = () => {
                         key={solicitud.id}
                         sx={{ borderBottom: "1px solid #d0d0d0" }}
                       >
+                        {visibleColumnsSolicitudes.fecha && (
                         <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                           {solicitud.fechaSolicitud
                             ?.toDate?.()
                             .toLocaleDateString("es-ES") || "N/A"}
                         </TableCell>
+                        )}
+                        {visibleColumnsSolicitudes.monto && (
                         <TableCell
                           sx={{
                             fontFamily: "Mulish, sans-serif",
@@ -885,9 +941,13 @@ const BilleteraFlota = () => {
                             minimumFractionDigits: 2,
                           })}
                         </TableCell>
+                        )}
+                        {visibleColumnsSolicitudes.concepto && (
                         <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                           {solicitud.concepto}
                         </TableCell>
+                        )}
+                        {visibleColumnsSolicitudes.estado && (
                         <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                           <Chip
                             label={getEstadoLabel(solicitud.estado)}
@@ -904,6 +964,8 @@ const BilleteraFlota = () => {
                             }}
                           />
                         </TableCell>
+                        )}
+                        {visibleColumnsSolicitudes.notas && (
                         <TableCell
                           sx={{
                             fontFamily: "Mulish, sans-serif",
@@ -915,6 +977,41 @@ const BilleteraFlota = () => {
                             ? `Rechazada: ${solicitud.razonRechazo}`
                             : solicitud.notas || "-"}
                         </TableCell>
+                        )}
+                        {visibleColumnsSolicitudes.comprobante && (
+                        <TableCell align="center">
+                          {solicitud.comprobanteUrl ? (
+                            <Tooltip title="Ver comprobante">
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  setComprobanteExpandidoUrl(
+                                    solicitud.comprobanteUrl
+                                  );
+                                  setComprobanteExpandidoOpen(true);
+                                }}
+                                sx={{
+                                  bgcolor: "#e3f2fd",
+                                  color: "#1976d2",
+                                  "&:hover": { bgcolor: "#bbdefb" },
+                                }}
+                              >
+                                <ImageIcon />
+                              </IconButton>
+                            </Tooltip>
+                          ) : (
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: "#999",
+                                fontFamily: "Mulish, sans-serif",
+                              }}
+                            >
+                              -
+                            </Typography>
+                          )}
+                        </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}
@@ -987,6 +1084,8 @@ const BilleteraFlota = () => {
                     { label: "↑ Monto (Menor)", value: "monto-asc" },
                     { label: "↓ Monto (Mayor)", value: "monto-desc" },
                   ]}
+                  visibleColumns={visibleColumnsHistorial}
+                  onColumnChange={(col, visible) => setVisibleColumnsHistorial(prev => ({ ...prev, [col]: visible }))}
                 />
               </Box>
               <DateFilterComponent
@@ -998,6 +1097,7 @@ const BilleteraFlota = () => {
               <Table stickyHeader>
                 <TableHead sx={{ backgroundColor: "#000000" }}>
                   <TableRow>
+                    {visibleColumnsHistorial.fecha && (
                     <TableCell
                       sx={{
                         backgroundColor: "#000000",
@@ -1009,6 +1109,8 @@ const BilleteraFlota = () => {
                     >
                       Fecha
                     </TableCell>
+                    )}
+                    {visibleColumnsHistorial.tipo && (
                     <TableCell
                       sx={{
                         backgroundColor: "#000000",
@@ -1020,6 +1122,8 @@ const BilleteraFlota = () => {
                     >
                       Tipo
                     </TableCell>
+                    )}
+                    {visibleColumnsHistorial.monto && (
                     <TableCell
                       sx={{
                         backgroundColor: "#000000",
@@ -1031,6 +1135,8 @@ const BilleteraFlota = () => {
                     >
                       Monto
                     </TableCell>
+                    )}
+                    {visibleColumnsHistorial.concepto && (
                     <TableCell
                       sx={{
                         backgroundColor: "#000000",
@@ -1042,6 +1148,8 @@ const BilleteraFlota = () => {
                     >
                       Concepto
                     </TableCell>
+                    )}
+                    {visibleColumnsHistorial.saldo && (
                     <TableCell
                       sx={{
                         backgroundColor: "#000000",
@@ -1053,12 +1161,27 @@ const BilleteraFlota = () => {
                     >
                       Saldo Posterior
                     </TableCell>
+                    )}
+                    {visibleColumnsHistorial.comprobante && (
+                    <TableCell
+                      align="center"
+                      sx={{
+                        backgroundColor: "#000000",
+                        color: "white",
+                        fontWeight: 700,
+                        fontFamily: "Mulish, sans-serif",
+                        fontSize: "0.95rem",
+                      }}
+                    >
+                      Comprobante
+                    </TableCell>
+                    )}
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {historialFiltrado.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} align="center">
+                      <TableCell colSpan={6} align="center">
                         <Typography
                           sx={{
                             py: 3,
@@ -1076,9 +1199,12 @@ const BilleteraFlota = () => {
                         key={tx.id}
                         sx={{ borderBottom: "1px solid #d0d0d0" }}
                       >
+                        {visibleColumnsHistorial.fecha && (
                         <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                           {tx.fechaRegistro}
                         </TableCell>
+                        )}
+                        {visibleColumnsHistorial.tipo && (
                         <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                           <Chip
                             label={
@@ -1093,6 +1219,8 @@ const BilleteraFlota = () => {
                             }}
                           />
                         </TableCell>
+                        )}
+                        {visibleColumnsHistorial.monto && (
                         <TableCell
                           sx={{
                             fontFamily: "Mulish, sans-serif",
@@ -1104,9 +1232,13 @@ const BilleteraFlota = () => {
                             minimumFractionDigits: 2,
                           })}
                         </TableCell>
+                        )}
+                        {visibleColumnsHistorial.concepto && (
                         <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                           {tx.concepto}
                         </TableCell>
+                        )}
+                        {visibleColumnsHistorial.saldo && (
                         <TableCell
                           sx={{
                             fontFamily: "Mulish, sans-serif",
@@ -1119,6 +1251,41 @@ const BilleteraFlota = () => {
                             minimumFractionDigits: 2,
                           })}
                         </TableCell>
+                        )}
+                        {visibleColumnsHistorial.comprobante && (
+                        <TableCell align="center">
+                          {tx.comprobanteUrl ? (
+                            <Tooltip title="Ver comprobante">
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  setComprobanteExpandidoUrl(
+                                    tx.comprobanteUrl
+                                  );
+                                  setComprobanteExpandidoOpen(true);
+                                }}
+                                sx={{
+                                  bgcolor: "#e3f2fd",
+                                  color: "#1976d2",
+                                  "&:hover": { bgcolor: "#bbdefb" },
+                                }}
+                              >
+                                <ImageIcon />
+                              </IconButton>
+                            </Tooltip>
+                          ) : (
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: "#999",
+                                fontFamily: "Mulish, sans-serif",
+                              }}
+                            >
+                              -
+                            </Typography>
+                          )}
+                        </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}
@@ -1617,6 +1784,51 @@ const BilleteraFlota = () => {
               {uploadingQr ? "Subiendo..." : "Guardar QR"}
             </Button>
           </DialogActions>
+        </Dialog>
+
+        {/* Modal Comprobante Expandido */}
+        <Dialog
+          open={comprobanteExpandidoOpen}
+          onClose={() => setComprobanteExpandidoOpen(false)}
+          maxWidth="md"
+          fullWidth
+          PaperProps={{
+            sx: {
+              bgcolor: "rgba(0, 0, 0, 0.9)",
+              boxShadow: "none",
+            },
+          }}
+        >
+          <DialogContent
+            sx={{
+              p: 2,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <Box
+              component="img"
+              src={comprobanteExpandidoUrl}
+              alt="Comprobante Expandido"
+              sx={{
+                maxWidth: "100%",
+                maxHeight: "80vh",
+                objectFit: "contain",
+                borderRadius: 2,
+              }}
+            />
+            <Typography
+              variant="caption"
+              sx={{
+                color: "#fff",
+                mt: 2,
+                fontFamily: "Mulish, sans-serif",
+              }}
+            >
+              Haz clic fuera de la imagen para cerrar
+            </Typography>
+          </DialogContent>
         </Dialog>
 
         {/* SNACKBAR */}

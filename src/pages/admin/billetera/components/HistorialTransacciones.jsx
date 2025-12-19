@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -15,10 +15,29 @@ import {
   Typography,
   Box,
   Chip,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import ImageIcon from "@mui/icons-material/Image";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 const HistorialTransacciones = ({ open, onClose, flota, transacciones = [] }) => {
+  const [comprobanteExpandidoUrl, setComprobanteExpandidoUrl] = useState(null);
+  const [comprobanteExpandidoOpen, setComprobanteExpandidoOpen] = useState(false);
+
+  // Debug: log transacciones para ver si tienen comprobante
+  React.useEffect(() => {
+    if (open && transacciones.length > 0) {
+      console.log("[DEBUG HistorialTransacciones] Transacciones:", transacciones.map(t => ({
+        id: t.id,
+        monto: t.monto,
+        comprobanteUrl: t.comprobanteUrl,
+        solicitudId: t.solicitudId,
+      })));
+    }
+  }, [open, transacciones]);
+
   if (!flota) return null;
 
   const tipoColor = (tipo) => {
@@ -41,6 +60,16 @@ const HistorialTransacciones = ({ open, onClose, flota, transacciones = [] }) =>
       ajuste: "Ajuste",
     };
     return labels[tipo] || tipo;
+  };
+
+  const handleVerComprobante = (url) => {
+    setComprobanteExpandidoUrl(url);
+    setComprobanteExpandidoOpen(true);
+  };
+
+  const handleCloseComprobante = () => {
+    setComprobanteExpandidoOpen(false);
+    setComprobanteExpandidoUrl(null);
   };
 
   return (
@@ -78,6 +107,9 @@ const HistorialTransacciones = ({ open, onClose, flota, transacciones = [] }) =>
                   </TableCell>
                   <TableCell align="right" sx={{ fontWeight: 600 }}>
                     Saldo Posterior
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>
+                    Comprobante
                   </TableCell>
                 </TableRow>
               </TableHead>
@@ -128,6 +160,26 @@ const HistorialTransacciones = ({ open, onClose, flota, transacciones = [] }) =>
                         minimumFractionDigits: 2,
                       })}
                     </TableCell>
+                    <TableCell align="center">
+                      {trans.comprobanteUrl ? (
+                        <Tooltip title="Ver comprobante">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleVerComprobante(trans.comprobanteUrl)}
+                            sx={{
+                              color: "#d7171a",
+                              "&:hover": { bgcolor: "#ffe0e0" },
+                            }}
+                          >
+                            <ImageIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      ) : (
+                        <Typography variant="caption" sx={{ color: "#999" }}>
+                          N/A
+                        </Typography>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -146,6 +198,66 @@ const HistorialTransacciones = ({ open, onClose, flota, transacciones = [] }) =>
           Cerrar
         </Button>
       </DialogActions>
+
+      {/* Modal para ver comprobante expandido */}
+      <Dialog
+        open={comprobanteExpandidoOpen}
+        onClose={handleCloseComprobante}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
+            color: "#fff",
+            fontWeight: 700,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <ImageIcon />
+          Comprobante
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3, textAlign: "center" }}>
+          {comprobanteExpandidoUrl && (
+            <>
+              <Box
+                component="img"
+                src={comprobanteExpandidoUrl}
+                alt="Comprobante"
+                sx={{
+                  maxWidth: "100%",
+                  maxHeight: "600px",
+                  borderRadius: 2,
+                  objectFit: "contain",
+                  mb: 2,
+                }}
+              />
+              <Box sx={{ display: "flex", gap: 1, justifyContent: "center" }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<OpenInNewIcon />}
+                  onClick={() => window.open(comprobanteExpandidoUrl, "_blank")}
+                  sx={{ textTransform: "none" }}
+                >
+                  Abrir en nueva ventana
+                </Button>
+              </Box>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, bgcolor: "#f5f5f5" }}>
+          <Button
+            onClick={handleCloseComprobante}
+            variant="contained"
+            sx={{ textTransform: "none" }}
+            startIcon={<CloseIcon />}
+          >
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 };

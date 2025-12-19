@@ -115,7 +115,36 @@ const Billetera = () => {
   const [sortBySolicitudes, setSortBySolicitudes] = useState("fecha-desc");
   const [searchHistorial, setSearchHistorial] = useState("");
   const [sortByHistorial, setSortByHistorial] = useState("fecha-desc");
-  const [periodFilterHistorial, setPeriodFilterHistorial] = useState("todas");
+  const [periodFilterHistorial, setPeriodFilterHistorial] = useState("todos");
+  
+  // Estados para columnas visibles en Flotas
+  const [visibleColumnsFlotas, setVisibleColumnsFlotas] = useState({
+    flota: true,
+    contacto: true,
+    saldo: true,
+    estado: true,
+    acciones: true,
+  });
+
+  // Estados para columnas visibles en Solicitudes
+  const [visibleColumnsSolicitudes, setVisibleColumnsSolicitudes] = useState({
+    flota: true,
+    monto: true,
+    fecha: true,
+    concepto: true,
+    comprobante: true,
+    acciones: true,
+  });
+
+  // Estados para columnas visibles en Historial
+  const [visibleColumnsHistorial, setVisibleColumnsHistorial] = useState({
+    flota: true,
+    tipo: true,
+    monto: true,
+    fecha: true,
+    comprobante: true,
+    estado: true,
+  });
 
   // Estados para paginación
   const ITEMS_PER_PAGE = 10;
@@ -396,7 +425,7 @@ const Billetera = () => {
     let result = [...historialSolicitudes];
 
     // Filtrar por período
-    if (periodFilterHistorial !== "todas") {
+    if (periodFilterHistorial !== "todos") {
       const now = new Date();
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const startOfThisWeek = new Date(startOfToday);
@@ -509,12 +538,9 @@ const Billetera = () => {
 
   const handleAbrirHistorial = async (flota) => {
     try {
-      console.log("[DEBUG] Abriendo historial para flota:", flota);
       // Usar uidFlota si existe, si no usar el ID del documento
       const flotaId = flota.uidFlota || flota.id;
-      console.log("[DEBUG] Usando flotaId:", flotaId);
       const transacciones = await obtenerHistorialFlota(flotaId);
-      console.log("[DEBUG] Transacciones cargadas:", transacciones);
       setHistorialFlota(flota);
       setHistorial(transacciones);
       setHistorialOpen(true);
@@ -776,7 +802,6 @@ const Billetera = () => {
               }}
               onClick={() => {
                 // Acción del botón QR
-                console.log("Mi QR clickeado");
               }}
             ></Card>
           </Grid>
@@ -835,8 +860,8 @@ const Billetera = () => {
                   sortValue={sortBySolicitudes}
                   onSortChange={setSortBySolicitudes}
                   filterOptions={[]}
-                  visibleColumns={{}}
-                  onColumnChange={() => {}}
+                  visibleColumns={visibleColumnsSolicitudes}
+                  onColumnChange={(col, visible) => setVisibleColumnsSolicitudes(prev => ({ ...prev, [col]: visible }))}
                   showClearButton={true}
                 />
               </Box>
@@ -850,6 +875,7 @@ const Billetera = () => {
                   <Table stickyHeader>
                     <TableHead sx={{ backgroundColor: "#000000" }}>
                       <TableRow>
+                        {visibleColumnsSolicitudes.flota && (
                         <TableCell
                           sx={{
                             backgroundColor: "#000000",
@@ -861,6 +887,8 @@ const Billetera = () => {
                         >
                           Flota
                         </TableCell>
+                        )}
+                        {visibleColumnsSolicitudes.monto && (
                         <TableCell
                           align="right"
                           sx={{
@@ -873,6 +901,8 @@ const Billetera = () => {
                         >
                           Monto
                         </TableCell>
+                        )}
+                        {visibleColumnsSolicitudes.concepto && (
                         <TableCell
                           sx={{
                             backgroundColor: "#000000",
@@ -884,6 +914,7 @@ const Billetera = () => {
                         >
                           Concepto
                         </TableCell>
+                        )}
                         <TableCell
                           sx={{
                             backgroundColor: "#000000",
@@ -895,6 +926,7 @@ const Billetera = () => {
                         >
                           Notas
                         </TableCell>
+                        {visibleColumnsSolicitudes.fecha && (
                         <TableCell
                           sx={{
                             backgroundColor: "#000000",
@@ -906,6 +938,8 @@ const Billetera = () => {
                         >
                           Fecha
                         </TableCell>
+                        )}
+                        {visibleColumnsSolicitudes.comprobante && (
                         <TableCell
                           align="center"
                           sx={{
@@ -918,6 +952,8 @@ const Billetera = () => {
                         >
                           Comprobante
                         </TableCell>
+                        )}
+                        {visibleColumnsSolicitudes.acciones && (
                         <TableCell
                           align="center"
                           sx={{
@@ -930,6 +966,7 @@ const Billetera = () => {
                         >
                           Acciones
                         </TableCell>
+                        )}
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -939,6 +976,7 @@ const Billetera = () => {
                           hover
                           sx={{ borderBottom: "1px solid #d0d0d0" }}
                         >
+                          {visibleColumnsSolicitudes.flota && (
                           <TableCell
                             sx={{
                               fontWeight: 600,
@@ -947,6 +985,8 @@ const Billetera = () => {
                           >
                             {solicitud.flotaNombre}
                           </TableCell>
+                          )}
+                          {visibleColumnsSolicitudes.monto && (
                           <TableCell
                             align="right"
                             sx={{
@@ -962,6 +1002,8 @@ const Billetera = () => {
                               })}
                             </span>
                           </TableCell>
+                          )}
+                          {visibleColumnsSolicitudes.concepto && (
                           <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                             <Chip
                               label={solicitud.concepto}
@@ -973,6 +1015,7 @@ const Billetera = () => {
                               }}
                             />
                           </TableCell>
+                          )}
                           <TableCell
                             sx={{
                               fontSize: "0.9rem",
@@ -982,6 +1025,7 @@ const Billetera = () => {
                           >
                             {solicitud.notas || "-"}
                           </TableCell>
+                          {visibleColumnsSolicitudes.fecha && (
                           <TableCell
                             sx={{
                               fontSize: "0.9rem",
@@ -993,6 +1037,8 @@ const Billetera = () => {
                                 solicitud.fechaSolicitud
                             ).toLocaleDateString("es-ES")}
                           </TableCell>
+                          )}
+                          {visibleColumnsSolicitudes.comprobante && (
                           <TableCell align="center">
                             {solicitud.comprobanteUrl ? (
                               <Tooltip title="Ver comprobante">
@@ -1025,6 +1071,8 @@ const Billetera = () => {
                               </Typography>
                             )}
                           </TableCell>
+                          )}
+                          {visibleColumnsSolicitudes.acciones && (
                           <TableCell align="center">
                             <Box
                               sx={{
@@ -1069,6 +1117,7 @@ const Billetera = () => {
                               </Tooltip>
                             </Box>
                           </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1156,8 +1205,8 @@ const Billetera = () => {
                   sortValue={sortByHistorial}
                   onSortChange={setSortByHistorial}
                   filterOptions={[]}
-                  visibleColumns={{}}
-                  onColumnChange={() => {}}
+                  visibleColumns={visibleColumnsHistorial}
+                  onColumnChange={(col, visible) => setVisibleColumnsHistorial(prev => ({ ...prev, [col]: visible }))}
                   showClearButton={true}
                 />
               </Box>
@@ -1175,40 +1224,46 @@ const Billetera = () => {
                   <Table stickyHeader>
                     <TableHead sx={{ backgroundColor: "#000000" }}>
                       <TableRow>
-                        <TableCell
-                          sx={{
-                            backgroundColor: "#000000",
-                            color: "white",
-                            fontWeight: 700,
-                            fontFamily: "Mulish, sans-serif",
-                            fontSize: "0.95rem",
-                          }}
-                        >
-                          Flota
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            backgroundColor: "#000000",
-                            color: "white",
-                            fontWeight: 700,
-                            fontFamily: "Mulish, sans-serif",
-                            fontSize: "0.95rem",
-                          }}
-                        >
-                          Tipo
-                        </TableCell>
-                        <TableCell
-                          align="right"
-                          sx={{
-                            backgroundColor: "#000000",
-                            color: "white",
-                            fontWeight: 700,
-                            fontFamily: "Mulish, sans-serif",
-                            fontSize: "0.95rem",
-                          }}
-                        >
-                          Monto
-                        </TableCell>
+                        {visibleColumnsHistorial.flota && (
+                          <TableCell
+                            sx={{
+                              backgroundColor: "#000000",
+                              color: "white",
+                              fontWeight: 700,
+                              fontFamily: "Mulish, sans-serif",
+                              fontSize: "0.95rem",
+                            }}
+                          >
+                            Flota
+                          </TableCell>
+                        )}
+                        {visibleColumnsHistorial.tipo && (
+                          <TableCell
+                            sx={{
+                              backgroundColor: "#000000",
+                              color: "white",
+                              fontWeight: 700,
+                              fontFamily: "Mulish, sans-serif",
+                              fontSize: "0.95rem",
+                            }}
+                          >
+                            Tipo
+                          </TableCell>
+                        )}
+                        {visibleColumnsHistorial.monto && (
+                          <TableCell
+                            align="right"
+                            sx={{
+                              backgroundColor: "#000000",
+                              color: "white",
+                              fontWeight: 700,
+                              fontFamily: "Mulish, sans-serif",
+                              fontSize: "0.95rem",
+                            }}
+                          >
+                            Monto
+                          </TableCell>
+                        )}
                         <TableCell
                           sx={{
                             backgroundColor: "#000000",
@@ -1244,28 +1299,32 @@ const Billetera = () => {
                         >
                           Saldo Nuevo
                         </TableCell>
-                        <TableCell
-                          sx={{
-                            backgroundColor: "#000000",
-                            color: "white",
-                            fontWeight: 700,
-                            fontFamily: "Mulish, sans-serif",
-                            fontSize: "0.95rem",
-                          }}
-                        >
-                          Comprobante
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            backgroundColor: "#000000",
-                            color: "white",
-                            fontWeight: 700,
-                            fontFamily: "Mulish, sans-serif",
-                            fontSize: "0.95rem",
-                          }}
-                        >
-                          Fecha
-                        </TableCell>
+                        {visibleColumnsHistorial.comprobante && (
+                          <TableCell
+                            sx={{
+                              backgroundColor: "#000000",
+                              color: "white",
+                              fontWeight: 700,
+                              fontFamily: "Mulish, sans-serif",
+                              fontSize: "0.95rem",
+                            }}
+                          >
+                            Comprobante
+                          </TableCell>
+                        )}
+                        {visibleColumnsHistorial.fecha && (
+                          <TableCell
+                            sx={{
+                              backgroundColor: "#000000",
+                              color: "white",
+                              fontWeight: 700,
+                              fontFamily: "Mulish, sans-serif",
+                              fontSize: "0.95rem",
+                            }}
+                          >
+                            Fecha
+                          </TableCell>
+                        )}
                         <TableCell
                           sx={{
                             backgroundColor: "#000000",
@@ -1286,64 +1345,70 @@ const Billetera = () => {
                           hover
                           sx={{ borderBottom: "1px solid #d0d0d0" }}
                         >
-                          <TableCell
-                            sx={{
-                              fontWeight: 600,
-                              fontFamily: "Mulish, sans-serif",
-                            }}
-                          >
-                            {transaccion.flotaNombre || "-"}
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={
-                                transaccion.tipo === "deposito"
-                                  ? "Depósito"
-                                  : transaccion.tipo === "retiro"
-                                  ? "Retiro"
-                                  : "Ajuste"
-                              }
-                              size="small"
+                          {visibleColumnsHistorial.flota && (
+                            <TableCell
                               sx={{
-                                bgcolor:
-                                  transaccion.tipo === "deposito"
-                                    ? "#e8f5e9"
-                                    : transaccion.tipo === "retiro"
-                                    ? "#ffebee"
-                                    : "#fff3e0",
-                                color:
-                                  transaccion.tipo === "deposito"
-                                    ? "#2e7d32"
-                                    : transaccion.tipo === "retiro"
-                                    ? "#c62828"
-                                    : "#e65100",
                                 fontWeight: 600,
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell
-                            align="right"
-                            sx={{
-                              fontWeight: 700,
-                              fontSize: "1.05rem",
-                              fontFamily: "Mulish, sans-serif",
-                            }}
-                          >
-                            <span
-                              style={{
-                                color:
-                                  transaccion.tipo === "deposito"
-                                    ? "#2e7d32"
-                                    : "#c62828",
+                                fontFamily: "Mulish, sans-serif",
                               }}
                             >
-                              {transaccion.tipo === "deposito" ? "+" : "-"}$
-                              {Math.abs(transaccion.monto).toLocaleString(
-                                "es-ES",
-                                { minimumFractionDigits: 2 }
-                              )}
-                            </span>
-                          </TableCell>
+                              {transaccion.flotaNombre || "-"}
+                            </TableCell>
+                          )}
+                          {visibleColumnsHistorial.tipo && (
+                            <TableCell>
+                              <Chip
+                                label={
+                                  transaccion.tipo === "deposito"
+                                    ? "Depósito"
+                                    : transaccion.tipo === "retiro"
+                                    ? "Retiro"
+                                    : "Ajuste"
+                                }
+                                size="small"
+                                sx={{
+                                  bgcolor:
+                                    transaccion.tipo === "deposito"
+                                      ? "#e8f5e9"
+                                      : transaccion.tipo === "retiro"
+                                      ? "#ffebee"
+                                      : "#fff3e0",
+                                  color:
+                                    transaccion.tipo === "deposito"
+                                      ? "#2e7d32"
+                                      : transaccion.tipo === "retiro"
+                                      ? "#c62828"
+                                      : "#e65100",
+                                  fontWeight: 600,
+                                }}
+                              />
+                            </TableCell>
+                          )}
+                          {visibleColumnsHistorial.monto && (
+                            <TableCell
+                              align="right"
+                              sx={{
+                                fontWeight: 700,
+                                fontSize: "1.05rem",
+                                fontFamily: "Mulish, sans-serif",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  color:
+                                    transaccion.tipo === "deposito"
+                                      ? "#2e7d32"
+                                      : "#c62828",
+                                }}
+                              >
+                                {transaccion.tipo === "deposito" ? "+" : "-"}$
+                                {Math.abs(transaccion.monto).toLocaleString(
+                                  "es-ES",
+                                  { minimumFractionDigits: 2 }
+                                )}
+                              </span>
+                            </TableCell>
+                          )}
                           <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                             {transaccion.concepto || "-"}
                           </TableCell>
@@ -1370,46 +1435,50 @@ const Billetera = () => {
                               { minimumFractionDigits: 2 }
                             )}
                           </TableCell>
-                          <TableCell align="center">
-                            {transaccion.comprobanteUrl ? (
-                              <Tooltip title="Ver comprobante">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => {
-                                    setComprobanteExpandidoUrl(
-                                      transaccion.comprobanteUrl
-                                    );
-                                    setComprobanteExpandidoOpen(true);
-                                  }}
+                          {visibleColumnsHistorial.comprobante && (
+                            <TableCell align="center">
+                              {transaccion.comprobanteUrl ? (
+                                <Tooltip title="Ver comprobante">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => {
+                                      setComprobanteExpandidoUrl(
+                                        transaccion.comprobanteUrl
+                                      );
+                                      setComprobanteExpandidoOpen(true);
+                                    }}
+                                    sx={{
+                                      bgcolor: "#e3f2fd",
+                                      color: "#1976d2",
+                                      "&:hover": { bgcolor: "#bbdefb" },
+                                    }}
+                                  >
+                                    <ImageIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              ) : (
+                                <Typography
+                                  variant="caption"
                                   sx={{
-                                    bgcolor: "#e3f2fd",
-                                    color: "#1976d2",
-                                    "&:hover": { bgcolor: "#bbdefb" },
+                                    color: "#999",
+                                    fontFamily: "Mulish, sans-serif",
                                   }}
                                 >
-                                  <ImageIcon />
-                                </IconButton>
-                              </Tooltip>
-                            ) : (
-                              <Typography
-                                variant="caption"
-                                sx={{
-                                  color: "#999",
-                                  fontFamily: "Mulish, sans-serif",
-                                }}
-                              >
-                                {transaccion.nroComprobante || "-"}
-                              </Typography>
-                            )}
-                          </TableCell>
-                          <TableCell
-                            sx={{
-                              fontSize: "0.9rem",
-                              fontFamily: "Mulish, sans-serif",
-                            }}
-                          >
-                            {transaccion.fechaRegistro || "-"}
-                          </TableCell>
+                                  {transaccion.nroComprobante || "-"}
+                                </Typography>
+                              )}
+                            </TableCell>
+                          )}
+                          {visibleColumnsHistorial.fecha && (
+                            <TableCell
+                              sx={{
+                                fontSize: "0.9rem",
+                                fontFamily: "Mulish, sans-serif",
+                              }}
+                            >
+                              {transaccion.fechaRegistro || "-"}
+                            </TableCell>
+                          )}
                           <TableCell
                             sx={{
                               fontSize: "0.9rem",
@@ -1511,8 +1580,8 @@ const Billetera = () => {
                   sortValue={sortByFlotas}
                   onSortChange={setSortByFlotas}
                   filterOptions={[]}
-                  visibleColumns={{}}
-                  onColumnChange={() => {}}
+                  visibleColumns={visibleColumnsFlotas}
+                  onColumnChange={(col, visible) => setVisibleColumnsFlotas(prev => ({ ...prev, [col]: visible }))}
                   showClearButton={true}
                 />
               </Box>
@@ -1522,6 +1591,7 @@ const Billetera = () => {
                 <Table stickyHeader>
                   <TableHead sx={{ backgroundColor: "#000000" }}>
                     <TableRow>
+                      {visibleColumnsFlotas.flota && (
                       <TableCell
                         sx={{
                           backgroundColor: "#000000",
@@ -1533,6 +1603,8 @@ const Billetera = () => {
                       >
                         Flota
                       </TableCell>
+                      )}
+                      {visibleColumnsFlotas.contacto && (
                       <TableCell
                         sx={{
                           backgroundColor: "#000000",
@@ -1544,6 +1616,8 @@ const Billetera = () => {
                       >
                         Contacto
                       </TableCell>
+                      )}
+                      {visibleColumnsFlotas.saldo && (
                       <TableCell
                         align="right"
                         sx={{
@@ -1556,6 +1630,8 @@ const Billetera = () => {
                       >
                         Saldo Actual
                       </TableCell>
+                      )}
+                      {visibleColumnsFlotas.estado && (
                       <TableCell
                         sx={{
                           backgroundColor: "#000000",
@@ -1567,6 +1643,8 @@ const Billetera = () => {
                       >
                         Estado
                       </TableCell>
+                      )}
+                      {visibleColumnsFlotas.acciones && (
                       <TableCell
                         align="center"
                         sx={{
@@ -1579,6 +1657,7 @@ const Billetera = () => {
                       >
                         Acciones
                       </TableCell>
+                      )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -1588,6 +1667,7 @@ const Billetera = () => {
                         hover
                         sx={{ borderBottom: "1px solid #d0d0d0" }}
                       >
+                        {visibleColumnsFlotas.flota && (
                         <TableCell
                           sx={{
                             fontWeight: 600,
@@ -1596,6 +1676,8 @@ const Billetera = () => {
                         >
                           {flota.nombre}
                         </TableCell>
+                        )}
+                        {visibleColumnsFlotas.contacto && (
                         <TableCell
                           sx={{
                             fontSize: "0.9rem",
@@ -1603,8 +1685,10 @@ const Billetera = () => {
                             fontFamily: "Mulish, sans-serif",
                           }}
                         >
-                          {flota.contacto || flota.email || "-"}
+                          {flota.perfilFlota?.telefono || flota.contacto || flota.email || "-"}
                         </TableCell>
+                        )}
+                        {visibleColumnsFlotas.saldo && (
                         <TableCell
                           align="right"
                           sx={{
@@ -1620,15 +1704,17 @@ const Billetera = () => {
                             })}
                           </span>
                         </TableCell>
+                        )}
+                        {visibleColumnsFlotas.estado && (
                         <TableCell>
                           <Chip
                             label={
-                              flota.estado === "activa" ? "Activa" : "Inactiva"
+                              flota.habilitado !== false ? "Activa" : "Inactiva"
                             }
                             size="small"
                             sx={{
                               bgcolor:
-                                flota.estado === "activa"
+                                flota.habilitado !== false
                                   ? "#d7171a"
                                   : "#bdbdbd",
                               color: "#fff",
@@ -1636,6 +1722,8 @@ const Billetera = () => {
                             }}
                           />
                         </TableCell>
+                        )}
+                        {visibleColumnsFlotas.acciones && (
                         <TableCell align="center">
                           <Box
                             sx={{
@@ -1691,6 +1779,7 @@ const Billetera = () => {
                             </Tooltip>
                           </Box>
                         </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>

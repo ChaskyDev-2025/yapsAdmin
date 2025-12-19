@@ -175,7 +175,7 @@ const DocumentosPendientes = () => {
                       { label: "↓ Sort by Nombre (DESC)", value: "nombre-desc" },
                       { label: "↓ Sort by Documentos Pendientes", value: "pendientes-desc" },
                     ]}
-                    placeholder="Buscar por nombre o email..."
+                    searchPlaceholder="Buscar por nombre o email..."
                     visibleColumns={visibleColumnsDocumentos}
                     onColumnChange={(col, visible) => setVisibleColumnsDocumentos(prev => ({ ...prev, [col]: visible }))}
                     showClearButton={searchDocumentos !== ""}

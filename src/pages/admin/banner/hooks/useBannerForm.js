@@ -6,6 +6,7 @@ export default function useBannerForm() {
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState("");
+  const [titulo, setTitulo] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -28,13 +29,14 @@ export default function useBannerForm() {
   // Guardar: sube la imagen y crea registro en Firestore
   const save = useCallback(async () => {
     if (!file) throw new Error("Debes seleccionar una imagen antes de guardar");
+    if (!titulo.trim()) throw new Error("Debes ingresar un título para el banner");
 
     setSaving(true);
     setError("");
 
     try {
-      const banner = await createBanner(file); // sube a Storage y crea doc
-      return banner; // { id, imagen, estado }
+      const banner = await createBanner(file, titulo); // sube a Storage y crea doc
+      return banner; // { id, imagen, estado, titulo }
     } catch (err) {
       console.error("[hook] ❌ save() error:", err?.code || err?.message, err);
       setError(err?.code || err?.message || "Error al guardar");
@@ -42,11 +44,11 @@ export default function useBannerForm() {
     } finally {
       setSaving(false);
     }
-  }, [file]);
+  }, [file, titulo]);
 
   const api = useMemo(
-    () => ({ inputRef, abrirSelector, onChangeInput, preview, saving, error, save }),
-    [preview, saving, error, abrirSelector, onChangeInput, save]
+    () => ({ inputRef, abrirSelector, onChangeInput, preview, saving, error, save, titulo, setTitulo }),
+    [preview, saving, error, abrirSelector, onChangeInput, save, titulo]
   );
 
   return api;

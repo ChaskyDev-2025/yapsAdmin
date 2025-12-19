@@ -142,8 +142,8 @@ export default Sidebar;
 const menuItems = [
   { path: "/admin",          label: "Inicio",     icon: <DashboardIcon /> },
   { path: "/admin/usuarios", label: "Usuarios",   icon: <PeopleIcon /> },
-  { path: "/admin/radiotaxis", label: "Radiotaxis", icon: <LocalTaxiIcon /> },
-  { path: "/admin/ajustes", label: "Ajustes", icon: <LocalTaxiIcon /> },
+  { path: "/admin/radiotaxis", label: "Conductores", icon: <LocalTaxiIcon /> },
+  { path: "/admin/ajustes", label: "Administradores", icon: <LocalTaxiIcon /> },
 ];
 
 <Sidebar

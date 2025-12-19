@@ -124,6 +124,14 @@ export const TableToolbar = ({
               anchorEl={sortRef.current}
               open={openSort}
               onClose={() => setOpenSort(false)}
+              anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'right',
+              }}
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+              }}
             >
               {sortOptions.map((opt) => (
                 <MenuItem
@@ -142,7 +150,7 @@ export const TableToolbar = ({
         )}
 
         {/* Botón Manage Columns */}
-        {Object.keys(visibleColumns).length > 0 && (
+        {visibleColumns && Object.keys(visibleColumns).length > 0 && (
           <>
             <Tooltip title="Gestionar columnas">
               <IconButton
@@ -162,6 +170,14 @@ export const TableToolbar = ({
               anchorEl={columnsRef.current}
               open={openColumns}
               onClose={() => setOpenColumns(false)}
+              anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'right',
+              }}
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+              }}
             >
               {Object.entries(visibleColumns).map(([col, visible]) => (
                 <MenuItem

@@ -30,22 +30,22 @@ const FlotaAdminDashboard = () => {
         {/* Encabezado */}
         <DashboardHeader flota={flota} />
 
-        {/* FILA 1: Radiotaxis */}
+        {/* FILA 1: Conductores */}
         <CardGrid columns={3}>
           <StatCard
-            title="Total de Radiotaxis"
+            title="Total de Conductores"
             value={metricas.radiotaxis.total}
             icon={DirectionsCar}
             color="#d7171a"
           />
           <StatCard
-            title="Radiotaxis Activos"
+            title="Conductores Activos"
             value={metricas.radiotaxis.activos}
             icon={CheckCircle}
             color="#000000"
           />
           <StatCard
-            title="Radiotaxis Inactivos"
+            title="Conductores Inactivos"
             value={metricas.radiotaxis.inactivos}
             icon={DirectionsCar}
             color="#484848"

@@ -220,10 +220,43 @@ export const obtenerHistorialTransacciones = async (flotaId) => {
     const q = query(transaccionesRef, orderBy("timestamp", "desc"));
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    // Para cada transacción, obtener el comprobante de la solicitud relacionada
+    const transacciones = await Promise.all(
+      snapshot.docs.map(async (transDoc) => {
+        const transaccionData = transDoc.data();
+        const solicitudId = transaccionData.solicitudId;
+        
+        let comprobanteUrl = null;
+        let estado = null;
+        let nroComprobante = null;
+        
+        // Si tiene solicitudId, buscar la solicitud para obtener el comprobante
+        if (solicitudId) {
+          try {
+            const solicitudRef = doc(db, "flotas", flotaId, "solicitudesRecarga", solicitudId);
+            const solicitudSnapshot = await getDoc(solicitudRef);
+            if (solicitudSnapshot.exists()) {
+              const solicitudData = solicitudSnapshot.data();
+              comprobanteUrl = solicitudData.comprobanteUrl || null;
+              estado = solicitudData.estado || null;
+              nroComprobante = solicitudData.nroComprobante || null;
+            }
+          } catch (err) {
+            console.warn(`Error obteniendo solicitud ${solicitudId}:`, err);
+          }
+        }
+        
+        return {
+          id: transDoc.id,
+          ...transaccionData,
+          comprobanteUrl,
+          estado,
+          nroComprobante,
+        };
+      })
+    );
+
+    return transacciones;
   } catch (error) {
     console.error("Error al obtener historial:", error);
     // Retornar array vacío en caso de error en lugar de fallar
@@ -408,15 +441,41 @@ export const escucharHistorialTransacciones = (flotaId, callback) => {
 
     const unsubscribe = onSnapshot(
       q,
-      (snapshot) => {
-        const transacciones = [];
-
-        snapshot.docs.forEach((doc) => {
-          transacciones.push({
-            id: doc.id,
-            ...doc.data(),
-          });
-        });
+      async (snapshot) => {
+        const transacciones = await Promise.all(
+          snapshot.docs.map(async (transDoc) => {
+            const transaccionData = transDoc.data();
+            const solicitudId = transaccionData.solicitudId;
+            
+            let comprobanteUrl = null;
+            let estado = null;
+            let nroComprobante = null;
+            
+            // Si tiene solicitudId, buscar la solicitud para obtener el comprobante
+            if (solicitudId) {
+              try {
+                const solicitudRef = doc(db, "flotas", flotaId, "solicitudesRecarga", solicitudId);
+                const solicitudSnapshot = await getDoc(solicitudRef);
+                if (solicitudSnapshot.exists()) {
+                  const solicitudData = solicitudSnapshot.data();
+                  comprobanteUrl = solicitudData.comprobanteUrl || null;
+                  estado = solicitudData.estado || null;
+                  nroComprobante = solicitudData.nroComprobante || null;
+                }
+              } catch (err) {
+                console.warn(`Error obteniendo solicitud ${solicitudId}:`, err);
+              }
+            }
+            
+            return {
+              id: transDoc.id,
+              ...transaccionData,
+              comprobanteUrl,
+              estado,
+              nroComprobante,
+            };
+          })
+        );
 
         callback(transacciones);
       },

@@ -63,6 +63,7 @@ const Referidos = () => {
     usuario: true,
     codigo: true,
     referidos: true,
+    tickets: true,
     acciones: true,
   });
   const [searchPasajeros, setSearchPasajeros] = useState("");
@@ -72,6 +73,7 @@ const Referidos = () => {
     usuario: true,
     codigo: true,
     referidos: true,
+    tickets: true,
     acciones: true,
   });
   const [searchDonaciones, setSearchDonaciones] = useState("");
@@ -298,6 +300,45 @@ const Referidos = () => {
     alert(`Código ${codigo} copiado al portapapeles`);
   };
 
+  // Calcular estadísticas por pestaña
+  const getTabStats = useMemo(() => {
+    if (selectedTab === 0) {
+      // Conductores
+      const conductores = referidosData.filter(r => r.modo === "trabajador");
+      let totalReferidos = 0;
+      let totalTickets = 0;
+      conductores.forEach(c => {
+        totalReferidos += c.referidos;
+        totalTickets += c.tickets;
+      });
+      return {
+        total: conductores.length,
+        totalReferidos,
+        totalTickets,
+      };
+    } else if (selectedTab === 1) {
+      // Pasajeros
+      const pasajeros = referidosData.filter(r => r.modo === "pasajero");
+      let totalReferidos = 0;
+      let totalTickets = 0;
+      pasajeros.forEach(p => {
+        totalReferidos += p.referidos;
+        totalTickets += p.tickets;
+      });
+      return {
+        total: pasajeros.length,
+        totalReferidos,
+        totalTickets,
+      };
+    } else if (selectedTab === 2) {
+      // Donaciones - no tiene stats específicas por ahora
+      return stats;
+    } else {
+      // Códigos Promo
+      return stats;
+    }
+  }, [selectedTab, referidosData, stats]);
+
   // Filtrar y ordenar trabajadores
   const filteredTrabajadores = useMemo(() => {
     let result = referidosData.filter(r => r.modo === "trabajador");
@@ -362,6 +403,28 @@ const Referidos = () => {
 
   const totalPagesPasajeros = Math.ceil(filteredPasajeros.length / ITEMS_PER_PAGE);
 
+  // Calcular colSpan dinámico para trabajadores
+  const getColSpanTrabajadores = useMemo(() => {
+    return Object.values(visibleColumnsTrabajadores).filter(Boolean).length;
+  }, [visibleColumnsTrabajadores]);
+
+  // Calcular colSpan dinámico para pasajeros
+  const getColSpanPasajeros = useMemo(() => {
+    return Object.values(visibleColumnsPasajeros).filter(Boolean).length;
+  }, [visibleColumnsPasajeros]);
+
+  // Calcular colSpan dinámico para donaciones
+  const getColSpanDonaciones = useMemo(() => {
+    // Usuario incluye 3 celdas (usuario, email, departamento) si está visible
+    // donacionesAcumuladas incluye 1 celda
+    // ultimaDonacion incluye 2 celdas (ultimaDonacion, monto) si está visible
+    let count = 0;
+    if (visibleColumnsDonaciones.usuario) count += 3; // usuario, email, departamento
+    if (visibleColumnsDonaciones.donacionesAcumuladas) count += 1;
+    if (visibleColumnsDonaciones.ultimaDonacion) count += 2; // ultimaDonacion, monto
+    return count > 0 ? count : 1;
+  }, [visibleColumnsDonaciones]);
+
   const handleOpenHistorial = (referido) => {
     setSelectedReferido(referido);
     // Cargar los datos de los pasajeros referidos
@@ -393,7 +456,7 @@ const Referidos = () => {
         </Box>
 
       {/* Estadísticas generales */}
-      <StatsGrid stats={stats} loading={loading} />
+      <StatsGrid stats={getTabStats} loading={loading} />
 
       {/* Pestañas */}
       <Box sx={{ borderBottom: 2, borderColor: "divider", mt: 4, mb: 2 }}>
@@ -457,119 +520,151 @@ const Referidos = () => {
                     <Table>
                     <TableHead sx={{ backgroundColor: "#000000" }}>
                       <TableRow>
-                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Ranking</TableCell>
-                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Usuario</TableCell>
-                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Código</TableCell>
-                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
-                          Referidos
-                        </TableCell>
-                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
-                          Tickets
-                        </TableCell>
-                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
-                          Acciones
-                        </TableCell>
+                        {visibleColumnsTrabajadores.ranking && (
+                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Ranking</TableCell>
+                        )}
+                        {visibleColumnsTrabajadores.usuario && (
+                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Usuario</TableCell>
+                        )}
+                        {visibleColumnsTrabajadores.codigo && (
+                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Código</TableCell>
+                        )}
+                        {visibleColumnsTrabajadores.referidos && (
+                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
+                            Referidos
+                          </TableCell>
+                        )}
+                        {visibleColumnsTrabajadores.tickets && (
+                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
+                            Tickets
+                          </TableCell>
+                        )}
+                        {visibleColumnsTrabajadores.acciones && (
+                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
+                            Acciones
+                          </TableCell>
+                        )}
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {trabajadoresPaginados.map((referido, index) => (
+                      {trabajadoresPaginados.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={getColSpanTrabajadores} align="center">
+                            <Typography sx={{ py: 2, color: "#484848" }}>No hay datos para mostrar</Typography>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        trabajadoresPaginados.map((referido, index) => (
                           <TableRow key={referido.id} hover>
-                            <TableCell>
-                              <Chip
-                                icon={index < 3 && referido.referidos > 0 ? <EmojiEventsIcon /> : undefined}
-                                label={`#${index + 1}`}
-                                size="small"
-                                sx={{
-                                  fontWeight: 700,
-                                  bgcolor:
-                                    index === 0 && referido.referidos > 0
-                                      ? "#ffd700"
-                                      : index === 1 && referido.referidos > 0
-                                      ? "#c0c0c0"
-                                      : index === 2 && referido.referidos > 0
-                                      ? "#cd7f32"
-                                      : "#e0e0e0",
-                                  color: index < 3 && referido.referidos > 0 ? "white" : "#484848",
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Box display="flex" alignItems="center" gap={2}>
-                                <Avatar
-                                  src={referido.photoUrl}
+                            {visibleColumnsTrabajadores.ranking && (
+                              <TableCell>
+                                <Chip
+                                  icon={index < 3 && referido.referidos > 0 ? <EmojiEventsIcon /> : undefined}
+                                  label={`#${index + 1}`}
+                                  size="small"
                                   sx={{
-                                    bgcolor: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
-                                    width: 40,
-                                    height: 40,
+                                    fontWeight: 700,
+                                    bgcolor:
+                                      index === 0 && referido.referidos > 0
+                                        ? "#ffd700"
+                                        : index === 1 && referido.referidos > 0
+                                        ? "#c0c0c0"
+                                        : index === 2 && referido.referidos > 0
+                                        ? "#cd7f32"
+                                        : "#e0e0e0",
+                                    color: index < 3 && referido.referidos > 0 ? "white" : "#484848",
                                   }}
-                                >
-                                  {referido.nombre.charAt(0).toUpperCase()}
-                                </Avatar>
-                                <Box>
-                                  <Typography variant="body1" fontWeight={600}>
-                                    {referido.nombre}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    {referido.email}
-                                  </Typography>
+                                />
+                              </TableCell>
+                            )}
+                            {visibleColumnsTrabajadores.usuario && (
+                              <TableCell>
+                                <Box display="flex" alignItems="center" gap={2}>
+                                  <Avatar
+                                    src={referido.photoUrl}
+                                    sx={{
+                                      bgcolor: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
+                                      width: 40,
+                                      height: 40,
+                                    }}
+                                  >
+                                    {referido.nombre.charAt(0).toUpperCase()}
+                                  </Avatar>
+                                  <Box>
+                                    <Typography variant="body1" fontWeight={600}>
+                                      {referido.nombre}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {referido.email}
+                                    </Typography>
+                                  </Box>
                                 </Box>
-                              </Box>
-                            </TableCell>
-                            <TableCell>
-                              <Chip
-                                label={referido.codigo}
-                                sx={{
-                                  fontFamily: "monospace",
-                                  fontWeight: 700,
-                                  bgcolor: referido.tieneCodigoReferido ? "#ffe0e0" : "#f5f5f5",
-                                  color: referido.tieneCodigoReferido ? "#b01217" : "#757575",
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell align="center">
-                              <Typography
-                                variant="h6"
-                                fontWeight="bold"
-                                color={referido.referidos > 0 ? "#d7171a" : "#bdbdbd"}
-                              >
-                                {referido.referidos}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="center">
-                              <Typography
-                                variant="h6"
-                                fontWeight="bold"
-                                color={referido.tickets > 0 ? "#ff9800" : "#bdbdbd"}
-                              >
-                                {referido.tickets}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="center">
-                              {referido.tieneCodigoReferido && (
-                                <Tooltip title="Copiar código">
-                                  <IconButton
-                                    onClick={() => copyToClipboard(referido.codigo)}
-                                    size="small"
-                                    sx={{ color: "#d7171a", mr: 1 }}
-                                  >
-                                    <ContentCopyIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
-                              {referido.referidos > 0 && (
-                                <Tooltip title="Ver historial de referidos">
-                                  <IconButton
-                                    onClick={() => handleOpenHistorial(referido)}
-                                    size="small"
-                                    sx={{ color: "#d7171a" }}
-                                  >
-                                    <HistoryIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
-                            </TableCell>
+                              </TableCell>
+                            )}
+                            {visibleColumnsTrabajadores.codigo && (
+                              <TableCell>
+                                <Chip
+                                  label={referido.codigo}
+                                  sx={{
+                                    fontFamily: "monospace",
+                                    fontWeight: 700,
+                                    bgcolor: referido.tieneCodigoReferido ? "#ffe0e0" : "#f5f5f5",
+                                    color: referido.tieneCodigoReferido ? "#b01217" : "#757575",
+                                  }}
+                                />
+                              </TableCell>
+                            )}
+                            {visibleColumnsTrabajadores.referidos && (
+                              <TableCell align="center">
+                                <Typography
+                                  variant="h6"
+                                  fontWeight="bold"
+                                  color={referido.referidos > 0 ? "#d7171a" : "#bdbdbd"}
+                                >
+                                  {referido.referidos}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumnsTrabajadores.tickets && (
+                              <TableCell align="center">
+                                <Typography
+                                  variant="h6"
+                                  fontWeight="bold"
+                                  color={referido.tickets > 0 ? "#ff9800" : "#bdbdbd"}
+                                >
+                                  {referido.tickets}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumnsTrabajadores.acciones && (
+                              <TableCell align="center">
+                                {referido.tieneCodigoReferido && (
+                                  <Tooltip title="Copiar código">
+                                    <IconButton
+                                      onClick={() => copyToClipboard(referido.codigo)}
+                                      size="small"
+                                      sx={{ color: "#d7171a", mr: 1 }}
+                                    >
+                                      <ContentCopyIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                                {referido.referidos > 0 && (
+                                  <Tooltip title="Ver historial de referidos">
+                                    <IconButton
+                                      onClick={() => handleOpenHistorial(referido)}
+                                      size="small"
+                                      sx={{ color: "#d7171a" }}
+                                    >
+                                      <HistoryIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                              </TableCell>
+                            )}
                           </TableRow>
-                        ))}
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                   </TableContainer>
@@ -629,119 +724,151 @@ const Referidos = () => {
                     <Table>
                     <TableHead sx={{ backgroundColor: "#000000" }}>
                       <TableRow>
-                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Ranking</TableCell>
-                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Usuario</TableCell>
-                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Código</TableCell>
-                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
-                          Referidos
-                        </TableCell>
-                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
-                          Tickets
-                        </TableCell>
-                        <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
-                          Acciones
-                        </TableCell>
+                        {visibleColumnsPasajeros.ranking && (
+                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Ranking</TableCell>
+                        )}
+                        {visibleColumnsPasajeros.usuario && (
+                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Usuario</TableCell>
+                        )}
+                        {visibleColumnsPasajeros.codigo && (
+                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Código</TableCell>
+                        )}
+                        {visibleColumnsPasajeros.referidos && (
+                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
+                            Referidos
+                          </TableCell>
+                        )}
+                        {visibleColumnsPasajeros.tickets && (
+                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
+                            Tickets
+                          </TableCell>
+                        )}
+                        {visibleColumnsPasajeros.acciones && (
+                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
+                            Acciones
+                          </TableCell>
+                        )}
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {pasajerosPaginados.map((referido, index) => (
+                      {pasajerosPaginados.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={getColSpanPasajeros} align="center">
+                            <Typography sx={{ py: 2, color: "#484848" }}>No hay datos para mostrar</Typography>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        pasajerosPaginados.map((referido, index) => (
                           <TableRow key={referido.id} hover>
-                            <TableCell>
-                              <Chip
-                                icon={index < 3 && referido.referidos > 0 ? <EmojiEventsIcon /> : undefined}
-                                label={`#${index + 1}`}
-                                size="small"
-                                sx={{
-                                  fontWeight: 700,
-                                  bgcolor:
-                                    index === 0 && referido.referidos > 0
-                                      ? "#ffd700"
-                                      : index === 1 && referido.referidos > 0
-                                      ? "#c0c0c0"
-                                      : index === 2 && referido.referidos > 0
-                                      ? "#cd7f32"
-                                      : "#e0e0e0",
-                                  color: index < 3 && referido.referidos > 0 ? "white" : "#484848",
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Box display="flex" alignItems="center" gap={2}>
-                                <Avatar
-                                  src={referido.photoUrl}
+                            {visibleColumnsPasajeros.ranking && (
+                              <TableCell>
+                                <Chip
+                                  icon={index < 3 && referido.referidos > 0 ? <EmojiEventsIcon /> : undefined}
+                                  label={`#${index + 1}`}
+                                  size="small"
                                   sx={{
-                                    background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
-                                    width: 40,
-                                    height: 40,
+                                    fontWeight: 700,
+                                    bgcolor:
+                                      index === 0 && referido.referidos > 0
+                                        ? "#ffd700"
+                                        : index === 1 && referido.referidos > 0
+                                        ? "#c0c0c0"
+                                        : index === 2 && referido.referidos > 0
+                                        ? "#cd7f32"
+                                        : "#e0e0e0",
+                                    color: index < 3 && referido.referidos > 0 ? "white" : "#484848",
                                   }}
-                                >
-                                  {referido.nombre.charAt(0).toUpperCase()}
-                                </Avatar>
-                                <Box>
-                                  <Typography variant="body1" fontWeight={600}>
-                                    {referido.nombre}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    {referido.email}
-                                  </Typography>
+                                />
+                              </TableCell>
+                            )}
+                            {visibleColumnsPasajeros.usuario && (
+                              <TableCell>
+                                <Box display="flex" alignItems="center" gap={2}>
+                                  <Avatar
+                                    src={referido.photoUrl}
+                                    sx={{
+                                      background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
+                                      width: 40,
+                                      height: 40,
+                                    }}
+                                  >
+                                    {referido.nombre.charAt(0).toUpperCase()}
+                                  </Avatar>
+                                  <Box>
+                                    <Typography variant="body1" fontWeight={600}>
+                                      {referido.nombre}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {referido.email}
+                                    </Typography>
+                                  </Box>
                                 </Box>
-                              </Box>
-                            </TableCell>
-                            <TableCell>
-                              <Chip
-                                label={referido.codigo}
-                                sx={{
-                                  fontFamily: "monospace",
-                                  fontWeight: 700,
-                                  bgcolor: referido.tieneCodigoReferido ? "#ffe0e0" : "#f5f5f5",
-                                  color: referido.tieneCodigoReferido ? "#b01217" : "#757575",
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell align="center">
-                              <Typography
-                                variant="h6"
-                                fontWeight="bold"
-                                color={referido.referidos > 0 ? "#d7171a" : "#bdbdbd"}
-                              >
-                                {referido.referidos}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="center">
-                              <Typography
-                                variant="h6"
-                                fontWeight="bold"
-                                color={referido.tickets > 0 ? "#ff9800" : "#bdbdbd"}
-                              >
-                                {referido.tickets}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="center">
-                              {referido.tieneCodigoReferido && (
-                                <Tooltip title="Copiar código">
-                                  <IconButton
-                                    onClick={() => copyToClipboard(referido.codigo)}
-                                    size="small"
-                                    sx={{ color: "#d7171a", mr: 1 }}
-                                  >
-                                    <ContentCopyIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
-                              {referido.referidos > 0 && (
-                                <Tooltip title="Ver historial de referidos">
-                                  <IconButton
-                                    onClick={() => handleOpenHistorial(referido)}
-                                    size="small"
-                                    sx={{ color: "#d7171a" }}
-                                  >
-                                    <HistoryIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
-                            </TableCell>
+                              </TableCell>
+                            )}
+                            {visibleColumnsPasajeros.codigo && (
+                              <TableCell>
+                                <Chip
+                                  label={referido.codigo}
+                                  sx={{
+                                    fontFamily: "monospace",
+                                    fontWeight: 700,
+                                    bgcolor: referido.tieneCodigoReferido ? "#ffe0e0" : "#f5f5f5",
+                                    color: referido.tieneCodigoReferido ? "#b01217" : "#757575",
+                                  }}
+                                />
+                              </TableCell>
+                            )}
+                            {visibleColumnsPasajeros.referidos && (
+                              <TableCell align="center">
+                                <Typography
+                                  variant="h6"
+                                  fontWeight="bold"
+                                  color={referido.referidos > 0 ? "#d7171a" : "#bdbdbd"}
+                                >
+                                  {referido.referidos}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumnsPasajeros.tickets && (
+                              <TableCell align="center">
+                                <Typography
+                                  variant="h6"
+                                  fontWeight="bold"
+                                  color={referido.tickets > 0 ? "#ff9800" : "#bdbdbd"}
+                                >
+                                  {referido.tickets}
+                                </Typography>
+                              </TableCell>
+                            )}
+                            {visibleColumnsPasajeros.acciones && (
+                              <TableCell align="center">
+                                {referido.tieneCodigoReferido && (
+                                  <Tooltip title="Copiar código">
+                                    <IconButton
+                                      onClick={() => copyToClipboard(referido.codigo)}
+                                      size="small"
+                                      sx={{ color: "#d7171a", mr: 1 }}
+                                    >
+                                      <ContentCopyIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                                {referido.referidos > 0 && (
+                                  <Tooltip title="Ver historial de referidos">
+                                    <IconButton
+                                      onClick={() => handleOpenHistorial(referido)}
+                                      size="small"
+                                      sx={{ color: "#d7171a" }}
+                                    >
+                                      <HistoryIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                              </TableCell>
+                            )}
                           </TableRow>
-                        ))}
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                   </TableContainer>

@@ -926,10 +926,30 @@ const GestionServicios = () => {
                           )}
                           {visibleColumnsServicios.tarifa_base && (
                             <TableCell>
-                              {srv.reglas_tarifa?.costo_por_hora ? `Bs. ${srv.reglas_tarifa.costo_por_hora}` :
-                               srv.reglas_tarifa?.tarifa_base ? `Bs. ${srv.reglas_tarifa.tarifa_base}` : 
-                               srv.tarifa_general?.tarifaBase ? `Bs. ${srv.tarifa_general.tarifaBase}` :
-                               '-'}
+                              {(() => {
+                                // Buscar la tarifa base según prioridad
+                                // Primero: buscar costo_por_hora (para categorías de tiempo)
+                                if (srv.reglas_tarifa?.costo_por_hora) {
+                                  return `Bs. ${srv.reglas_tarifa.costo_por_hora}`;
+                                }
+                                // Segundo: buscar tarifa_base directamente
+                                if (srv.reglas_tarifa?.tarifa_base) {
+                                  return `Bs. ${srv.reglas_tarifa.tarifa_base}`;
+                                }
+                                // Tercero: buscar el primer campo numérico en reglas_tarifa
+                                if (srv.reglas_tarifa) {
+                                  for (const [key, value] of Object.entries(srv.reglas_tarifa)) {
+                                    if (key !== 'unidad_precio' && typeof value === 'number' && value > 0) {
+                                      return `Bs. ${value}`;
+                                    }
+                                  }
+                                }
+                                // Último: buscar en tarifa_general
+                                if (srv.tarifa_general?.tarifaBase) {
+                                  return `Bs. ${srv.tarifa_general.tarifaBase}`;
+                                }
+                                return '-';
+                              })()}
                             </TableCell>
                           )}
                           {visibleColumnsServicios.acciones && (

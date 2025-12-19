@@ -4,7 +4,7 @@ import Icons from "../../../shared/constants/Icons";
 import { 
   Typography, Paper, Box, CircularProgress, Alert, Dialog, DialogTitle, DialogContent, 
   DialogContentText, DialogActions, Button, Snackbar, Table, TableBody, TableCell, 
-  TableContainer, TableHead, TableRow, Avatar, IconButton, Tooltip, Pagination
+  TableContainer, TableHead, TableRow, Avatar, IconButton, Tooltip, Pagination, Switch
 } from "@mui/material";
 import TableToolbar from "../usuarios/components/TableToolbar";
 import AddIcon from "@mui/icons-material/Add";
@@ -12,6 +12,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import ModalAgregar from "./components/ModalAgregar";
+import ModalEditar from "./components/ModalEditar";
 
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { storage, db } from "../../../data/firebase/firebase";
@@ -44,6 +45,17 @@ const Banners = () => {
   // Estados para paginación
   const ITEMS_PER_PAGE = 10;
   const [pageBanners, setPageBanners] = React.useState(0);
+  
+  // Estados para modal de agregar banner
+  const [modalAgregarOpen, setModalAgregarOpen] = React.useState(false);
+  
+  // Estados para modal de editar banner
+  const [modalEditarOpen, setModalEditarOpen] = React.useState(false);
+  const [bannerEditando, setBannerEditando] = React.useState(null);
+  
+  // Estados para modal de ver imagen
+  const [imagenExpandidaUrl, setImagenExpandidaUrl] = React.useState(null);
+  const [imagenExpandidaOpen, setImagenExpandidaOpen] = React.useState(false);
   
   // Resetear página al cambiar búsqueda o filtros
   React.useEffect(() => {
@@ -104,6 +116,11 @@ const Banners = () => {
 
   const totalPagesBanners = Math.ceil(filteredRows.length / ITEMS_PER_PAGE);
 
+  // Calcular colSpan dinámico basado en columnas visibles
+  const getColSpan = React.useMemo(() => {
+    return Object.values(visibleColumnsBanners).filter(Boolean).length;
+  }, [visibleColumnsBanners]);
+
   // Cambiar estado en UI + persistir en Firestore
   const handleEstadoChange = React.useCallback(async (row, newEstado) => {
     setRows(prev => prev.map(r => (r.id === row.id ? { ...r, estado: newEstado } : r)));
@@ -117,8 +134,8 @@ const Banners = () => {
   }, []);
 
   const handleEdit = React.useCallback((row) => {
-    // Aquí puedes agregar la lógica para editar
-    alert("Funcion editar proximamente");
+    setBannerEditando(row);
+    setModalEditarOpen(true);
   }, []);
 
   const handleDelete = React.useCallback((row) => {
@@ -161,10 +178,11 @@ const Banners = () => {
   };
 
   const handleView = React.useCallback((row) => {
-    //abrir imagen en nueva pestania
+    // Abrir imagen en modal
     if (row.imagen) {
-      window.open(row.imagen, '_blank');
-    }else {
+      setImagenExpandidaUrl(row.imagen);
+      setImagenExpandidaOpen(true);
+    } else {
       alert("Este banner no tiene imagen");
     }
   }, []);
@@ -203,9 +221,7 @@ const Banners = () => {
             variant="contained"
             startIcon={<AddIcon />}
             sx={{ backgroundColor: "#d7171a", whiteSpace: "nowrap", "&:hover": { backgroundColor: "#b01217" } }}
-            onClick={() => {
-              // Aquí se dispara el modal de agregar
-            }}
+            onClick={() => setModalAgregarOpen(true)}
           >
             Agregar Banner
           </Button>
@@ -215,27 +231,37 @@ const Banners = () => {
           <Table>
             <TableHead sx={{ backgroundColor: "#000000" }}>
               <TableRow>
-                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                  Imagen
-                </TableCell>
-                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                  Título
-                </TableCell>
-                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                  Estado
-                </TableCell>
-                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                  Fecha de Creación
-                </TableCell>
-                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                  Acciones
-                </TableCell>
+                {visibleColumnsBanners.imagen && (
+                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                    Imagen
+                  </TableCell>
+                )}
+                {visibleColumnsBanners.titulo && (
+                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                    Título
+                  </TableCell>
+                )}
+                {visibleColumnsBanners.estado && (
+                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                    Estado
+                  </TableCell>
+                )}
+                {visibleColumnsBanners.fechaCreacion && (
+                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                    Fecha de Creación
+                  </TableCell>
+                )}
+                {visibleColumnsBanners.acciones && (
+                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                    Acciones
+                  </TableCell>
+                )}
               </TableRow>
             </TableHead>
             <TableBody>
               {filteredRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
+                  <TableCell colSpan={getColSpan} align="center">
                     <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                       No hay banners registrados
                     </Typography>
@@ -244,67 +270,92 @@ const Banners = () => {
               ) : (
                 bannersPaginados.map((banner) => (
                   <TableRow key={banner.id} hover sx={{ borderBottom: "1px solid #d0d0d0" }}>
-                    <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                      {banner.imagen ? (
-                        <Avatar
-                          src={banner.imagen}
-                          alt={banner.titulo || "Banner"}
-                          sx={{ width: 50, height: 50, bgcolor: "#d7171a" }}
-                        />
-                      ) : (
-                        <Avatar sx={{ width: 50, height: 50, bgcolor: "#d7171a" }}>-</Avatar>
-                      )}
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                      {banner.titulo || "-"}
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                      <Typography
-                        sx={{
-                          color: banner.estado === true ? "#d7171a" : "#bdbdbd",
-                          fontWeight: 600,
-                          fontFamily: "Mulish, sans-serif"
-                        }}
-                      >
-                        {banner.estado === true ? "Activo" : "Inactivo"}
-                      </Typography>
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                      {banner.createdAt
-                        ? new Date(banner.createdAt.toDate()).toLocaleDateString("es-ES")
-                        : "-"}
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                      <Box sx={{ display: "flex", gap: 1 }}>
-                        <Tooltip title="Ver imagen">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleView(banner)}
-                            sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffebee" } }}
+                    {visibleColumnsBanners.imagen && (
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        {banner.imagen ? (
+                          <Avatar
+                            src={banner.imagen}
+                            alt={banner.titulo || "Banner"}
+                            sx={{ width: 50, height: 50, bgcolor: "#d7171a" }}
+                          />
+                        ) : (
+                          <Avatar sx={{ width: 50, height: 50, bgcolor: "#d7171a" }}>-</Avatar>
+                        )}
+                      </TableCell>
+                    )}
+                    {visibleColumnsBanners.titulo && (
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                        {banner.titulo || "-"}
+                      </TableCell>
+                    )}
+                    {visibleColumnsBanners.estado && (
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Switch
+                            checked={banner.estado === true}
+                            onChange={(e) => handleEstadoChange(banner, e.target.checked)}
+                            sx={{
+                              "& .MuiSwitch-switchBase.Mui-checked": {
+                                color: "#d7171a",
+                              },
+                              "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                                backgroundColor: "#d7171a",
+                              },
+                            }}
+                          />
+                          <Typography
+                            sx={{
+                              color: banner.estado === true ? "#d7171a" : "#bdbdbd",
+                              fontWeight: 600,
+                              fontFamily: "Mulish, sans-serif",
+                              fontSize: "0.9rem",
+                            }}
                           >
-                            <VisibilityIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Editar">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleEdit(banner)}
-                            sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffebee" } }}
-                          >
-                            <EditIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Eliminar">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDelete(banner)}
-                            sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcccb" } }}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
+                            {banner.estado === true ? "Activo" : "Inactivo"}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    )}
+                    {visibleColumnsBanners.fechaCreacion && (
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        {banner.createdAt
+                          ? new Date(banner.createdAt.toDate()).toLocaleDateString("es-ES")
+                          : "-"}
+                      </TableCell>
+                    )}
+                    {visibleColumnsBanners.acciones && (
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        <Box sx={{ display: "flex", gap: 1 }}>
+                          <Tooltip title="Ver imagen">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleView(banner)}
+                              sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffebee" } }}
+                            >
+                              <VisibilityIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Editar">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleEdit(banner)}
+                              sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffebee" } }}
+                            >
+                              <EditIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Eliminar">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDelete(banner)}
+                              sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcccb" } }}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
@@ -382,6 +433,155 @@ const Banners = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Modal para agregar banner */}
+      <Dialog
+        open={modalAgregarOpen}
+        onClose={() => setModalAgregarOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
+            color: "#fff",
+            fontWeight: 700,
+          }}
+        >
+          ➕ Agregar Nuevo Banner
+        </DialogTitle>
+        <DialogContent sx={{ pt: 4, pb: 3 }}>
+          <ModalAgregar
+            onReady={(api) => {
+              agregarApiRef.current = api;
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2, bgcolor: "#f5f5f5" }}>
+          <Button
+            onClick={() => setModalAgregarOpen(false)}
+            sx={{ textTransform: "none" }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={async () => {
+              try {
+                await agregarApiRef.current.save();
+                setModalAgregarOpen(false);
+                setSnackbar({ open: true, message: "Banner agregado exitosamente", severity: "success" });
+                fetchBanners();
+              } catch (error) {
+                setSnackbar({ open: true, message: "Error al agregar banner", severity: "error" });
+              }
+            }}
+            variant="contained"
+            sx={{ backgroundColor: "#d7171a", textTransform: "none" }}
+            disabled={agregarApiRef.current?.saving}
+          >
+            {agregarApiRef.current?.saving ? "Guardando..." : "Guardar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal para editar banner */}
+      <Dialog
+        open={modalEditarOpen}
+        onClose={() => setModalEditarOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
+            color: "#fff",
+            fontWeight: 700,
+          }}
+        >
+          ✏️ Editar Banner
+        </DialogTitle>
+        <DialogContent sx={{ pt: 4, pb: 3 }}>
+          {bannerEditando && (
+            <ModalEditar
+              banner={bannerEditando}
+              onReady={(api) => {
+                agregarApiRef.current = api;
+              }}
+            />
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, bgcolor: "#f5f5f5" }}>
+          <Button
+            onClick={() => setModalEditarOpen(false)}
+            sx={{ textTransform: "none" }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={async () => {
+              try {
+                await agregarApiRef.current.save();
+                setModalEditarOpen(false);
+                setSnackbar({ open: true, message: "Banner actualizado exitosamente", severity: "success" });
+                fetchBanners();
+              } catch (error) {
+                setSnackbar({ open: true, message: "Error al actualizar banner", severity: "error" });
+              }
+            }}
+            variant="contained"
+            sx={{ backgroundColor: "#d7171a", textTransform: "none" }}
+            disabled={agregarApiRef.current?.saving}
+          >
+            {agregarApiRef.current?.saving ? "Guardando..." : "Guardar Cambios"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal para ver imagen expandida */}
+      <Dialog
+        open={imagenExpandidaOpen}
+        onClose={() => setImagenExpandidaOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
+            color: "#fff",
+            fontWeight: 700,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          🖼️ Vista Previa del Banner
+        </DialogTitle>
+        <DialogContent sx={{ pt: 5, pb: 3, textAlign: "center" }}>
+          {imagenExpandidaUrl && (
+            <Box
+              component="img"
+              src={imagenExpandidaUrl}
+              alt="Banner preview"
+              sx={{
+                maxWidth: "100%",
+                maxHeight: "600px",
+                borderRadius: 2,
+                objectFit: "contain",
+                mt: 2,
+              }}
+            />
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, bgcolor: "#f5f5f5" }}>
+          <Button
+            onClick={() => setImagenExpandidaOpen(false)}
+            variant="contained"
+            sx={{ textTransform: "none" }}
+          >
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
       </Paper>
     </Box>
   );

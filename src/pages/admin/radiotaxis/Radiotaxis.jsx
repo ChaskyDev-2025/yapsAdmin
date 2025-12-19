@@ -335,10 +335,10 @@ const Radiotaxis = () => {
     <Box sx={{ p: 3 }}>
       <Paper elevation={6} sx={{ p: 3, borderRadius: 2, backgroundColor: "#f9f9f9" }}>
         <Typography variant="h4" gutterBottom fontWeight="bold" sx={{ color: "#000000" }}>
-          Radiotaxis Registrados
+          Conductores Registrados
         </Typography>
         <Typography color="text.secondary" gutterBottom sx={{ fontFamily: "Mulish, sans-serif" }}>
-          Aquí puedes gestionar los radiotaxis que han enviado sus documentos.
+          Aquí puedes gestionar los conductores y sus historiales de viajes.
         </Typography>
 
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2, mt: 3, flexWrap: "wrap" }}>
@@ -407,7 +407,7 @@ const Radiotaxis = () => {
                   <TableRow>
                     <TableCell colSpan={8} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
-                        No hay radiotaxis registrados
+                        No hay conductores registrados
                       </Typography>
                     </TableCell>
                   </TableRow>

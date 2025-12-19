@@ -60,7 +60,7 @@ export const obtenerFlotas = async () => {
             nombre: flotaData.nombre || "Sin nombre",
             email: flotaData.email || flotaData.contacto || "-",
             contacto: flotaData.contacto || "-",
-            estado: flotaData.estado || "activa",
+            habilitado: flotaData.habilitado !== undefined ? flotaData.habilitado : true,
             saldo: saldoData.monto || 0,
             billeteraData: saldoData,
             ...flotaData,
@@ -72,7 +72,7 @@ export const obtenerFlotas = async () => {
             nombre: flotaData.nombre || "Sin nombre",
             email: flotaData.email || flotaData.contacto || "-",
             contacto: flotaData.contacto || "-",
-            estado: flotaData.estado || "activa",
+            habilitado: flotaData.habilitado !== undefined ? flotaData.habilitado : true,
             saldo: 0,
             billeteraData: { monto: 0, createdAt: null, updatedAt: null },
             ...flotaData,
@@ -140,12 +140,68 @@ export const obtenerHistorialFlota = async (flotaId) => {
       datos: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     });
     
-    // Ordenar en el cliente
-    const transacciones = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    })).sort((a, b) => {
-      // Ordenar por timestamp descendente
+    // Obtener todas las solicitudes para buscar comprobantes
+    let solicitudesMap = {};
+    try {
+      const solicitudesRef = collection(db, FLOTAS_PATH, flotaId, "solicitudesRecarga");
+      const solicitudesSnapshot = await getDocs(solicitudesRef);
+      solicitudesMap = {};
+      solicitudesSnapshot.docs.forEach(doc => {
+        solicitudesMap[doc.id] = doc.data();
+      });
+    } catch (err) {
+      console.warn(`Error obteniendo solicitudes para flota ${flotaId}:`, err);
+    }
+    
+    // Enriquecer transacciones con datos de solicitudes (comprobantes)
+    const transacciones = snapshot.docs.map(doc => {
+      const transaccionData = doc.data();
+      const solicitudId = transaccionData.solicitudId;
+      
+      let comprobanteUrl = null;
+      let estado = null;
+      let nroComprobante = null;
+      let razonRechazo = null;
+      
+      // Primero intentar con solicitudId exacto
+      if (solicitudId && solicitudesMap[solicitudId]) {
+        const solicitudData = solicitudesMap[solicitudId];
+        comprobanteUrl = solicitudData.comprobanteUrl || null;
+        estado = solicitudData.estado || null;
+        nroComprobante = solicitudData.nroComprobante || null;
+        razonRechazo = solicitudData.razonRechazo || null;
+      } else if (!solicitudId) {
+        // Si no tiene solicitudId, buscar por monto y timestamp similar
+        for (const [solId, solicitud] of Object.entries(solicitudesMap)) {
+          // Comparar monto y que los timestamps sean cercanos (dentro de 5 minutos)
+          if (solicitud.monto === transaccionData.monto) {
+            const solTimestamp = solicitud.fechaSolicitud?.seconds || 0;
+            const transTimestamp = transaccionData.timestamp?.seconds || 0;
+            const diferencia = Math.abs(solTimestamp - transTimestamp);
+            
+            if (diferencia < 300) { // 5 minutos
+              comprobanteUrl = solicitud.comprobanteUrl || null;
+              estado = solicitud.estado || null;
+              nroComprobante = solicitud.nroComprobante || null;
+              razonRechazo = solicitud.razonRechazo || null;
+              break;
+            }
+          }
+        }
+      }
+      
+      return {
+        id: doc.id,
+        comprobanteUrl,
+        estado,
+        nroComprobante,
+        razonRechazo,
+        ...transaccionData,
+      };
+    });
+    
+    // Ordenar por timestamp descendente
+    transacciones.sort((a, b) => {
       const timestampA = a.timestamp?.seconds || 0;
       const timestampB = b.timestamp?.seconds || 0;
       return timestampB - timestampA;
@@ -267,7 +323,7 @@ export const obtenerSaldoTotal = async () => {
     const total = flotas.reduce((sum, flota) => sum + (flota.saldo || 0), 0);
     return {
       saldoTotal: total,
-      flotasActivas: flotas.filter(f => f.estado === "activa").length,
+      flotasActivas: flotas.filter(f => f.habilitado !== false).length,
       totalFlotas: flotas.length,
     };
   } catch (error) {
@@ -432,7 +488,7 @@ export const escucharFlotas = (callback) => {
               nombre: flotaData.nombre || "Sin nombre",
               email: flotaData.email || flotaData.contacto || "-",
               contacto: flotaData.contacto || "-",
-              estado: flotaData.estado || "activa",
+              habilitado: flotaData.habilitado !== undefined ? flotaData.habilitado : true,
               saldo: saldoData.monto || 0,
               billeteraData: saldoData,
               ...flotaData,
@@ -444,7 +500,7 @@ export const escucharFlotas = (callback) => {
               nombre: flotaData.nombre || "Sin nombre",
               email: flotaData.email || flotaData.contacto || "-",
               contacto: flotaData.contacto || "-",
-              estado: flotaData.estado || "activa",
+              habilitado: flotaData.habilitado !== undefined ? flotaData.habilitado : true,
               saldo: 0,
               billeteraData: { monto: 0, createdAt: null, updatedAt: null },
               ...flotaData,
@@ -470,52 +526,103 @@ export const escucharFlotas = (callback) => {
  */
 export const escucharSaldoTotal = (callback) => {
   let unsubscribers = [];
+  let flotaIds = [];
+  let billeteraUnsubscribers = {};
   
   try {
     const flotasRef = collection(db, FLOTAS_PATH);
 
-    // Listener principal en flotas (para cambios de estado)
+    // Listener principal en flotas (para detectar nuevas flotas o cambios de estado)
     const unsubscribeFlotas = onSnapshot(flotasRef, async (snapshot) => {
       let saldoTotal = 0;
       let flotasActivas = 0;
-      const flotaIds = [];
+      const nuevasFlotaIds = [];
 
       // Recolectar IDs de flotas
       snapshot.docs.forEach(doc => {
-        flotaIds.push(doc.id);
-        if (doc.data().estado === "activa") {
+        nuevasFlotaIds.push(doc.id);
+        if (doc.data().habilitado !== false) {
           flotasActivas++;
         }
       });
 
-      // Obtener saldos de todas las flotas
-      await Promise.all(
-        flotaIds.map(async (flotaId) => {
+      // Limpiar listeners de flotas eliminadas
+      for (const flotaId of flotaIds) {
+        if (!nuevasFlotaIds.includes(flotaId) && billeteraUnsubscribers[flotaId]) {
+          billeteraUnsubscribers[flotaId]();
+          delete billeteraUnsubscribers[flotaId];
+        }
+      }
+
+      flotaIds = nuevasFlotaIds;
+
+      // Configurar listeners para billeteras de flotas que no tienen
+      const billet_promises = flotaIds.map((flotaId) => {
+        return new Promise((resolve) => {
+          // Si ya tiene listener, no crear otro
+          if (billeteraUnsubscribers[flotaId]) {
+            resolve();
+            return;
+          }
+
           try {
             const billeteraRef = getBilleteraRef(flotaId);
-            // Usar getDocFromServer para forzar lectura del servidor sin caché
-            const billeteraSnapshot = await getDocFromServer(billeteraRef);
-
-            if (billeteraSnapshot.exists()) {
-              saldoTotal += billeteraSnapshot.data().monto || 0;
-            }
+            
+            // Crear listener para esta billetera específica
+            billeteraUnsubscribers[flotaId] = onSnapshot(
+              billeteraRef,
+              () => {
+                // Cuando cambia cualquier billetera, recalcular total
+                recalcularSaldoTotal();
+              },
+              (err) => {
+                console.warn(`Error en listener de billetera para flota ${flotaId}:`, err);
+                resolve();
+              }
+            );
+            resolve();
           } catch (err) {
-            console.warn(`No se pudo obtener billetera para flota ${flotaId}:`, err);
+            console.warn(`Error configurando listener de billetera para flota ${flotaId}:`, err);
+            resolve();
           }
-        })
-      );
-
-      callback({
-        saldoTotal,
-        flotasActivas,
-        totalFlotas: snapshot.docs.length,
+        });
       });
+
+      await Promise.all(billet_promises);
+      recalcularSaldoTotal();
+
+      function recalcularSaldoTotal() {
+        Promise.all(
+          flotaIds.map(async (flotaId) => {
+            try {
+              const billeteraRef = getBilleteraRef(flotaId);
+              const billeteraSnapshot = await getDoc(billeteraRef);
+              return billeteraSnapshot.exists() ? billeteraSnapshot.data().monto || 0 : 0;
+            } catch (err) {
+              console.warn(`No se pudo obtener billetera para flota ${flotaId}:`, err);
+              return 0;
+            }
+          })
+        ).then((saldos) => {
+          const total = saldos.reduce((sum, monto) => sum + monto, 0);
+          const activas = snapshot.docs.filter(doc => doc.data().habilitado !== false).length;
+          
+          callback({
+            saldoTotal: total,
+            flotasActivas: activas,
+            totalFlotas: snapshot.docs.length,
+          });
+        });
+      }
     });
 
     unsubscribers.push(unsubscribeFlotas);
 
     return () => {
       unsubscribers.forEach(unsub => unsub());
+      Object.values(billeteraUnsubscribers).forEach(unsub => {
+        if (unsub) unsub();
+      });
     };
   } catch (error) {
     console.error("Error configurando listener de saldo total:", error);

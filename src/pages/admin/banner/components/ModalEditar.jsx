@@ -1,11 +1,11 @@
-// src/pages/admin/banner/components/ModalAgregar.jsx
+// src/pages/admin/banner/components/ModalEditar.jsx
 import { useEffect } from "react";
 import { Box, Typography, Stack, TextField } from "@mui/material";
 import Icons from "../../../../shared/constants/Icons";
-import useBannerForm from "../hooks/useBannerForm";
+import useBannerFormEditar from "../hooks/useBannerFormEditar";
 
-const ModalAgregar = ({ onReady }) => {
-  const { preview, inputRef, abrirSelector, onChangeInput, saving, error, save, titulo, setTitulo } = useBannerForm();
+const ModalEditar = ({ banner, onReady }) => {
+  const { preview, inputRef, onChangeInput, saving, error, save, titulo, setTitulo } = useBannerFormEditar(banner);
 
   useEffect(() => {
     if (typeof onReady === "function") onReady({ save, saving });
@@ -35,7 +35,7 @@ const ModalAgregar = ({ onReady }) => {
         }}
       />
 
-      {/* Área de carga de imagen */}
+      {/* Área de carga/actualización de imagen */}
       <Box sx={{ mt: 3 }}>
         <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: "#484848" }}>
           📸 Imagen del Banner
@@ -89,4 +89,4 @@ const ModalAgregar = ({ onReady }) => {
   );
 };
 
-export default ModalAgregar;
+export default ModalEditar;
