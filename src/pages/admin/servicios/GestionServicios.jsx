@@ -192,12 +192,12 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
       setFormData({
         activo: service.activo !== undefined ? service.activo : true,
         tarifa_general: {
-          tarifaBase: String(service.reglas_tarifa?.tarifaBase ?? service.tarifa_general?.tarifaBase ?? ''),
-          distanciaBase: String(service.reglas_tarifa?.distanciaBase ?? service.tarifa_general?.distanciaBase ?? ''),
-          porKm: String(service.reglas_tarifa?.porKm ?? service.tarifa_general?.porKm ?? ''),
-          porMin: String(service.reglas_tarifa?.porMin ?? service.tarifa_general?.porMin ?? ''),
-          horaPicoExtra: String(service.reglas_tarifa?.horaPicoExtra ?? service.tarifa_general?.horaPicoExtra ?? ''),
-          nocturno: String(service.reglas_tarifa?.nocturno ?? service.tarifa_general?.nocturno ?? ''),
+          tarifaBase: String(service.reglas_tarifa?.tarifaBase ?? service.reglas_tarifa?.tarifa_base ?? service.tarifa_general?.tarifaBase ?? ''),
+          distanciaBase: String(service.reglas_tarifa?.distanciaBase ?? service.reglas_tarifa?.distancia_base ?? service.tarifa_general?.distanciaBase ?? ''),
+          porKm: String(service.reglas_tarifa?.porKm ?? service.reglas_tarifa?.costo_por_km ?? service.tarifa_general?.porKm ?? ''),
+          porMin: String(service.reglas_tarifa?.porMin ?? service.reglas_tarifa?.costo_por_min ?? service.tarifa_general?.porMin ?? ''),
+          horaPicoExtra: String(service.reglas_tarifa?.horaPicoExtra ?? service.reglas_tarifa?.recargo_nocturno ?? service.tarifa_general?.horaPicoExtra ?? ''),
+          nocturno: String(service.reglas_tarifa?.nocturno ?? service.reglas_tarifa?.recargo_nocturno ?? service.tarifa_general?.nocturno ?? ''),
           comision: String(service.reglas_tarifa?.comision ?? service.tarifa_general?.comision ?? '')
         },
         tipo_calculo: service.tipo_calculo || 'tarifa_fija',
@@ -932,11 +932,14 @@ const GestionServicios = () => {
                                 if (srv.reglas_tarifa?.costo_por_hora) {
                                   return `Bs. ${srv.reglas_tarifa.costo_por_hora}`;
                                 }
-                                // Segundo: buscar tarifa_base directamente
+                                // Segundo: buscar tarifa_base (snake_case) o tarifaBase (camelCase)
                                 if (srv.reglas_tarifa?.tarifa_base) {
                                   return `Bs. ${srv.reglas_tarifa.tarifa_base}`;
                                 }
-                                // Tercero: buscar el primer campo numérico en reglas_tarifa
+                                if (srv.reglas_tarifa?.tarifaBase) {
+                                  return `Bs. ${srv.reglas_tarifa.tarifaBase}`;
+                                }
+                                // Tercero: buscar el primer campo numérico en reglas_tarifa (excepto unidad_precio)
                                 if (srv.reglas_tarifa) {
                                   for (const [key, value] of Object.entries(srv.reglas_tarifa)) {
                                     if (key !== 'unidad_precio' && typeof value === 'number' && value > 0) {
