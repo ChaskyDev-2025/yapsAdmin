@@ -23,7 +23,7 @@ const CIUDADES = [
   "Oruro", "Potosí", "Tarija", "Pando", "Beni"
 ];
 
-const CATEGORIAS_SERVICIO = ["Viajes", "Envios"];
+const CATEGORIAS_SERVICIO = ["Viajes", "Envios", "viajes_envios"];
 
 export const DocsManagerModal = ({
   open,
@@ -38,6 +38,70 @@ export const DocsManagerModal = ({
   const [message, setMessage] = useState(null);
   const [ciudadSeleccionada, setCiudadSeleccionada] = useState("");
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState("Viajes");
+  const [cambiosGuardados, setCambiosGuardados] = useState(true);
+
+  // Función para obtener documentos que están en AMBAS categorías
+  const obtenerDocumentosEnComun = (ciudad) => {
+    let docsViajes = selectedTemplates[ciudad]?.["Viajes"] || [];
+    let docsEnvios = selectedTemplates[ciudad]?.["Envios"] || [];
+    
+    // Convertir a arrays si son objetos
+    if (typeof docsViajes === 'object' && !Array.isArray(docsViajes)) {
+      docsViajes = Object.entries(docsViajes).map(([slug, docInfo]) => ({
+        slug,
+        id: docInfo.id || docInfo,
+        nombre: docInfo.nombre || slug.replace(/_/g, ' ')
+      }));
+    }
+    if (typeof docsEnvios === 'object' && !Array.isArray(docsEnvios)) {
+      docsEnvios = Object.entries(docsEnvios).map(([slug, docInfo]) => ({
+        slug,
+        id: docInfo.id || docInfo,
+        nombre: docInfo.nombre || slug.replace(/_/g, ' ')
+      }));
+    }
+    
+    // Asegurar que son arrays
+    docsViajes = Array.isArray(docsViajes) ? docsViajes : [];
+    docsEnvios = Array.isArray(docsEnvios) ? docsEnvios : [];
+    
+    // Encontrar documentos en común (por ID)
+    const idsEnvios = new Set(docsEnvios.map(doc => doc.id));
+    return docsViajes.filter(doc => idsEnvios.has(doc.id));
+  };
+
+  // Función para combinar documentos de múltiples categorías sin duplicados
+  const combinarDocumentosSinDuplicados = (ciudad, categorias) => {
+    const documentosCombinados = [];
+    const idsVisto = new Set();
+
+    categorias.forEach(categoria => {
+      let docsEnCategoria = selectedTemplates[ciudad]?.[categoria] || [];
+      
+      // Si es un objeto (no array), convertir a array
+      if (typeof docsEnCategoria === 'object' && !Array.isArray(docsEnCategoria)) {
+        docsEnCategoria = Object.entries(docsEnCategoria).map(([slug, docInfo]) => ({
+          slug,
+          id: docInfo.id || docInfo,
+          nombre: docInfo.nombre || slug.replace(/_/g, ' ')
+        }));
+      }
+      
+      // Asegurar que es array
+      if (!Array.isArray(docsEnCategoria)) {
+        docsEnCategoria = [];
+      }
+      
+      docsEnCategoria.forEach(doc => {
+        if (!idsVisto.has(doc.id)) {
+          idsVisto.add(doc.id);
+          documentosCombinados.push(doc);
+        }
+      });
+    });
+
+    return documentosCombinados;
+  };
 
   // Función para generar slug basado en el nombre del documento
   const generateDocSlug = (docName) => {
@@ -119,34 +183,7 @@ export const DocsManagerModal = ({
     }
     
     if (flota?.documentos && typeof flota.documentos === 'object' && !Array.isArray(flota.documentos)) {
-      const initialized = {};
-      
-      // Nueva estructura: ciudad -> categoría -> documentos
-      Object.entries(flota.documentos).forEach(([ciudad, ciudadDocs]) => {
-        if (isNaN(Number(ciudad)) && typeof ciudadDocs === 'object' && !Array.isArray(ciudadDocs)) {
-          initialized[ciudad] = {};
-          
-          // Iterar sobre categorías de servicio
-          Object.entries(ciudadDocs).forEach(([categoria, docs]) => {
-            if (CATEGORIAS_SERVICIO.includes(categoria)) {
-              if (typeof docs === 'object' && !Array.isArray(docs)) {
-                // Convertir de objeto a array: {slug: {id, nombre}} -> [{slug, id, nombre}]
-                const docsArray = Object.entries(docs).map(([slug, docInfo]) => {
-                  return {
-                    slug,
-                    id: docInfo.id || docInfo,
-                    nombre: docInfo.nombre || slug.replace(/_/g, ' ')
-                  };
-                });
-                initialized[ciudad][categoria] = docsArray;
-              } else if (Array.isArray(docs)) {
-                initialized[ciudad][categoria] = docs;
-              }
-            }
-          });
-        }
-      });
-      
+      const initialized = JSON.parse(JSON.stringify(flota.documentos));
       setSelectedTemplates(initialized);
     } else {
       setSelectedTemplates({});
@@ -210,30 +247,30 @@ export const DocsManagerModal = ({
         updated[ciudad] = {};
       }
       
-      // Inicializar la categoría si no existe
+      // Inicializar la categoría si no existe (como OBJETO, no array)
       if (!updated[ciudad][categoria]) {
-        updated[ciudad][categoria] = [];
+        updated[ciudad][categoria] = {};
       }
       
-      // Asegurar que es un array
-      if (!Array.isArray(updated[ciudad][categoria])) {
-        updated[ciudad][categoria] = [];
+      // Asegurar que es un objeto
+      if (Array.isArray(updated[ciudad][categoria])) {
+        updated[ciudad][categoria] = {};
       }
       
       if (isSelected) {
-        // Remover del array
-        updated[ciudad][categoria] = updated[ciudad][categoria].filter(item => item.slug !== docSlug);
+        // Remover del objeto (buscar por slug)
+        delete updated[ciudad][categoria][docSlug];
       } else {
-        // Agregar al array
-        updated[ciudad][categoria].push({
+        // Agregar como objeto: slug -> {id, nombre}
+        updated[ciudad][categoria][docSlug] = {
           slug: docSlug,
           id: tpl.id,
           nombre: tpl.titulo || tpl.screenTitle || tpl.nombre
-        });
+        };
       }
       
       // Limpiar categoría si está vacía
-      if (updated[ciudad][categoria].length === 0) {
+      if (Object.keys(updated[ciudad][categoria]).length === 0) {
         delete updated[ciudad][categoria];
       }
       
@@ -292,7 +329,8 @@ export const DocsManagerModal = ({
         {(flota?.documentos && typeof flota.documentos === 'object' && !Array.isArray(flota.documentos) && Object.keys(flota.documentos).length > 0) ? (
           <Box>
             {CIUDADES.map(ciudad => {
-              const docsEnCiudad = flota.documentos[ciudad] || {};
+              // Usar selectedTemplates como fuente de verdad para mostrar estado actualizado
+              const docsEnCiudad = selectedTemplates[ciudad] || flota.documentos[ciudad] || {};
               
               if (typeof docsEnCiudad !== 'object' || !docsEnCiudad || Object.keys(docsEnCiudad).length === 0) return null;
               
@@ -315,7 +353,18 @@ export const DocsManagerModal = ({
                   
                   {/* Iterar sobre categorías */}
                   {CATEGORIAS_SERVICIO.map(categoria => {
-                    const docsEnCategoria = docsEnCiudad[categoria] || {};
+                    let docsEnCategoria = {};
+                    
+                    // Si es la categoría combinada, combinar ambas sin duplicados
+                    if (categoria === "viajes_envios") {
+                      const docsCombinados = combinarDocumentosSinDuplicados(ciudad, ["Viajes", "Envios", "viajes_envios"]);
+                      docsEnCategoria = {};
+                      docsCombinados.forEach(doc => {
+                        docsEnCategoria[doc.slug] = doc;
+                      });
+                    } else {
+                      docsEnCategoria = docsEnCiudad[categoria] || {};
+                    }
                     
                     if (typeof docsEnCategoria !== 'object' || !docsEnCategoria || Object.keys(docsEnCategoria).length === 0) return null;
                     
@@ -344,17 +393,41 @@ export const DocsManagerModal = ({
                                 label={docName} 
                                 color="primary"
                                 onDelete={() => {
-                                  const updated = JSON.parse(JSON.stringify(flota.documentos));
+                                  const updated = JSON.parse(JSON.stringify(selectedTemplates));
+                                  
+                                  // Validar que existen las propiedades antes de acceder
+                                  if (!updated[ciudad] || !updated[ciudad][categoria]) {
+                                    return;
+                                  }
+                                  
+                                  const docAEliminar = updated[ciudad][categoria][slug];
+                                  const idAEliminar = docAEliminar?.id;
+                                  
+                                  // Eliminar de la categoría actual
                                   delete updated[ciudad][categoria][slug];
-                                  if (Object.keys(updated[ciudad][categoria]).length === 0) {
+                                  
+                                  // Si existe viajes_envios y el documento está allí, eliminarlo también
+                                  if (idAEliminar && updated[ciudad]["viajes_envios"]) {
+                                    Object.entries(updated[ciudad]["viajes_envios"]).forEach(([slugVE, docVE]) => {
+                                      if (docVE?.id === idAEliminar) {
+                                        delete updated[ciudad]["viajes_envios"][slugVE];
+                                      }
+                                    });
+                                    if (Object.keys(updated[ciudad]["viajes_envios"]).length === 0) {
+                                      delete updated[ciudad]["viajes_envios"];
+                                    }
+                                  }
+                                  
+                                  if (updated[ciudad][categoria] && Object.keys(updated[ciudad][categoria]).length === 0) {
                                     delete updated[ciudad][categoria];
                                   }
-                                  if (Object.keys(updated[ciudad]).length === 0) {
+                                  if (updated[ciudad] && Object.keys(updated[ciudad]).length === 0) {
                                     delete updated[ciudad];
                                   }
-                                  // Actualizar estado local también
+                                  
+                                  // Actualizar estado local y marcar como cambios sin guardar
                                   setSelectedTemplates(updated);
-                                  if (onAssignTemplates) onAssignTemplates(updated);
+                                  setCambiosGuardados(false);
                                 }}
                               />
                             );
@@ -377,6 +450,23 @@ export const DocsManagerModal = ({
         <Button onClick={onClose} sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600, color: "#484848" }}>
           Cerrar
         </Button>
+        {!cambiosGuardados && (
+          <Button 
+            onClick={() => {
+              if (onAssignTemplates) onAssignTemplates(selectedTemplates);
+              setCambiosGuardados(true);
+            }}
+            variant="contained"
+            sx={{ 
+              fontFamily: "Mulish, sans-serif", 
+              fontWeight: 600, 
+              bgcolor: "#4caf50",
+              "&:hover": { bgcolor: "#388e3c" }
+            }}
+          >
+            💾 Guardar Cambios
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
 
@@ -517,10 +607,19 @@ export const DocsManagerModal = ({
                           {docsPorCategoria[categoriaDoc].map((tpl) => {
                             const docSlug = generateDocSlug(tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id);
                             const docsEnCiudad = selectedTemplates[ciudad] || {};
-                            const docsEnCategoria = Array.isArray(docsEnCiudad) ? [] : (docsEnCiudad[categoriaSeleccionada] || []);
-                            const isSelected = Array.isArray(docsEnCategoria) 
-                              ? docsEnCategoria.some(item => item.slug === docSlug)
-                              : false;
+                            
+                            // Determinar qué categorías revisar para el estado seleccionado
+                            const categoriasARevisar = categoriaSeleccionada === "viajes_envios" 
+                              ? ["Viajes", "Envios", "viajes_envios"] 
+                              : [categoriaSeleccionada];
+                            
+                            // Buscar en cualquiera de las categorías si el documento está seleccionado (ahora como objetos)
+                            const isSelected = categoriasARevisar.some(cat => {
+                              const docsEnCategoria = docsEnCiudad[cat] || {};
+                              // Buscar por ID en los valores del objeto
+                              return Object.values(docsEnCategoria).some(doc => doc?.id === tpl.id);
+                            });
+                            
                             const docName = tpl.titulo || tpl.screenTitle || tpl.nombre || tpl.id;
                             
                             return (
@@ -580,26 +679,41 @@ export const DocsManagerModal = ({
         <Button onClick={() => setAssignDialogOpen(false)} startIcon={<CloseIcon />}>Cancelar</Button>
         <Button 
           onClick={() => {
-            // Convertir array a objeto para guardado con estructura: ciudad -> categoría -> documentos
-            const documentosParaGuardar = {};
-            Object.entries(selectedTemplates).forEach(([ciudad, categoriasObj]) => {
-              if (typeof categoriasObj === 'object' && !Array.isArray(categoriasObj)) {
-                documentosParaGuardar[ciudad] = {};
-                Object.entries(categoriasObj).forEach(([categoria, documentos]) => {
-                  if (Array.isArray(documentos)) {
-                    documentosParaGuardar[ciudad][categoria] = {};
-                    documentos.forEach(doc => {
-                      documentosParaGuardar[ciudad][categoria][doc.slug] = { 
-                        id: doc.id,
-                        nombre: doc.nombre 
-                      };
-                    });
-                  } else {
-                    documentosParaGuardar[ciudad][categoria] = documentos;
+            // selectedTemplates ya está en formato correcto: ciudad -> categoría -> documento (objeto)
+            const documentosParaGuardar = JSON.parse(JSON.stringify(selectedTemplates));
+            
+            // Crear automáticamente "viajes_envios" si existen ambas categorías
+            Object.keys(documentosParaGuardar).forEach(ciudad => {
+              const tieneViajes = documentosParaGuardar[ciudad]["Viajes"] && Object.keys(documentosParaGuardar[ciudad]["Viajes"]).length > 0;
+              const tieneEnvios = documentosParaGuardar[ciudad]["Envios"] && Object.keys(documentosParaGuardar[ciudad]["Envios"]).length > 0;
+              
+              if (tieneViajes && tieneEnvios) {
+                // Combinar TODOS los documentos sin duplicados (por ID)
+                const docsViajes = Object.entries(documentosParaGuardar[ciudad]["Viajes"]);
+                const docsEnvios = Object.entries(documentosParaGuardar[ciudad]["Envios"]);
+                
+                // Map de IDs para evitar duplicados
+                const idsYaAgregados = new Set();
+                const docsCombinados = {};
+                
+                // Primero agregar todos de Viajes
+                docsViajes.forEach(([slug, doc]) => {
+                  docsCombinados[slug] = doc;
+                  idsYaAgregados.add(doc.id);
+                });
+                
+                // Luego agregar los de Envios que NO estén duplicados
+                docsEnvios.forEach(([slug, doc]) => {
+                  if (!idsYaAgregados.has(doc.id)) {
+                    docsCombinados[slug] = doc;
+                    idsYaAgregados.add(doc.id);
                   }
                 });
-              } else {
-                documentosParaGuardar[ciudad] = categoriasObj;
+                
+                // Crear viajes_envios con todos sin duplicados
+                if (Object.keys(docsCombinados).length > 0) {
+                  documentosParaGuardar[ciudad]["viajes_envios"] = docsCombinados;
+                }
               }
             });
             
