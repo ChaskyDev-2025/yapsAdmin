@@ -29,6 +29,10 @@ import AddIcon from "@mui/icons-material/Add";
 import QrCodeIcon from "@mui/icons-material/QrCode";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import ImageIcon from "@mui/icons-material/Image";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
+import PersonIcon from "@mui/icons-material/Person";
+import InfoIcon from "@mui/icons-material/Info";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
 import DateFilterComponent from "../usuarios/components/DateFilterComponent";
 import { useAuth } from "../../../auth/AuthContext";
@@ -51,6 +55,11 @@ import {
   query,
   where,
   getDocs,
+  collectionGroup,
+  onSnapshot,
+  updateDoc,
+  serverTimestamp,
+  addDoc,
 } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 
@@ -60,6 +69,7 @@ const BilleteraFlota = () => {
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [solicitudes, setSolicitudes] = useState([]);
+  const [solicitudesConductores, setSolicitudesConductores] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [saldoActual, setSaldoActual] = useState(0);
   const [pageSolicitudes, setPageSolicitudes] = useState(0);
@@ -123,6 +133,16 @@ const BilleteraFlota = () => {
   // Estados para comprobante expandido
   const [comprobanteExpandidoOpen, setComprobanteExpandidoOpen] = useState(false);
   const [comprobanteExpandidoUrl, setComprobanteExpandidoUrl] = useState(null);
+
+  // Estados para modal de validación de solicitudes
+  const [validacionOpen, setValidacionOpen] = useState(false);
+  const [solicitudSeleccionada, setSolicitudSeleccionada] = useState(null);
+  const [motivoRechazo, setMotivoRechazo] = useState("");
+  const [procesando, setProcesando] = useState(false);
+
+  // Estados para modal de información de solicitud
+  const [infoSolicitudOpen, setInfoSolicitudOpen] = useState(false);
+  const [solicitudInfo, setSolicitudInfo] = useState(null);
 
   useEffect(() => {
     if (!flotaId) {
@@ -199,12 +219,67 @@ const BilleteraFlota = () => {
       }
     );
 
+    // Listener para solicitudes de conductores
+    const cargarSolicitudesConductores = async () => {
+      try {
+        // Primero obtener los trabajadores de mi flota
+        const trabajadoresRef = collection(db, "trabajadores");
+        const qTrabajadores = query(trabajadoresRef, where("flotaId", "==", flotaId));
+        const trabajadoresSnapshot = await getDocs(qTrabajadores);
+        
+        const todasSolicitudes = [];
+        
+        // Para cada trabajador, obtener sus solicitudes
+        for (const trabajadorDoc of trabajadoresSnapshot.docs) {
+          const trabajadorId = trabajadorDoc.id;
+          const trabajadorData = trabajadorDoc.data();
+          
+          const solicitudesRef = collection(
+            db,
+            "trabajadores",
+            trabajadorId,
+            "billetera",
+            "data",
+            "solicitudes_recarga"
+          );
+          
+          const solicitudesSnapshot = await getDocs(solicitudesRef);
+          
+          solicitudesSnapshot.docs.forEach(solicitudDoc => {
+            todasSolicitudes.push({
+              id: solicitudDoc.id,
+              conductorId: trabajadorId,
+              conductorNombre: trabajadorData.nombre || trabajadorData.displayName || "Conductor",
+              ...solicitudDoc.data()
+            });
+          });
+        }
+        
+        if (isMounted) {
+          setSolicitudesConductores(todasSolicitudes);
+        }
+      } catch (error) {
+        console.error("Error cargando solicitudes de conductores:", error);
+      }
+    };
+    
+    cargarSolicitudesConductores();
+    
+    // Listener en tiempo real para solicitudes de conductores
+    const unsubscribeConductores = onSnapshot(
+      query(collection(db, "trabajadores"), where("flotaId", "==", flotaId)),
+      () => {
+        cargarSolicitudesConductores();
+      }
+    );
+
     // Cleanup: desuscribir de todos los listeners
     return () => {
       isMounted = false;
       if (unsubscribeSaldo) unsubscribeSaldo();
       if (unsubscribeSolicitudes) unsubscribeSolicitudes();
       if (unsubscribeHistorial) unsubscribeHistorial();
+      if (unsubscribeConductores) unsubscribeConductores();
     };
   }, [flotaId]);
 
@@ -220,6 +295,130 @@ const BilleteraFlota = () => {
 
   const mostrarSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
+  };
+
+  // Funciones para validar solicitudes de conductores
+  const handleAbrirValidacion = (solicitud) => {
+    setSolicitudSeleccionada(solicitud);
+    setMotivoRechazo("");
+    setValidacionOpen(true);
+  };
+
+  const handleVerInfoSolicitud = (solicitud) => {
+    setSolicitudInfo(solicitud);
+    setInfoSolicitudOpen(true);
+  };
+
+  const handleCerrarValidacion = () => {
+    setValidacionOpen(false);
+    setSolicitudSeleccionada(null);
+    setMotivoRechazo("");
+  };
+
+  const handleAprobarSolicitud = async () => {
+    try {
+      setProcesando(true);
+      
+      // Obtener saldo actual del trabajador
+      const billeteraRef = doc(db, "trabajadores", solicitudSeleccionada.conductorId, "billetera", "data");
+      const billeteraSnapshot = await getDoc(billeteraRef);
+      
+      const saldoActual = billeteraSnapshot.exists() ? (billeteraSnapshot.data().saldo || 0) : 0;
+      const nuevoSaldo = saldoActual + solicitudSeleccionada.monto;
+      
+      // Actualizar saldo del trabajador
+      await updateDoc(billeteraRef, {
+        saldo: nuevoSaldo,
+        updatedAt: serverTimestamp()
+      });
+      
+      // Actualizar estado de la solicitud
+      const solicitudRef = doc(
+        db,
+        "trabajadores",
+        solicitudSeleccionada.conductorId,
+        "billetera",
+        "data",
+        "solicitudes_recarga",
+        solicitudSeleccionada.id
+      );
+      
+      await updateDoc(solicitudRef, {
+        estado: "aprobada",
+        fechaAprobacion: serverTimestamp()
+      });
+      
+      // Crear entrada en el historial del trabajador
+      const historialRef = collection(
+        db,
+        "trabajadores",
+        solicitudSeleccionada.conductorId,
+        "billetera",
+        "historial"
+      );
+      
+      const ahora = new Date();
+      const fechaHora = ahora.toLocaleString("es-ES", {
+        weekday: "long",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+      
+      await addDoc(historialRef, {
+        titulo: `${fechaHora} · Recarga aprobada por administrador`,
+        descripcion: "Recarga de saldo aprobada",
+        etiqueta: "Recarga",
+        monto: `${solicitudSeleccionada.monto} BOB`,
+        isPositive: true,
+        timestamp: serverTimestamp(),
+        solicitudId: solicitudSeleccionada.id
+      });
+      
+      mostrarSnackbar(`Solicitud aprobada. Saldo actualizado: $${nuevoSaldo.toFixed(2)}`, "success");
+      handleCerrarValidacion();
+      
+    } catch (error) {
+      console.error("Error aprobando solicitud:", error);
+      mostrarSnackbar("Error al aprobar la solicitud", "error");
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const handleRechazarSolicitud = async () => {
+    try {
+      if (!motivoRechazo.trim()) {
+        mostrarSnackbar("Debes indicar el motivo del rechazo", "error");
+        return;
+      }
+      
+      setProcesando(true);
+      
+      const solicitudRef = doc(
+        db,
+        "trabajadores",
+        solicitudSeleccionada.conductorId,
+        "billetera",
+        "data",
+        "solicitudes_recarga",
+        solicitudSeleccionada.id
+      );
+      
+      await updateDoc(solicitudRef, {
+        estado: "rechazada",
+        fechaRechazo: serverTimestamp(),
+        motivoRechazo: motivoRechazo
+      });
+      
+      mostrarSnackbar("Solicitud rechazada", "success");
+      handleCerrarValidacion();
+      
+    } catch (error) {
+      console.error("Error rechazando solicitud:", error);
+      mostrarSnackbar("Error al rechazar la solicitud", "error");
+    } finally {
+      setProcesando(false);
+    }
   };
 
   // Cargar QR actual de la flota
@@ -779,6 +978,7 @@ const BilleteraFlota = () => {
             }}
           >
             <Tab label="📋 Mis Solicitudes" />
+            <Tab label="👥 Solicitudes de Conductores" />
             <Tab label="📊 Historial de Transacciones" />
           </Tabs>
         </Box>
@@ -1060,8 +1260,132 @@ const BilleteraFlota = () => {
           </>
         )}
 
-        {/* TAB 2: HISTORIAL */}
+        {/* TAB 2: SOLICITUDES DE CONDUCTORES */}
         {tabValue === 1 && (
+          <>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: "#d7171a" }}>
+              Solicitudes de Recarga de Conductores
+            </Typography>
+            <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
+              <Table stickyHeader>
+                <TableHead sx={{ backgroundColor: "#000000" }}>
+                  <TableRow>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>Conductor</TableCell>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>Monto</TableCell>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>Referencia</TableCell>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>Estado</TableCell>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>Fecha</TableCell>
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {solicitudesConductores.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
+                          No hay solicitudes de conductores
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    solicitudesConductores.map((solicitud) => (
+                      <TableRow key={solicitud.id} hover>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          {solicitud.conductorNombre || "Conductor"}
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700, color: "#d7171a" }}>
+                          ${solicitud.monto.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          {solicitud.referencia || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={getEstadoLabel(solicitud.estado)}
+                            size="small"
+                            sx={{
+                              bgcolor: solicitud.estado === "aprobada" ? "#4caf50" :
+                                      solicitud.estado === "rechazada" ? "#f44336" : "#ff9800",
+                              color: "#fff",
+                              fontWeight: 600,
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          {solicitud.fechaSolicitud?.toDate?.().toLocaleDateString("es-ES") || "N/A"}
+                        </TableCell>
+                        <TableCell align="center">
+                          <Tooltip title="Ver detalles">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleVerInfoSolicitud(solicitud)}
+                              sx={{
+                                bgcolor: "#e3f2fd",
+                                color: "#1976d2",
+                                "&:hover": { bgcolor: "#bbdefb" },
+                                mr: 1
+                              }}
+                            >
+                              <InfoIcon />
+                            </IconButton>
+                          </Tooltip>
+                          {solicitud.comprobanteUrl ? (
+                            <Tooltip title="Ver comprobante">
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  setComprobanteExpandidoUrl(solicitud.comprobanteUrl);
+                                  setComprobanteExpandidoOpen(true);
+                                }}
+                                sx={{ color: "#1976d2", mr: 1 }}
+                              >
+                                <ImageIcon />
+                              </IconButton>
+                            </Tooltip>
+                          ) : null}
+                          {solicitud.estado === "pendiente" && (
+                            <>
+                              <Tooltip title="Aprobar">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleAbrirValidacion(solicitud)}
+                                  sx={{
+                                    bgcolor: "#e8f5e8",
+                                    color: "#2e7d32",
+                                    "&:hover": { bgcolor: "#c8e6c9" },
+                                    mr: 1
+                                  }}
+                                >
+                                  <CheckCircleIcon />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Rechazar">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleAbrirValidacion(solicitud)}
+                                  sx={{
+                                    bgcolor: "#ffebee",
+                                    color: "#d32f2f",
+                                    "&:hover": { bgcolor: "#ffcdd2" },
+                                  }}
+                                >
+                                  <CancelIcon />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </>
+        )}
+
+        {/* TAB 3: HISTORIAL */}
+        {tabValue === 2 && (
           <>
             <Box
               sx={{
@@ -1829,6 +2153,270 @@ const BilleteraFlota = () => {
               Haz clic fuera de la imagen para cerrar
             </Typography>
           </DialogContent>
+        </Dialog>
+
+        {/* MODAL INFORMACIÓN DE SOLICITUD */}
+        <Dialog open={infoSolicitudOpen} onClose={() => setInfoSolicitudOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700, color: "#d7171a", display: "flex", alignItems: "center", gap: 1 }}>
+            <InfoIcon />
+            Información Completa de la Solicitud
+          </DialogTitle>
+          <DialogContent sx={{ pt: 2 }}>
+            {solicitudInfo && (
+              <Box>
+                {/* Información del Conductor */}
+                <Paper sx={{ p: 2, mb: 3, bgcolor: "#f8f9fa", border: "1px solid #e9ecef" }}>
+                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: "#d7171a", fontFamily: "Mulish, sans-serif" }}>
+                    👨‍💼 Información del Conductor
+                  </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                    <PersonIcon sx={{ fontSize: 40, color: "#6c757d" }} />
+                    <Box>
+                      <Typography variant="body1" sx={{ fontWeight: 600, fontFamily: "Mulish, sans-serif" }}>
+                        {solicitudInfo.conductorNombre}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary" sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        ID: {solicitudInfo.conductorId}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Paper>
+
+                {/* Detalles de la Solicitud */}
+                <Paper sx={{ p: 2, mb: 3, bgcolor: "#f8f9fa", border: "1px solid #e9ecef" }}>
+                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: "#d7171a", fontFamily: "Mulish, sans-serif" }}>
+                    📝 Detalles de la Solicitud
+                  </Typography>
+                  
+                  <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: "#495057", fontFamily: "Mulish, sans-serif" }}>
+                        Monto Solicitado:
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 700, color: "#d7171a", fontFamily: "Mulish, sans-serif" }}>
+                        ${solicitudInfo.monto.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+                    
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: "#495057", fontFamily: "Mulish, sans-serif" }}>
+                        Estado:
+                      </Typography>
+                      <Chip
+                        label={getEstadoLabel(solicitudInfo.estado)}
+                        sx={{
+                          bgcolor: solicitudInfo.estado === "aprobada" ? "#4caf50" :
+                                  solicitudInfo.estado === "rechazada" ? "#f44336" : "#ff9800",
+                          color: "#fff",
+                          fontWeight: 600,
+                          fontFamily: "Mulish, sans-serif"
+                        }}
+                      />
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: "#495057", fontFamily: "Mulish, sans-serif" }}>
+                        Referencia/Comprobante:
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        {solicitudInfo.referencia || "Sin referencia"}
+                      </Typography>
+                    </Box>
+                    
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: "#495057", fontFamily: "Mulish, sans-serif" }}>
+                        Fecha de Solicitud:
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        {solicitudInfo.fechaSolicitud?.toDate?.().toLocaleString("es-ES") || "N/A"}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {solicitudInfo.notas && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: "#495057", fontFamily: "Mulish, sans-serif" }}>
+                        Notas Adicionales:
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontFamily: "Mulish, sans-serif", fontStyle: "italic" }}>
+                        {solicitudInfo.notas}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {solicitudInfo.motivoRechazo && (
+                    <Box sx={{ p: 2, bgcolor: "#ffebee", borderRadius: 1, border: "1px solid #ffcdd2" }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: "#d32f2f", fontFamily: "Mulish, sans-serif" }}>
+                        Motivo del Rechazo:
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontFamily: "Mulish, sans-serif", color: "#d32f2f" }}>
+                        {solicitudInfo.motivoRechazo}
+                      </Typography>
+                    </Box>
+                  )}
+                </Paper>
+
+                {/* Comprobante */}
+                {solicitudInfo.comprobanteUrl && (
+                  <Paper sx={{ p: 2, bgcolor: "#f8f9fa", border: "1px solid #e9ecef" }}>
+                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: "#d7171a", fontFamily: "Mulish, sans-serif" }}>
+                      📎 Comprobante de Pago
+                    </Typography>
+                    <Box sx={{ textAlign: "center" }}>
+                      <Box
+                        component="img"
+                        src={solicitudInfo.comprobanteUrl}
+                        alt="Comprobante"
+                        sx={{
+                          maxWidth: "100%",
+                          maxHeight: "300px",
+                          border: "2px solid #d7171a",
+                          borderRadius: 2,
+                          objectFit: "contain",
+                          cursor: "pointer",
+                          boxShadow: "0 4px 12px rgba(215, 23, 26, 0.2)"
+                        }}
+                        onClick={() => {
+                          setComprobanteExpandidoUrl(solicitudInfo.comprobanteUrl);
+                          setComprobanteExpandidoOpen(true);
+                        }}
+                      />
+                      <Typography variant="caption" sx={{ display: "block", mt: 1, color: "#6c757d", fontFamily: "Mulish, sans-serif" }}>
+                        Haz clic en la imagen para verla en tamaño completo
+                      </Typography>
+                    </Box>
+                  </Paper>
+                )}
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 3 }}>
+            <Button 
+              onClick={() => setInfoSolicitudOpen(false)}
+              variant="contained"
+              sx={{
+                bgcolor: "#d7171a",
+                color: "white",
+                fontFamily: "Mulish, sans-serif",
+                fontWeight: 600,
+                "&:hover": { bgcolor: "#b01217" },
+              }}
+            >
+              Cerrar
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* MODAL VALIDACIÓN DE SOLICITUDES */}
+        <Dialog open={validacionOpen} onClose={handleCerrarValidacion} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700, color: "#d7171a" }}>
+            Validar Solicitud de Recarga
+          </DialogTitle>
+          <DialogContent sx={{ pt: 2 }}>
+            {solicitudSeleccionada && (
+              <Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3, p: 2, bgcolor: "#f5f5f5", borderRadius: 1 }}>
+                  <PersonIcon sx={{ fontSize: 40, color: "#d7171a" }} />
+                  <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 600, fontFamily: "Mulish, sans-serif" }}>
+                      {solicitudSeleccionada.conductorNombre}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary" sx={{ fontFamily: "Mulish, sans-serif" }}>
+                      ID: {solicitudSeleccionada.conductorId}
+                    </Typography>
+                  </Box>
+                </Box>
+                
+                <Typography variant="body2" sx={{ mb: 2, fontFamily: "Mulish, sans-serif" }}>
+                  <strong>Monto solicitado:</strong> $
+                  {solicitudSeleccionada.monto.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                </Typography>
+                
+                <Typography variant="body2" sx={{ mb: 2, fontFamily: "Mulish, sans-serif" }}>
+                  <strong>Referencia:</strong> {solicitudSeleccionada.referencia || "Sin referencia"}
+                </Typography>
+                
+                <Typography variant="body2" sx={{ mb: 2, fontFamily: "Mulish, sans-serif" }}>
+                  <strong>Fecha de solicitud:</strong>{" "}
+                  {solicitudSeleccionada.fechaSolicitud?.toDate?.().toLocaleString("es-ES") || "N/A"}
+                </Typography>
+
+                {solicitudSeleccionada.comprobanteUrl && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ mb: 1, fontFamily: "Mulish, sans-serif" }}>
+                      <strong>Comprobante:</strong>
+                    </Typography>
+                    <Box
+                      component="img"
+                      src={solicitudSeleccionada.comprobanteUrl}
+                      alt="Comprobante"
+                      sx={{
+                        maxWidth: "100%",
+                        maxHeight: "200px",
+                        border: "2px solid #d7171a",
+                        borderRadius: 1,
+                        objectFit: "contain",
+                        cursor: "pointer"
+                      }}
+                      onClick={() => {
+                        setComprobanteExpandidoUrl(solicitudSeleccionada.comprobanteUrl);
+                        setComprobanteExpandidoOpen(true);
+                      }}
+                    />
+                  </Box>
+                )}
+
+                <TextField
+                  fullWidth
+                  label="Motivo del rechazo (opcional para aprobar, requerido para rechazar)"
+                  multiline
+                  rows={3}
+                  value={motivoRechazo}
+                  onChange={(e) => setMotivoRechazo(e.target.value)}
+                  placeholder="Explica el motivo si vas a rechazar la solicitud..."
+                  sx={{ mt: 2, fontFamily: "Mulish, sans-serif" }}
+                />
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 3, gap: 2 }}>
+            <Button 
+              onClick={handleCerrarValidacion}
+              sx={{ fontFamily: "Mulish, sans-serif" }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleRechazarSolicitud}
+              variant="contained"
+              disabled={procesando}
+              sx={{
+                bgcolor: "#f44336",
+                color: "white",
+                fontFamily: "Mulish, sans-serif",
+                fontWeight: 600,
+                "&:hover": { bgcolor: "#d32f2f" },
+              }}
+            >
+              {procesando ? "Procesando..." : "Rechazar"}
+            </Button>
+            <Button
+              onClick={handleAprobarSolicitud}
+              variant="contained"
+              disabled={procesando}
+              sx={{
+                bgcolor: "#4caf50",
+                color: "white",
+                fontFamily: "Mulish, sans-serif",
+                fontWeight: 600,
+                "&:hover": { bgcolor: "#388e3c" },
+              }}
+            >
+              {procesando ? "Procesando..." : "Aprobar y Acreditar"}
+            </Button>
+          </DialogActions>
         </Dialog>
 
         {/* SNACKBAR */}
