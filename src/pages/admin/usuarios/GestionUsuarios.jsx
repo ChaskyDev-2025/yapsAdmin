@@ -433,10 +433,10 @@ const GestionUsuarios = () => {
     if (searchConductores) {
       const search = searchConductores.toLowerCase();
       filtered = filtered.filter(t =>
-        (t.perfil?.name || "").toLowerCase().includes(search) ||
-        (t.perfil?.email || "").toLowerCase().includes(search) ||
-        (t.perfil?.categoria || "").toLowerCase().includes(search) ||
-        (t.perfil?.flota || "").toLowerCase().includes(search)
+        (t.nombre || "").toLowerCase().includes(search) ||
+        (t.email || "").toLowerCase().includes(search) ||
+        (t.categorias || []).some(cat => cat.toLowerCase().includes(search)) ||
+        (flotas.find(f => f.id === t.flotaId)?.nombre || "").toLowerCase().includes(search)
       );
     }
     
@@ -456,7 +456,7 @@ const GestionUsuarios = () => {
       const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
       filtered = filtered.filter((t) => {
-        const dateField = t.perfil?.createdAt || t.createdAt;
+        const dateField = t.createdAt;
         if (!dateField) return false;
 
         let date;
@@ -514,28 +514,28 @@ const GestionUsuarios = () => {
     const sorted = [...filtered];
     switch (sortByConductores) {
       case "nombre-asc":
-        sorted.sort((a, b) => ((a.perfil?.name || "") || "").localeCompare((b.perfil?.name || "") || ""));
+        sorted.sort((a, b) => ((a.nombre || "") || "").localeCompare((b.nombre || "") || ""));
         break;
       case "nombre-desc":
-        sorted.sort((a, b) => ((b.perfil?.name || "") || "").localeCompare((a.perfil?.name || "") || ""));
+        sorted.sort((a, b) => ((b.nombre || "") || "").localeCompare((a.nombre || "") || ""));
         break;
       case "email-asc":
-        sorted.sort((a, b) => ((a.perfil?.email || "") || "").localeCompare((b.perfil?.email || "") || ""));
+        sorted.sort((a, b) => ((a.email || "") || "").localeCompare((b.email || "") || ""));
         break;
       case "email-desc":
-        sorted.sort((a, b) => ((b.perfil?.email || "") || "").localeCompare((a.perfil?.email || "") || ""));
+        sorted.sort((a, b) => ((b.email || "") || "").localeCompare((a.email || "") || ""));
         break;
       case "recientes":
         sorted.sort((a, b) => {
-          const fechaA = a.perfil?.createdAt?.toDate?.() || a.perfil?.createdAt?.seconds ? new Date(a.perfil.createdAt.seconds * 1000) : new Date(0);
-          const fechaB = b.perfil?.createdAt?.toDate?.() || b.perfil?.createdAt?.seconds ? new Date(b.perfil.createdAt.seconds * 1000) : new Date(0);
+          const fechaA = a.createdAt?.toDate?.() || (a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date(0));
+          const fechaB = b.createdAt?.toDate?.() || (b.createdAt?.seconds ? new Date(b.createdAt.seconds * 1000) : new Date(0));
           return fechaB - fechaA;
         });
         break;
       case "antiguos":
         sorted.sort((a, b) => {
-          const fechaA = a.perfil?.createdAt?.toDate?.() || a.perfil?.createdAt?.seconds ? new Date(a.perfil.createdAt.seconds * 1000) : new Date(0);
-          const fechaB = b.perfil?.createdAt?.toDate?.() || b.perfil?.createdAt?.seconds ? new Date(b.perfil.createdAt.seconds * 1000) : new Date(0);
+          const fechaA = a.createdAt?.toDate?.() || (a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date(0));
+          const fechaB = b.createdAt?.toDate?.() || (b.createdAt?.seconds ? new Date(b.createdAt.seconds * 1000) : new Date(0));
           return fechaA - fechaB;
         });
         break;
@@ -582,10 +582,31 @@ const GestionUsuarios = () => {
     const unsubscribeTrabajadores = onSnapshot(
       trabajadoresCollection,
       (snapshot) => {
-        const trabajadoresList = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const trabajadoresList = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            // Mapeo de nueva estructura
+            nombre: data.nombre || data.perfil?.name || "Sin nombre",
+            email: data.email || data.perfil?.email || "",
+            telefono: data.telefono || data.phoneNumber || "",
+            phoneNumber: data.telefono || data.phoneNumber || "",
+            phoneVerified: data.phoneVerified || false,
+            categorias: data.categorias || [],
+            servicios: data.servicios || {},
+            documentos_aprobados: data.documentos_aprobados || false,
+            createdAt: data.createdAt || data.perfil?.createdAt || null,
+            fotoUrl: data.perfil?.fotoUrl || data.perfil?.foto || data.perfil?.photoURL || data.fotoUrl || data.photoURL || data.perfil?.photoUrl || "",
+            // Mantener para compatibilidad
+            perfil: data.perfil || {
+              name: data.nombre || "Sin nombre",
+              email: data.email || "",
+              createdAt: data.createdAt,
+              photoUrl: data.fotoUrl || data.photoURL
+            }
+          };
+        });
         setTrabajadores(trabajadoresList);
       },
       (error) => {
@@ -1631,22 +1652,22 @@ const GestionUsuarios = () => {
                     <TableRow key={trabajador.id} hover>
                       <TableCell>
                         <Avatar
-                          src={trabajador.photoURL || trabajador.perfil?.photoUrl}
-                          alt={trabajador.perfil?.name || trabajador.email}
+                          src={trabajador.perfil?.fotoUrl || trabajador.fotoUrl || trabajador.photoURL}
+                          alt={trabajador.nombre || trabajador.email}
                           sx={{ width: 40, height: 40, bgcolor: "#d7171a" }}
                         >
-                          {(trabajador.perfil?.name || trabajador.email || "?")?.charAt(0).toUpperCase()}
+                          {(trabajador.nombre || trabajador.email || "?")?.charAt(0).toUpperCase()}
                         </Avatar>
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                        {trabajador.perfil?.name || "Sin nombre"}
+                        {trabajador.nombre || "Sin nombre"}
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        {trabajador.perfil?.email || "-"}
+                        {trabajador.email || "-"}
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <span>{trabajador.phoneNumber || "-"}</span>
+                          <span>{trabajador.telefono || trabajador.phoneNumber || "-"}</span>
                           <Tooltip title={trabajador.phoneVerified ? "Teléfono verificado" : "Teléfono sin verificar"}>
                             <Box
                               sx={{
@@ -1679,7 +1700,7 @@ const GestionUsuarios = () => {
                           : "-"}
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        {formatearFecha(trabajador.perfil?.createdAt)}
+                        {formatearFecha(trabajador.createdAt)}
                       </TableCell>
                       <TableCell>
                         <FormControlLabel
@@ -2038,10 +2059,10 @@ const GestionUsuarios = () => {
           {conductorToDelete && (
             <Box sx={{ backgroundColor: "#f5f5f5", p: 1.5, borderRadius: 1, mb: 2 }}>
               <Typography sx={{ fontWeight: 700, color: "#d7171a" }}>
-                {conductorToDelete.perfil?.name || conductorToDelete.name}
+                {conductorToDelete.nombre || conductorToDelete.perfil?.name || conductorToDelete.name}
               </Typography>
               <Typography variant="caption" sx={{ color: "#666" }}>
-                {conductorToDelete.perfil?.email || conductorToDelete.email}
+                {conductorToDelete.email || conductorToDelete.perfil?.email}
               </Typography>
             </Box>
           )}

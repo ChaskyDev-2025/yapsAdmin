@@ -43,14 +43,15 @@ export async function actualizarSaldoSeguro(userId, delta) {
   const d = Number(delta);
   if (!isFinite(d) || d === 0) throw new Error("Monto inválido");
 
-  const ref = doc(db, "users", userId);
+  const ref = doc(db, "trabajadores", userId);
 
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists()) throw new Error("Usuario no encontrado");
 
-    const empresa = snap.data()?.empresa || {};
-    const saldoActual = Number(empresa.saldo ?? 0);
+    const data = snap.data();
+    // Buscar saldo en la raíz del documento o en empresa.saldo (por compatibilidad)
+    const saldoActual = Number(data?.saldo ?? data?.empresa?.saldo ?? 0);
 
     if (d < 0 && Math.abs(d) > saldoActual) {
       throw new Error(
@@ -62,8 +63,8 @@ export async function actualizarSaldoSeguro(userId, delta) {
     if (nuevoSaldo < 0) throw new Error("El saldo no puede quedar negativo");
 
     tx.update(ref, {
-      "empresa.saldo": nuevoSaldo,
-      "empresa.updatedAt": serverTimestamp(),
+      saldo: nuevoSaldo,
+      updatedAt: serverTimestamp(),
     });
   });
 }

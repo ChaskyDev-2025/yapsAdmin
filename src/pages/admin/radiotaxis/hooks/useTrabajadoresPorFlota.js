@@ -42,11 +42,12 @@ export function useTrabajadoresPorFlota(flotaId) {
         const data = snapshot.docs
           .map((doc, idx) => {
             const trabajador = doc.data();
-            const nombreUsuario = trabajador.perfil?.name || "Trabajador sin nombre";
-            const telefono = trabajador.phoneNumber || "Sin teléfono";
+            // Nueva estructura: datos en la raíz del documento
+            const nombreUsuario = trabajador.nombre || trabajador.perfil?.name || "Trabajador sin nombre";
+            const telefono = trabajador.telefono || trabajador.phoneNumber || "Sin teléfono";
             const email = trabajador.perfil?.email || trabajador.email || "Sin email";
-            const fotoUrl = trabajador.perfil?.photoUrl || "";
-            const createdAt = trabajador.perfil?.createdAt || null;
+            const fotoUrl = trabajador.perfil?.fotoUrl || trabajador.perfil?.photoUrl || "";
+            const createdAt = trabajador.createdAt || null;
 
             return {
               id: doc.id,
@@ -66,10 +67,10 @@ export function useTrabajadoresPorFlota(flotaId) {
               documentos_aprobados: trabajador.documentos_aprobados || false,
               deletedByFlotaId: trabajador.deletedByFlotaId || null,
               departamento: trabajador.departamento || "-",
-              categoria: trabajador.categoria || "-",
+              categorias: trabajador.categorias || [],
+              servicios: trabajador.servicios || {},
               flotaId: trabajador.flotaId || "-",
               flotaNombre: trabajador.flotaNombre || "-",
-              servicio: trabajador.servicio || "-",
               createdAt: createdAt,
             };
           })

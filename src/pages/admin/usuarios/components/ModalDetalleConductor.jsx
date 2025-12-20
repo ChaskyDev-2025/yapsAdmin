@@ -10,7 +10,7 @@ import ModalDerechoConductor from "./ModalDerechoConductor";
 export default function ModalDetalleConductor({ open, onClose, rowData }) {
   if (!rowData) return null;
 
-  const nombre = rowData.perfil?.name || rowData.name || "-";
+  const nombre = rowData.nombre || rowData.perfil?.name || rowData.name || "-";
 
   return (
     <Dialog

@@ -83,11 +83,12 @@ const Radiotaxis = () => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map((docSnap) => {
         const trabajador = docSnap.data();
-        const nombreUsuario = trabajador.perfil?.name || "Trabajador sin nombre";
-        const telefono = trabajador.phoneNumber || "Sin teléfono";
+        // Nueva estructura: datos en la raíz del documento
+        const nombreUsuario = trabajador.nombre || trabajador.perfil?.name || "Trabajador sin nombre";
+        const telefono = trabajador.telefono || trabajador.phoneNumber || "Sin teléfono";
         const email = trabajador.perfil?.email || trabajador.email || "Sin email";
-        const fotoUrl = trabajador.perfil?.photoUrl || "";
-        const createdAt = trabajador.perfil?.createdAt || null;
+        const fotoUrl = trabajador.perfil?.fotoUrl || trabajador.perfil?.foto || trabajador.perfil?.photoURL || "";
+        const createdAt = trabajador.createdAt || null;
 
         return {
           id: docSnap.id,
@@ -99,6 +100,7 @@ const Radiotaxis = () => {
           representante: email,
           logoUrl: fotoUrl,
           logo: fotoUrl,
+          fotoUrl: fotoUrl,
           saldo: "Bs. 0.00",
           estado: "Trabajador",
           activo: trabajador.activo !== false,
@@ -106,10 +108,10 @@ const Radiotaxis = () => {
           documentos_aprobados: trabajador.documentos_aprobados || false,
           deletedByFlotaId: trabajador.deletedByFlotaId || null,
           departamento: trabajador.departamento || "-",
-          categoria: trabajador.categoria || "-",
+          categorias: trabajador.categorias || [],
+          servicios: trabajador.servicios || {},
           flotaId: trabajador.flotaId || "-",
           flotaNombre: trabajador.flotaNombre || "-",
-          servicio: trabajador.servicio || "-",
           createdAt: createdAt,
         };
       });
@@ -429,7 +431,7 @@ const Radiotaxis = () => {
                     <TableRow key={radio.firebaseId} hover sx={{ borderBottom: "1px solid #d0d0d0" }}>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif", textAlign: "center" }}>
                         <Avatar
-                          src={radio.logo}
+                          src={radio.perfil?.fotoUrl || radio.fotoUrl || radio.logo}
                           alt={radio.nombreEmpresa}
                           sx={{
                             width: 50,

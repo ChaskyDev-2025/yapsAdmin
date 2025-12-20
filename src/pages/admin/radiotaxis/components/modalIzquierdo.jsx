@@ -14,19 +14,19 @@ export default function ModalIzquierdo({ rowData }) {
   const [guardando, setGuardando] = useState(false);
   const [saldoActual, setSaldoActual] = useState(rowData.saldo);
   
-  const categoria = rowData.categoria || "-";
+  const categorias = Array.isArray(rowData.categorias) ? rowData.categorias : [];
+  const servicios = rowData.servicios || {};
   const flotaNombre = rowData.flotaNombre || "-";
   const departamento = rowData.departamento || "-";
-  const servicio = rowData.servicio || "-";
 
   // Escucha el saldo actualizado en Firestore
   useEffect(() => {
     if (!rowData?.firebaseId) return;
-    const ref = doc(db, "users", rowData.firebaseId);
+    const ref = doc(db, "trabajadores", rowData.firebaseId);
     const unsubscribe = onSnapshot(ref, (snap) => {
-      const empresa = snap.data()?.empresa;
-      if (empresa && typeof empresa.saldo !== "undefined") {
-        setSaldoActual(`Bs. ${Number(empresa.saldo).toFixed(2)}`);
+      const data = snap.data();
+      if (data && typeof data.saldo !== "undefined") {
+        setSaldoActual(`Bs. ${Number(data.saldo).toFixed(2)}`);
       }
     });
     return () => unsubscribe();
@@ -47,7 +47,7 @@ export default function ModalIzquierdo({ rowData }) {
         }}
       >
         <Avatar
-          src={rowData.logo}
+          src={rowData.perfil?.fotoUrl || rowData.fotoUrl || rowData.logo}
           alt={rowData.nombreEmpresa}
           sx={{
             width: 110,
@@ -74,14 +74,31 @@ export default function ModalIzquierdo({ rowData }) {
           <Typography>
             <b>Departamento:</b> {departamento}
           </Typography>
-          <Typography>
-            <b>Categoría:</b> {categoria}
-          </Typography>
+          {categorias.length > 0 && (
+            <Box sx={{ mt: 1 }}>
+              <Typography component="b" sx={{ color: "text.secondary" }}>
+                Categorías y Servicios:
+              </Typography>
+              <Box sx={{ mt: 0.5, pl: 1 }}>
+                {categorias.map((cat) => {
+                  // Normalizar la categoría: quitar tilde, pasar a minúscula
+                  const catNormalizada = cat
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '');
+                  const servicio = servicios[catNormalizada] || servicios[cat.toLowerCase()] || "Sin servicio";
+                  
+                  return (
+                    <Typography key={cat} sx={{ fontSize: "0.9rem" }}>
+                      • {cat}: <strong>{servicio}</strong>
+                    </Typography>
+                  );
+                })}
+              </Box>
+            </Box>
+          )}
           <Typography>
             <b>Flota:</b> {flotaNombre}
-          </Typography>
-          <Typography>
-            <b>Servicio:</b> {servicio}
           </Typography>
           <Typography>
             <b>Estado:</b>{" "}
@@ -93,7 +110,28 @@ export default function ModalIzquierdo({ rowData }) {
             />
           </Typography>
           <Typography>
-            <b>Fecha registro:</b> {rowData.fecha}
+            <b>Fecha registro:</b> {
+              (() => {
+                if (!rowData.createdAt) return "No disponible";
+                let date;
+                if (rowData.createdAt?.toDate && typeof rowData.createdAt.toDate === 'function') {
+                  date = rowData.createdAt.toDate();
+                } else if (typeof rowData.createdAt === 'string') {
+                  date = new Date(rowData.createdAt);
+                } else if (rowData.createdAt instanceof Date) {
+                  date = rowData.createdAt;
+                } else if (rowData.createdAt?.seconds) {
+                  date = new Date(rowData.createdAt.seconds * 1000);
+                } else {
+                  return "No disponible";
+                }
+                return date.toLocaleDateString("es-ES", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric"
+                });
+              })()
+            }
           </Typography>
         </Stack>
         <Divider sx={{ my: 1.5 }} />

@@ -3,14 +3,14 @@ import { Box, Avatar, Typography, Stack, Divider, Chip } from "@mui/material";
 export default function ModalIzquierdoConductor({ rowData }) {
   if (!rowData) return null;
 
-  const nombre = rowData.perfil?.name || rowData.name || "-";
-  const email = rowData.perfil?.email || rowData.email || "-";
-  const telefono = rowData.telefono || "Sin teléfono";
-  const fotoUrl = rowData.perfil?.photoUrl || rowData.photoURL || "";
+  const nombre = rowData.nombre || rowData.perfil?.name || rowData.name || "-";
+  const email = rowData.email || rowData.perfil?.email || "-";
+  const telefono = rowData.telefono || rowData.phoneNumber || "Sin teléfono";
+  const fotoUrl = rowData.perfil?.fotoUrl || rowData.perfil?.foto || rowData.perfil?.photoURL || rowData.fotoUrl || rowData.photoURL || rowData.perfil?.photoUrl || "";
   const estado = rowData.activo !== false ? "Activo" : "Inactivo";
   const departamento = rowData.departamento || "-";
-  const servicio = rowData.servicio || "-";
-  const categoria = rowData.categoria || "-";
+  const categorias = Array.isArray(rowData.categorias) ? rowData.categorias : [];
+  const servicios = rowData.servicios || {};
   const flotaNombre = rowData.flotaNombre || "-";
 
   return (
@@ -62,14 +62,31 @@ export default function ModalIzquierdoConductor({ rowData }) {
             <b>Departamento:</b> {departamento}
           </Typography>
           <Typography variant="body2">
-            <b>Categoría:</b> {categoria}
-          </Typography>
-          <Typography variant="body2">
             <b>Flota:</b> {flotaNombre}
           </Typography>
-          <Typography variant="body2">
-            <b>Servicio:</b> {servicio}
-          </Typography>
+          {categorias.length > 0 && (
+            <Box sx={{ mt: 1 }}>
+              <Typography component="b" sx={{ color: "#484848", display: "block", mb: 0.5 }}>
+                Categorías y Servicios:
+              </Typography>
+              <Box sx={{ pl: 1 }}>
+                {categorias.map((cat) => {
+                  // Normalizar la categoría: quitar tilde, pasar a minúscula para lookup en servicios
+                  const catNormalizada = cat
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '');
+                  const servicio = servicios[catNormalizada] || servicios[cat.toLowerCase()] || "Sin servicio";
+                  
+                  return (
+                    <Typography key={cat} sx={{ fontSize: "0.9rem" }}>
+                      • {cat}: <strong>{servicio}</strong>
+                    </Typography>
+                  );
+                })}
+              </Box>
+            </Box>
+          )}
         </Stack>
 
         <Divider sx={{ my: 1.5 }} />

@@ -254,16 +254,7 @@ export const FlotasTable = ({
                         },
                       }}
                     >
-                      Documentos: {
-                        typeof flota.documentos === 'object' && !Array.isArray(flota.documentos)
-                          ? Object.values(flota.documentos || {}).reduce((total, deptDocs) => {
-                              if (typeof deptDocs === 'object' && !Array.isArray(deptDocs)) {
-                                return total + Object.keys(deptDocs).length;
-                              }
-                              return total + (Array.isArray(deptDocs) ? deptDocs.length : 0);
-                            }, 0)
-                          : (flota.documentos?.length || 0)
-                      }
+                      Documentos
                     </Button>
                   </TableCell>
                 )}

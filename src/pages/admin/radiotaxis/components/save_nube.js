@@ -43,7 +43,7 @@ export const agregarHistorialRecarga = async (uid, { estado = "recarga", monto }
     };
 
     // Referencia al documento dentro de la estructura de subcolecciones
-    const historialRef = doc(db, "users", uid, "historial-saldo", documentoAño, documentoMes, documentoFecha);
+    const historialRef = doc(db, "trabajadores", uid, "historial-saldo", documentoAño, documentoMes, documentoFecha);
 
     // Verificar si el documento existe
     const docSnap = await getDoc(historialRef);
