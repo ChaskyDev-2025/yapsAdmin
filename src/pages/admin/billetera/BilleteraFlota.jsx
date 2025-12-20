@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Box,
   Paper,
@@ -147,6 +147,60 @@ const BilleteraFlota = () => {
   const [infoSolicitudOpen, setInfoSolicitudOpen] = useState(false);
   const [solicitudInfo, setSolicitudInfo] = useState(null);
 
+  // Estado para modal de saldo insuficiente
+  const [saldoInsuficienteOpen, setSaldoInsuficienteOpen] = useState(false);
+  const [montoFaltante, setMontoFaltante] = useState(0);
+
+  // Función para cargar solicitudes de conductores (definida con useCallback para ser accesible en handlers)
+  const cargarSolicitudesConductores = useCallback(async () => {
+    if (!flotaId) return;
+
+    try {
+      // Primero obtener los trabajadores de mi flota
+      const trabajadoresRef = collection(db, "trabajadores");
+      const qTrabajadores = query(
+        trabajadoresRef,
+        where("flotaId", "==", flotaId)
+      );
+      const trabajadoresSnapshot = await getDocs(qTrabajadores);
+
+      const todasSolicitudes = [];
+
+      // Para cada trabajador, obtener sus solicitudes
+      for (const trabajadorDoc of trabajadoresSnapshot.docs) {
+        const trabajadorId = trabajadorDoc.id;
+        const trabajadorData = trabajadorDoc.data();
+
+        const solicitudesRef = collection(
+          db,
+          "trabajadores",
+          trabajadorId,
+          "billetera",
+          "data",
+          "solicitudes_recarga"
+        );
+
+        const solicitudesSnapshot = await getDocs(solicitudesRef);
+
+        solicitudesSnapshot.docs.forEach((solicitudDoc) => {
+          todasSolicitudes.push({
+            id: solicitudDoc.id,
+            conductorId: trabajadorId,
+            conductorNombre:
+              trabajadorData.nombre ||
+              trabajadorData.displayName ||
+              "Conductor",
+            ...solicitudDoc.data(),
+          });
+        });
+      }
+
+      setSolicitudesConductores(todasSolicitudes);
+    } catch (error) {
+      console.error("Error cargando solicitudes de conductores:", error);
+    }
+  }, [flotaId]);
+
   useEffect(() => {
     if (!flotaId) {
       setLoading(false);
@@ -222,56 +276,7 @@ const BilleteraFlota = () => {
       }
     );
 
-    // Listener para solicitudes de conductores
-    const cargarSolicitudesConductores = async () => {
-      try {
-        // Primero obtener los trabajadores de mi flota
-        const trabajadoresRef = collection(db, "trabajadores");
-        const qTrabajadores = query(
-          trabajadoresRef,
-          where("flotaId", "==", flotaId)
-        );
-        const trabajadoresSnapshot = await getDocs(qTrabajadores);
-
-        const todasSolicitudes = [];
-
-        // Para cada trabajador, obtener sus solicitudes
-        for (const trabajadorDoc of trabajadoresSnapshot.docs) {
-          const trabajadorId = trabajadorDoc.id;
-          const trabajadorData = trabajadorDoc.data();
-
-          const solicitudesRef = collection(
-            db,
-            "trabajadores",
-            trabajadorId,
-            "billetera",
-            "data",
-            "solicitudes_recarga"
-          );
-
-          const solicitudesSnapshot = await getDocs(solicitudesRef);
-
-          solicitudesSnapshot.docs.forEach((solicitudDoc) => {
-            todasSolicitudes.push({
-              id: solicitudDoc.id,
-              conductorId: trabajadorId,
-              conductorNombre:
-                trabajadorData.nombre ||
-                trabajadorData.displayName ||
-                "Conductor",
-              ...solicitudDoc.data(),
-            });
-          });
-        }
-
-        if (isMounted) {
-          setSolicitudesConductores(todasSolicitudes);
-        }
-      } catch (error) {
-        console.error("Error cargando solicitudes de conductores:", error);
-      }
-    };
-
+    // Cargar solicitudes de conductores inicialmente
     cargarSolicitudesConductores();
 
     // Listener en tiempo real para solicitudes de conductores
@@ -290,7 +295,7 @@ const BilleteraFlota = () => {
       if (unsubscribeHistorial) unsubscribeHistorial();
       if (unsubscribeConductores) unsubscribeConductores();
     };
-  }, [flotaId]);
+  }, [flotaId, cargarSolicitudesConductores]);
 
   // Reset página de solicitudes al cambiar búsqueda
   useEffect(() => {
@@ -327,6 +332,29 @@ const BilleteraFlota = () => {
   const handleAprobarSolicitud = async () => {
     try {
       setProcesando(true);
+
+      // Validar saldo de la flota
+      const flotaBilleteraRef = doc(
+        db,
+        "flotas",
+        flotaId,
+        "billetera",
+        "saldo"
+      );
+      const flotaBilleteraSnapshot = await getDoc(flotaBilleteraRef);
+      const saldoFlota = flotaBilleteraSnapshot.exists()
+        ? flotaBilleteraSnapshot.data().monto || 0
+        : 0;
+
+      // Verificar si la flota tiene saldo suficiente
+      if (saldoFlota < solicitudSeleccionada.monto) {
+        const faltante = solicitudSeleccionada.monto - saldoFlota;
+        setMontoFaltante(faltante);
+        setSaldoInsuficienteOpen(true);
+        setProcesando(false);
+        handleCerrarValidacion();
+        return;
+      }
 
       // Obtener saldo actual del trabajador
       const billeteraRef = doc(
@@ -397,10 +425,43 @@ const BilleteraFlota = () => {
         solicitudId: solicitudSeleccionada.id,
       });
 
+      // Descontar saldo de la flota
+      const nuevoSaldoFlota = saldoFlota - solicitudSeleccionada.monto;
+      await updateDoc(flotaBilleteraRef, {
+        monto: nuevoSaldoFlota,
+        updatedAt: serverTimestamp(),
+      });
+
+      // Crear transacción en el historial de la flota
+      const flotaTransaccionesRef = collection(
+        db,
+        "flotas",
+        flotaId,
+        "billetera",
+        "saldo",
+        "transacciones"
+      );
+
+      await addDoc(flotaTransaccionesRef, {
+        tipo: "retiro",
+        monto: solicitudSeleccionada.monto,
+        concepto: "Recarga a conductor",
+        notas: `Recarga aprobada para conductor ${solicitudSeleccionada.conductorNombre || solicitudSeleccionada.conductorId}`,
+        saldoAnterior: saldoFlota,
+        saldoNuevo: nuevoSaldoFlota,
+        timestamp: serverTimestamp(),
+        fechaRegistro: new Date().toLocaleString("es-ES"),
+        conductorId: solicitudSeleccionada.conductorId,
+      });
+
       mostrarSnackbar(
         `Solicitud aprobada. Saldo actualizado: $${nuevoSaldo.toFixed(2)}`,
         "success"
       );
+
+      // Recargar lista de solicitudes después de aprobar
+      await cargarSolicitudesConductores();
+
       handleCerrarValidacion();
     } catch (error) {
       console.error("Error aprobando solicitud:", error);
@@ -436,6 +497,10 @@ const BilleteraFlota = () => {
       });
 
       mostrarSnackbar("Solicitud rechazada", "success");
+
+      // Recargar lista de solicitudes después de rechazar
+      await cargarSolicitudesConductores();
+
       handleCerrarValidacion();
     } catch (error) {
       console.error("Error rechazando solicitud:", error);
@@ -2865,6 +2930,136 @@ const BilleteraFlota = () => {
               </Typography>
             )}
           </DialogContent>
+        </Dialog>
+
+        {/* MODAL SALDO INSUFICIENTE */}
+        <Dialog
+          open={saldoInsuficienteOpen}
+          onClose={() => setSaldoInsuficienteOpen(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle
+            sx={{
+              background: "linear-gradient(135deg, #f44336 0%, #d32f2f 100%)",
+              color: "#fff",
+              fontWeight: 700,
+              fontFamily: "Mulish, sans-serif",
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
+            <Box
+              component="span"
+              sx={{
+                fontSize: "2rem",
+              }}
+            >
+              ⚠️
+            </Box>
+            Saldo Insuficiente
+          </DialogTitle>
+          <DialogContent sx={{ pt: 3 }}>
+            <Box sx={{ textAlign: "center", py: 2 }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  mb: 2,
+                  fontWeight: 600,
+                  fontFamily: "Mulish, sans-serif",
+                  color: "#333",
+                }}
+              >
+                No tienes saldo suficiente
+              </Typography>
+              <Typography
+                variant="body1"
+                sx={{
+                  mb: 3,
+                  fontFamily: "Mulish, sans-serif",
+                  color: "#666",
+                }}
+              >
+                Para aprobar esta solicitud necesitas recargar saldo con el
+                administrador de la aplicación.
+              </Typography>
+
+              <Box
+                sx={{
+                  p: 2,
+                  bgcolor: "#fff3cd",
+                  borderRadius: 2,
+                  mb: 3,
+                  border: "1px solid #ffc107",
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontFamily: "Mulish, sans-serif",
+                    color: "#856404",
+                  }}
+                >
+                  <strong>Saldo actual:</strong> Bs. {saldoActual.toFixed(2)}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontFamily: "Mulish, sans-serif",
+                    color: "#856404",
+                  }}
+                >
+                  <strong>Saldo faltante:</strong> Bs.{" "}
+                  {montoFaltante.toFixed(2)}
+                </Typography>
+              </Box>
+
+              <Typography
+                variant="caption"
+                sx={{
+                  display: "block",
+                  fontFamily: "Mulish, sans-serif",
+                  color: "#999",
+                  fontStyle: "italic",
+                }}
+              >
+                Una vez recargado tu saldo, podrás aprobar solicitudes de tus
+                conductores
+              </Typography>
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 3, gap: 2 }}>
+            <Button
+              onClick={() => setSaldoInsuficienteOpen(false)}
+              sx={{
+                fontFamily: "Mulish, sans-serif",
+                color: "#666",
+              }}
+            >
+              Cerrar
+            </Button>
+            <Button
+              onClick={() => {
+                setSaldoInsuficienteOpen(false);
+                handleAbrirModal();
+              }}
+              variant="contained"
+              sx={{
+                background: "linear-gradient(135deg, #4caf50 0%, #388e3c 100%)",
+                color: "#fff",
+                fontWeight: 600,
+                fontFamily: "Mulish, sans-serif",
+                px: 3,
+                "&:hover": {
+                  background:
+                    "linear-gradient(135deg, #388e3c 0%, #2e7d32 100%)",
+                },
+              }}
+            >
+              Solicitar Recarga
+            </Button>
+          </DialogActions>
         </Dialog>
       </Paper>
     </Box>
