@@ -13,10 +13,15 @@ import {
   Box
 } from "@mui/material";
 import UploadIcon from "@mui/icons-material/Upload";
+import LockIcon from "@mui/icons-material/Lock";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import { IconButton, InputAdornment } from "@mui/material";
 import { useAuth } from "../../../auth/AuthContext";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 import { uploadImageToApi } from "../../../services/imageUploadService";
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 
 const Perfil = () => {
   const { user } = useAuth();
@@ -30,6 +35,18 @@ const Perfil = () => {
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+
+  // Estados para cambiar contraseña
+  const [mostrarCambioPassword, setMostrarCambioPassword] = useState(false);
+  const [passwordActual, setPasswordActual] = useState("");
+  const [passwordNueva, setPasswordNueva] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [errorPassword, setErrorPassword] = useState("");
+  const [successPassword, setSuccessPassword] = useState("");
+  const [guardandoPassword, setGuardandoPassword] = useState(false);
+  const [mostrarPasswordActual, setMostrarPasswordActual] = useState(false);
+  const [mostrarPasswordNueva, setMostrarPasswordNueva] = useState(false);
+  const [mostrarPasswordConfirm, setMostrarPasswordConfirm] = useState(false);
 
   // Cargar datos del usuario autenticado
   useEffect(() => {
@@ -48,6 +65,8 @@ const Perfil = () => {
           setTelefono(userData.telefono || "");
           setFotoUrl(userData.fotoUrl || "");
           setPreview(userData.fotoUrl || null);
+          // IMPORTANTE: Nunca cargar la contraseña desde Firebase
+          // Los campos de contraseña siempre deben estar vacíos
         } else {
           setCorreo(user.email || "");
         }
@@ -111,6 +130,60 @@ const Perfil = () => {
       setError("Error al guardar los cambios. Intenta nuevamente");
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const handleCambiarPassword = async () => {
+    setErrorPassword("");
+    setSuccessPassword("");
+
+    if (!passwordActual || !passwordNueva || !passwordConfirm) {
+      setErrorPassword("Por favor completa todos los campos");
+      return;
+    }
+
+    if (passwordNueva !== passwordConfirm) {
+      setErrorPassword("Las contraseñas nuevas no coinciden");
+      return;
+    }
+
+    if (passwordNueva.length < 6) {
+      setErrorPassword("La nueva contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+
+    if (passwordNueva === passwordActual) {
+      setErrorPassword("La nueva contraseña debe ser diferente a la actual");
+      return;
+    }
+
+    setGuardandoPassword(true);
+
+    try {
+      // Reautenticar usuario
+      const credential = EmailAuthProvider.credential(user.email, passwordActual);
+      await reauthenticateWithCredential(user, credential);
+
+      // Cambiar contraseña
+      await updatePassword(user, passwordNueva);
+
+      setSuccessPassword("✓ Contraseña actualizada correctamente");
+      setPasswordActual("");
+      setPasswordNueva("");
+      setPasswordConfirm("");
+      setMostrarCambioPassword(false);
+      setTimeout(() => setSuccessPassword(""), 3000);
+    } catch (err) {
+      console.error("Error al cambiar contraseña:", err);
+      if (err.code === "auth/wrong-password") {
+        setErrorPassword("La contraseña actual es incorrecta");
+      } else if (err.code === "auth/weak-password") {
+        setErrorPassword("La contraseña es muy débil");
+      } else {
+        setErrorPassword("Error al cambiar la contraseña. Intenta nuevamente");
+      }
+    } finally {
+      setGuardandoPassword(false);
     }
   };
 
@@ -201,6 +274,116 @@ const Perfil = () => {
             >
               {guardando ? <CircularProgress size={24} /> : "Guardar cambios"}
             </Button>
+
+            <Divider sx={{ my: 3 }} />
+
+            {/* SECCIÓN: Cambiar Contraseña */}
+            <Box>
+              <Button
+                variant="outlined"
+                startIcon={<LockIcon />}
+                onClick={() => setMostrarCambioPassword(!mostrarCambioPassword)}
+                fullWidth
+                sx={{ mb: 2, textTransform: "none", fontSize: "1rem" }}
+              >
+                {mostrarCambioPassword ? "Cancelar cambio de contraseña" : "Cambiar contraseña"}
+              </Button>
+
+              {mostrarCambioPassword && (
+                <Stack spacing={2}>
+                  {successPassword && (
+                    <Alert severity="success">
+                      {successPassword}
+                    </Alert>
+                  )}
+
+                  {errorPassword && (
+                    <Alert severity="error">
+                      {errorPassword}
+                    </Alert>
+                  )}
+
+                  <TextField
+                    label="Contraseña actual"
+                    name="password-actual"
+                    type={mostrarPasswordActual ? "text" : "password"}
+                    fullWidth
+                    value={passwordActual}
+                    onChange={(e) => setPasswordActual(e.target.value)}
+                    placeholder="Ingresa tu contraseña actual"
+                    autoComplete="new-password"
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setMostrarPasswordActual(!mostrarPasswordActual)}
+                            edge="end"
+                          >
+                            {mostrarPasswordActual ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                          </IconButton>
+                        </InputAdornment>
+                      )
+                    }}
+                  />
+
+                  <TextField
+                    label="Nueva contraseña"
+                    name="password-nueva"
+                    type={mostrarPasswordNueva ? "text" : "password"}
+                    fullWidth
+                    value={passwordNueva}
+                    onChange={(e) => setPasswordNueva(e.target.value)}
+                    placeholder="Ingresa tu nueva contraseña"
+                    helperText="Mínimo 6 caracteres"
+                    autoComplete="new-password"
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setMostrarPasswordNueva(!mostrarPasswordNueva)}
+                            edge="end"
+                          >
+                            {mostrarPasswordNueva ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                          </IconButton>
+                        </InputAdornment>
+                      )
+                    }}
+                  />
+
+                  <TextField
+                    label="Confirmar nueva contraseña"
+                    name="password-confirm"
+                    type={mostrarPasswordConfirm ? "text" : "password"}
+                    fullWidth
+                    value={passwordConfirm}
+                    onChange={(e) => setPasswordConfirm(e.target.value)}
+                    placeholder="Confirma tu nueva contraseña"
+                    autoComplete="new-password"
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setMostrarPasswordConfirm(!mostrarPasswordConfirm)}
+                            edge="end"
+                          >
+                            {mostrarPasswordConfirm ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                          </IconButton>
+                        </InputAdornment>
+                      )
+                    }}
+                  />
+
+                  <Button
+                    variant="contained"
+                    color="error"
+                    onClick={handleCambiarPassword}
+                    disabled={!passwordActual || !passwordNueva || !passwordConfirm || guardandoPassword}
+                  >
+                    {guardandoPassword ? <CircularProgress size={24} /> : "Actualizar contraseña"}
+                  </Button>
+                </Stack>
+              )}
+            </Box>
           </Stack>
         </>
       )}

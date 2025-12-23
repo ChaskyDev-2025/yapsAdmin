@@ -85,11 +85,20 @@ export const useDashboardMetrics = () => {
       ? ordenesCompletadas.reduce((sum, doc) => sum + (parseFloat(doc.precio) || 0), 0) / ordenesCompletadas.length
       : 0;
 
-    // Procesar donaciones acumuladas
-    const totalDonacionesAcumuladas = pasajerosData.reduce((sum, pasajero) => {
+    // Procesar donaciones acumuladas por departamento
+    const donacionesPorDepartamento = {};
+    pasajerosData.forEach(pasajero => {
+      const departamento = pasajero.departamentoActual || "Sin departamento";
       const donaciones = parseFloat(pasajero.donacionesAcumuladas) || 0;
-      return sum + donaciones;
-    }, 0);
+      
+      if (!donacionesPorDepartamento[departamento]) {
+        donacionesPorDepartamento[departamento] = 0;
+      }
+      donacionesPorDepartamento[departamento] += donaciones;
+    });
+
+    // Obtener el total de donaciones (suma de todos los departamentos)
+    const totalDonacionesAcumuladas = Object.values(donacionesPorDepartamento).reduce((sum, val) => sum + val, 0);
 
     // Calcular alertas
     const alertas = pendientesSolicitudes + canceladas + documentosPendientes;
@@ -100,7 +109,7 @@ export const useDashboardMetrics = () => {
       solicitudes: { completadas, canceladas, total: solicitudesData.length, pendientes: pendientesSolicitudes },
       usuarios: { totalPasajeros: pasajerosData.length, totalTrabajadores, nuevosHoy, nuevosEstaSemana },
       ordenes: { total: ordenesData.length, completadas: completadasOrdenes, canceladas: canceladasOrdenes, promedioCosto },
-      donaciones: { totalAcumuladas: totalDonacionesAcumuladas },
+      donaciones: { totalAcumuladas: totalDonacionesAcumuladas, porDepartamento: donacionesPorDepartamento },
       actividad: { nuevosHoy, usuariosActivos: activosTrabajadores, alertas },
     };
   };
