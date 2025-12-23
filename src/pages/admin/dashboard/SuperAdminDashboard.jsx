@@ -73,11 +73,11 @@ const SuperAdminDashboard = () => {
           />
         </CardGrid>
 
-        {/* SECCIÓN: Donaciones por Departamento */}
+        {/* SECCIÓN: Donaciones (por departamento con resumen nacional) */}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, color: "#1f2937" }}>
-              💰 Donaciones por Departamento
+              💰 Donaciones
             </Typography>
             <FormControl sx={{ minWidth: 280 }}>
               <Select
@@ -105,7 +105,8 @@ const SuperAdminDashboard = () => {
             </FormControl>
           </Box>
 
-          <CardGrid columns={1}>
+          {/* Mostrar card de departamento a la izquierda y resumen nacional + Cochabamba a la derecha */}
+          <CardGrid columns={2}>
             <Box sx={{
               p: 3,
               backgroundColor: "linear-gradient(135deg, #fff3f0 0%, #ffe0e0 100%)",
@@ -123,6 +124,27 @@ const SuperAdminDashboard = () => {
               <Typography variant="caption" sx={{ color: "#999", fontSize: "0.85rem" }}>
                 Acumulado en este departamento
               </Typography>
+            </Box>
+
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{
+                p: 3,
+                backgroundColor: "#ffffff",
+                borderRadius: 2,
+                border: "1px solid #e5e7eb",
+                textAlign: "center",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
+              }}>
+                <Typography variant="body2" sx={{ color: "#666", mb: 1, fontWeight: 600 }}>
+                  Donaciones a nivel nacional
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: "#111827", mb: 0.5 }}>
+                  Bs. {metricas.donaciones.totalAcumuladas.toFixed(2)}
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#999", fontSize: "0.85rem" }}>
+                  Acumulado nacional
+                </Typography>
+              </Box>
             </Box>
           </CardGrid>
 

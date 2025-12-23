@@ -9,6 +9,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useAuth } from "../auth/AuthContext";
 import { logout } from "../services/authService";
 import { isSuperAdmin } from "../services/userService";
+import NotificationBell from "./NotificationBell";
 
 const Navbar = ({ onMenuClick }) => {
   const { user, userRole } = useAuth();
@@ -65,6 +66,7 @@ const Navbar = ({ onMenuClick }) => {
       
       {/* Usuario o acciones */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <NotificationBell />
         <Box 
           sx={{ 
             display: 'flex', 

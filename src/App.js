@@ -2,6 +2,7 @@ import { HashRouter as Router, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import DocumentRepoProvider from "./context/DocumentRepoProvider";
+import { NotificationProvider } from "./context/NotificationContext";
 
 import Login        from "./pages/Login";
 import StartupPage  from "./pages/StartupPage";
@@ -19,23 +20,25 @@ const App = () => (
   <ThemeProvider theme={theme}>
     <CssBaseline />
     <AuthProvider> {/* 👈 AuthProvider primero */}
-      <DocumentRepoProvider> {/* 👈 DocumentRepoProvider dentro de AuthProvider */}
-        <Router>
-          <Routes>
-            <Route path="/"        element={<StartupPage />} />
-            <Route path="/login"   element={<Login />} />
-            <Route path="/landing" element={<LandingPage />} />
+      <NotificationProvider> {/* 👈 NotificationProvider dentro de AuthProvider */}
+        <DocumentRepoProvider> {/* 👈 DocumentRepoProvider dentro de NotificationProvider */}
+          <Router>
+            <Routes>
+              <Route path="/"        element={<StartupPage />} />
+              <Route path="/login"   element={<Login />} />
+              <Route path="/landing" element={<LandingPage />} />
 
-            {/* 👇 protege TODO lo que esté bajo /admin/* */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/admin/*" element={<AdminRoutes />} />
-            </Route>
+              {/* 👇 protege TODO lo que esté bajo /admin/* */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/admin/*" element={<AdminRoutes />} />
+              </Route>
 
-            {/* fallback opcional */}
-            <Route path="*" element={<Login />} />
-          </Routes>
-        </Router>
-      </DocumentRepoProvider>
+              {/* fallback opcional */}
+              <Route path="*" element={<Login />} />
+            </Routes>
+          </Router>
+        </DocumentRepoProvider>
+      </NotificationProvider>
     </AuthProvider>
   </ThemeProvider>
 );

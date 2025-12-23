@@ -26,9 +26,13 @@ import Sidebar         from "../components/Sidebar";
 import LogoImg         from "../assets/YAAPS_LOGO.png";
 import { useAuth } from "../auth/AuthContext";
 import { isSuperAdmin } from "../services/userService";
+import { useNotifications } from "../hooks/useNotifications";
 
 const AdminLayout = () => {
   const { userRole } = useAuth();
+  
+  // Inicializar listeners de notificaciones para SuperAdmin
+  useNotifications();
 
   // Menú dinámico según el rol
   const menuItems = useMemo(() => {
