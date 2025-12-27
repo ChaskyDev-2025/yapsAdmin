@@ -43,10 +43,10 @@ export function useTrabajadoresPorFlota(flotaId) {
           .map((doc, idx) => {
             const trabajador = doc.data();
             // Nueva estructura: datos en la raíz del documento
-            const nombreUsuario = trabajador.nombre || trabajador.perfil?.name || "Trabajador sin nombre";
+            const nombreUsuario = trabajador.nombre || trabajador.perfil?.nombre || trabajador.perfil?.name || trabajador.name || trabajador.email || "Trabajador sin nombre";
             const telefono = trabajador.telefono || trabajador.phoneNumber || "Sin teléfono";
             const email = trabajador.perfil?.email || trabajador.email || "Sin email";
-            const fotoUrl = trabajador.perfil?.fotoUrl || trabajador.perfil?.photoUrl || "";
+            const fotoUrl = trabajador.perfil?.fotoUrl || trabajador.perfil?.photoUrl || trabajador.fotoUrl || trabajador.photoURL || "";
             const createdAt = trabajador.createdAt || null;
 
             return {

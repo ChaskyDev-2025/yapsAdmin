@@ -33,7 +33,7 @@ const NotificationBell = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
-  if (userRole !== "superadmin") {
+  if (!userRole) {
     return null;
   }
 

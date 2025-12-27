@@ -20,6 +20,8 @@ import {
   Alert,
   Button,
   Pagination,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
@@ -44,6 +46,7 @@ const Referidos = () => {
     total: 0,
     totalReferidos: 0,
     totalTickets: 0,
+    totalDonaciones: 0,
   });
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -78,6 +81,8 @@ const Referidos = () => {
   });
   const [searchDonaciones, setSearchDonaciones] = useState("");
   const [sortByDonaciones, setSortByDonaciones] = useState("donaciones-desc");
+  const [filterDepartamentoDonaciones, setFilterDepartamentoDonaciones] = useState("todos");
+  const [departamentosDisponibles, setDepartamentosDisponibles] = useState([]);
   const [visibleColumnsDonaciones, setVisibleColumnsDonaciones] = useState({
     usuario: true,
     donacionesAcumuladas: true,
@@ -105,6 +110,10 @@ const Referidos = () => {
   }, [searchDonaciones]);
 
   useEffect(() => {
+    setPageDonaciones(0);
+  }, [filterDepartamentoDonaciones]);
+
+  useEffect(() => {
     // Listeners en tiempo real
     setLoading(true);
     let unsubscribePasajeros = null;
@@ -129,9 +138,9 @@ const Referidos = () => {
               const pasajero = doc.data();
               return {
                 id: doc.id,
-                nombre: pasajero.perfil?.name || "Sin nombre",
+                nombre: pasajero.perfil?.name || pasajero.perfil?.nombre || pasajero.nombre || "Sin nombre",
                 email: pasajero.perfil?.email || "Sin email",
-                photoUrl: pasajero.perfil?.photoUrl || null,
+                photoUrl: pasajero.perfil?.photoURL || pasajero.perfil?.photoUrl || pasajero.perfil?.foto || null,
                 donacionesAcumuladas: pasajero.donacionesAcumuladas || 0,
                 ultimaDonacion: pasajero.ultimaDonacion || null,
                 departamento: pasajero.departamentoActual || "-",
@@ -139,6 +148,10 @@ const Referidos = () => {
             })
             .filter(p => p.donacionesAcumuladas > 0)
             .sort((a, b) => b.donacionesAcumuladas - a.donacionesAcumuladas);
+
+          // Extraer departamentos únicos
+          const departamentosUnicos = [...new Set(donacionesData.map(p => p.departamento))].filter(d => d !== "-").sort();
+          setDepartamentosDisponibles(departamentosUnicos);
 
           setPasajerosDonaciones(donacionesData);
 
@@ -205,13 +218,13 @@ const Referidos = () => {
 
         return {
           id: doc.id,
-          nombre: trabajador.perfil?.name || trabajador.nombre || "Sin nombre",
+          nombre: trabajador.perfil?.name || trabajador.perfil?.nombre || trabajador.nombre || "Sin nombre",
           email: trabajador.perfil?.email || trabajador.email || "Sin email",
           codigo: trabajador.codigoReferido || "-",
           referidos: referidosCount,
           tickets: ticketsCount,
           ticketsMap: trabajador.tickets || {},
-          photoUrl: trabajador.perfil?.photoUrl || null,
+          photoUrl: trabajador.perfil?.photoURL || trabajador.perfil?.photoUrl || trabajador.perfil?.foto || null,
           referidosAplicados: trabajador.referidosAplicados || [],
           pasajerosMap: pasajerosMap,
           modo: "trabajador",
@@ -233,19 +246,24 @@ const Referidos = () => {
 
         return {
           id: id,
-          nombre: pasajero.perfil?.name || "Sin nombre",
+          nombre: pasajero.perfil?.name || pasajero.perfil?.nombre || pasajero.nombre || "Sin nombre",
           email: pasajero.perfil?.email || "Sin email",
           codigo: pasajero.codigoReferido || "-",
           referidos: referidosCount,
           tickets: ticketsCount,
           ticketsMap: pasajero.tickets || {},
-          photoUrl: pasajero.perfil?.photoUrl || null,
+          photoUrl: pasajero.perfil?.photoURL || pasajero.perfil?.photoUrl || pasajero.perfil?.foto || null,
           referidosAplicados: pasajero.referidosAplicados || [],
           pasajerosMap: pasajerosMap,
           modo: pasajero.modo || "pasajero",
           tieneCodigoReferido: !!pasajero.codigoReferido,
         };
       });
+
+      // Calcular total de donaciones
+      const totalDonaciones = Object.values(pasajerosMap).reduce((sum, pasajero) => {
+        return sum + (pasajero.donacionesAcumuladas || 0);
+      }, 0);
 
       // Combinar y ordenar
       const allData = [...data, ...dataPasajeros];
@@ -261,6 +279,7 @@ const Referidos = () => {
         total: allData.length,
         totalReferidos,
         totalTickets,
+        totalDonaciones,
       });
     } catch (error) {
       console.error("Error al procesar datos de referidos en tiempo real:", error);
@@ -901,23 +920,62 @@ const Referidos = () => {
           {/* TABLA DE DONACIONES */}
           {selectedTab === 2 && (
             <Box>
-              <Box sx={{ mb: 2 }}>
-                <TableToolbar
-                  searchValue={searchDonaciones}
-                  onSearchChange={setSearchDonaciones}
-                  searchPlaceholder="Nombre, Email, Departamento"
-                  sortOptions={[
-                    { label: "Donaciones (Mayor)", value: "donaciones-desc" },
-                    { label: "Donaciones (Menor)", value: "donaciones-asc" },
-                    { label: "Nombre (A-Z)", value: "nombre-asc" },
-                    { label: "Nombre (Z-A)", value: "nombre-desc" },
-                  ]}
-                  sortValue={sortByDonaciones}
-                  onSortChange={setSortByDonaciones}
-                  visibleColumns={visibleColumnsDonaciones}
-                  onColumnChange={(col, visible) => setVisibleColumnsDonaciones(prev => ({ ...prev, [col]: visible }))}
-                  showClearButton={false}
-                />
+              <Box sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2 }}>
+                <Box sx={{ flex: 1 }}>
+                  <TableToolbar
+                    searchValue={searchDonaciones}
+                    onSearchChange={setSearchDonaciones}
+                    searchPlaceholder="Nombre, Email, Departamento"
+                    sortOptions={[
+                      { label: "Donaciones (Mayor)", value: "donaciones-desc" },
+                      { label: "Donaciones (Menor)", value: "donaciones-asc" },
+                      { label: "Nombre (A-Z)", value: "nombre-asc" },
+                      { label: "Nombre (Z-A)", value: "nombre-desc" },
+                      { label: "Departamento (A-Z)", value: "departamento-asc" },
+                      { label: "Departamento (Z-A)", value: "departamento-desc" },
+                    ]}
+                    sortValue={sortByDonaciones}
+                    onSortChange={setSortByDonaciones}
+                    visibleColumns={visibleColumnsDonaciones}
+                    onColumnChange={(col, visible) => setVisibleColumnsDonaciones(prev => ({ ...prev, [col]: visible }))}
+                    showClearButton={false}
+                  />
+                </Box>
+
+                {/* Filtro de Departamento */}
+                <Select
+                  value={filterDepartamentoDonaciones}
+                  onChange={(e) => {
+                    setFilterDepartamentoDonaciones(e.target.value);
+                    setPageDonaciones(0);
+                  }}
+                  sx={{
+                    minWidth: 220,
+                    height: 40,
+                    fontFamily: "Mulish, sans-serif",
+                    "& .MuiOutlinedInput-root": {
+                      "&:hover fieldset": {
+                        borderColor: "#d7171a",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#d7171a",
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem value="todos">
+                    <Typography sx={{ fontFamily: "Mulish, sans-serif" }}>
+                      Todos
+                    </Typography>
+                  </MenuItem>
+                  {departamentosDisponibles.map((dept) => (
+                    <MenuItem key={dept} value={dept}>
+                      <Typography sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        {dept}
+                      </Typography>
+                    </MenuItem>
+                  ))}
+                </Select>
               </Box>
 
               {pasajerosDonaciones.length > 0 ? (
@@ -948,9 +1006,10 @@ const Referidos = () => {
                         .filter(p => {
                           const search = searchDonaciones.toLowerCase();
                           return (
-                            p.nombre.toLowerCase().includes(search) ||
+                            (p.nombre.toLowerCase().includes(search) ||
                             p.email.toLowerCase().includes(search) ||
-                            p.departamento.toLowerCase().includes(search)
+                            p.departamento.toLowerCase().includes(search)) &&
+                            (filterDepartamentoDonaciones === "todos" || p.departamento === filterDepartamentoDonaciones)
                           );
                         })
                         .sort((a, b) => {
@@ -965,6 +1024,12 @@ const Referidos = () => {
                           }
                           if (sortByDonaciones === "nombre-desc") {
                             return b.nombre.localeCompare(a.nombre);
+                          }
+                          if (sortByDonaciones === "departamento-asc") {
+                            return a.departamento.localeCompare(b.departamento);
+                          }
+                          if (sortByDonaciones === "departamento-desc") {
+                            return b.departamento.localeCompare(a.departamento);
                           }
                           return 0;
                         })
@@ -1053,9 +1118,10 @@ const Referidos = () => {
                       pasajerosDonaciones.filter(p => {
                         const search = searchDonaciones.toLowerCase();
                         return (
-                          p.nombre.toLowerCase().includes(search) ||
+                          (p.nombre.toLowerCase().includes(search) ||
                           p.email.toLowerCase().includes(search) ||
-                          p.departamento.toLowerCase().includes(search)
+                          p.departamento.toLowerCase().includes(search)) &&
+                          (filterDepartamentoDonaciones === "todos" || p.departamento === filterDepartamentoDonaciones)
                         );
                       }).length / ITEMS_PER_PAGE
                     )}

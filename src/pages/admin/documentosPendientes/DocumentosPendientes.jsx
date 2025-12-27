@@ -1,5 +1,5 @@
 // src/pages/admin/documentosPendientes/DocumentosPendientes.jsx
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useContext, useRef } from "react";
 import {
   Box,
   Paper,
@@ -20,6 +20,7 @@ import {
   Select,
 } from "@mui/material";
 import { useAuth } from "../../../auth/AuthContext";
+import { NotificationContext } from "../../../context/NotificationContext";
 import { useUserFlota, useDocumentosPendientes } from "./hooks/useDocumentosPendientes";
 import DocumentosHeader from "./components/DocumentosHeader";
 import DocumentosModal from "./components/DocumentosModal";
@@ -29,11 +30,16 @@ import FileCopyIcon from "@mui/icons-material/FileCopy";
 
 const DocumentosPendientes = () => {
   const { user } = useAuth();
+  const { addNotification } = useContext(NotificationContext);
   const { userFlotaId, nombreFlota } = useUserFlota(user?.uid);
   const { trabajadores, loading } = useDocumentosPendientes(userFlotaId);
   
+  // Refs para comparar cambios
+  const prevTrabajadoresRef = useRef([]);
+  
   const [selectedTrabajador, setSelectedTrabajador] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [datosIniciales, setDatosIniciales] = useState(false);
   const [searchDocumentos, setSearchDocumentos] = useState("");
   const [sortByDocumentos, setSortByDocumentos] = useState("nombre-asc");
   const [filterEstadoDocumentos, setFilterEstadoDocumentos] = useState("todos");
@@ -51,6 +57,75 @@ const DocumentosPendientes = () => {
   useEffect(() => {
     setPageDocumentos(0);
   }, [searchDocumentos]);
+
+  // Marcar cuando se cargan los datos iniciales
+  useEffect(() => {
+    if (!loading && !datosIniciales) {
+      setDatosIniciales(true);
+    }
+  }, [loading, datosIniciales]);
+
+  // Actualizar ref cuando datosIniciales se vuelve true
+  useEffect(() => {
+    if (datosIniciales) {
+      prevTrabajadoresRef.current = trabajadores;
+    }
+  }, [datosIniciales, trabajadores]);
+
+  // Detectar nuevos documentos pendientes
+  useEffect(() => {
+    if (!datosIniciales) return;
+
+    const prevTrabajadores = prevTrabajadoresRef.current;
+    
+    // Solo procesar si cambió la cantidad
+    if (prevTrabajadores.length === trabajadores.length) {
+      return;
+    }
+
+    // Si aumentó la cantidad, buscar cuáles son nuevos
+    if (trabajadores.length > prevTrabajadores.length) {
+      const prevIds = new Set(prevTrabajadores.map(t => t.id));
+      const nuevosTrabajadores = trabajadores.filter(
+        t => !prevIds.has(t.id)
+      );
+
+      // Enviar notificación para cada nuevo trabajador con documentos
+      nuevosTrabajadores.forEach((trabajador) => {
+        const nombreTrabajador = trabajador.perfil?.nombre || trabajador.perfil?.name || "Conductor";
+        addNotification({
+          message: `Nuevos documentos de ${nombreTrabajador}`,
+          type: "info",
+        });
+        playNotificationSound();
+      });
+    }
+
+    // Actualizar ref
+    prevTrabajadoresRef.current = trabajadores;
+  }, [trabajadores, datosIniciales, addNotification]);
+
+  const playNotificationSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+      
+      gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (error) {
+      console.log("No se pudo reproducir sonido de notificación");
+    }
+  };
 
   const handleOpenDialog = (trabajador) => {
     setSelectedTrabajador(trabajador);
@@ -265,14 +340,14 @@ const DocumentosPendientes = () => {
                           <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                             <Avatar
                               src={trabajador.perfil?.photoUrl}
-                              alt={trabajador.perfil?.name}
+                              alt={trabajador.perfil?.nombre || trabajador.perfil?.name}
                               sx={{ width: 40, height: 40, bgcolor: "#d7171a" }}
                             >
-                              {(trabajador.perfil?.name || "?")?.charAt(0).toUpperCase()}
+                              {((trabajador.perfil?.nombre || trabajador.perfil?.name) || "?")?.charAt(0).toUpperCase()}
                             </Avatar>
                           </TableCell>
                           <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                            {trabajador.perfil?.name || "Sin nombre"}
+                            {trabajador.perfil?.nombre || trabajador.perfil?.name || "Sin nombre"}
                           </TableCell>
                           <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
                             {trabajador.perfil?.email || "-"}

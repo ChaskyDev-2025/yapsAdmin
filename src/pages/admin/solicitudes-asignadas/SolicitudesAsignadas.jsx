@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useContext, useRef } from "react";
 import {
   Box,
   Container,
@@ -28,6 +28,7 @@ import {
 import { collection, getDocs, updateDoc, doc, query, where } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 import { useAuth } from "../../../auth/AuthContext";
+import { NotificationContext } from "../../../context/NotificationContext";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -39,6 +40,10 @@ import GenerarOfertaModal from "./components/GenerarOfertaModal";
 
 const SolicitudesAsignadas = () => {
   const { userFlotaId } = useAuth();
+  const { addNotification } = useContext(NotificationContext);
+  
+  // Refs para comparar cambios
+  const prevSolicitudesRef = useRef([]);
   
   const disabledTextFieldStyles = {
     "& .MuiInputBase-input.Mui-disabled": {
@@ -48,6 +53,7 @@ const SolicitudesAsignadas = () => {
   };
 
   const [solicitudes, setSolicitudes] = useState([]);
+  const [datosIniciales, setDatosIniciales] = useState(false);
   const [conductores, setConductores] = useState([]);
   const [pasajeros, setPasajeros] = useState([]);
   const [flotaId, setFlotaId] = useState(null);
@@ -150,6 +156,75 @@ const SolicitudesAsignadas = () => {
 
     cargarSolicitudes();
   }, [userFlotaId]);
+
+  // Marcar cuando se cargan los datos iniciales
+  useEffect(() => {
+    if (!cargando && !datosIniciales) {
+      setDatosIniciales(true);
+    }
+  }, [cargando, datosIniciales]);
+
+  // Actualizar ref cuando datosIniciales se vuelve true
+  useEffect(() => {
+    if (datosIniciales) {
+      prevSolicitudesRef.current = solicitudes;
+    }
+  }, [datosIniciales, solicitudes]);
+
+  // Detectar nuevas solicitudes asignadas
+  useEffect(() => {
+    if (!datosIniciales) return;
+
+    const prevSolicitudesData = prevSolicitudesRef.current;
+    
+    // Solo procesar si cambió la cantidad
+    if (prevSolicitudesData.length === solicitudes.length) {
+      return;
+    }
+
+    // Si aumentó la cantidad, buscar cuáles son nuevas
+    if (solicitudes.length > prevSolicitudesData.length) {
+      const prevIds = new Set(prevSolicitudesData.map(s => s.id));
+      const nuevosSolicitudes = solicitudes.filter(
+        s => !prevIds.has(s.id)
+      );
+
+      // Enviar notificación para cada nueva solicitud
+      nuevosSolicitudes.forEach((solicitud) => {
+        const origen = solicitud.solicitud?.origen?.nombre || "Nueva solicitud";
+        addNotification({
+          message: `Solicitud asignada: ${origen}`,
+          type: "warning",
+        });
+        playNotificationSound();
+      });
+    }
+
+    // Actualizar ref
+    prevSolicitudesRef.current = solicitudes;
+  }, [solicitudes, datosIniciales, addNotification]);
+
+  const playNotificationSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+      
+      gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (error) {
+      console.log("No se pudo reproducir sonido de notificación");
+    }
+  };
 
   // Cargar conductores de la flota
   useEffect(() => {

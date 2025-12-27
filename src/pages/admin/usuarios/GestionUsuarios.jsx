@@ -325,7 +325,7 @@ const GestionUsuarios = () => {
     if (searchPasajeros) {
       const search = searchPasajeros.toLowerCase();
       filtered = filtered.filter(p =>
-        (p.name || p.perfil?.name || "").toLowerCase().includes(search) ||
+        (p.name || p.nombre || p.perfil?.name || p.perfil?.nombre || "").toLowerCase().includes(search) ||
         (p.email || p.perfil?.email || "").toLowerCase().includes(search)
       );
     }
@@ -395,10 +395,10 @@ const GestionUsuarios = () => {
     const sorted = [...filtered];
     switch (sortByPasajeros) {
       case "nombre-asc":
-        sorted.sort((a, b) => ((a.name || a.perfil?.name || "") || "").localeCompare((b.name || b.perfil?.name || "") || ""));
+        sorted.sort((a, b) => ((a.name || a.nombre || a.perfil?.name || a.perfil?.nombre || "") || "").localeCompare((b.name || b.nombre || b.perfil?.name || b.perfil?.nombre || "") || ""));
         break;
       case "nombre-desc":
-        sorted.sort((a, b) => ((b.name || b.perfil?.name || "") || "").localeCompare((a.name || a.perfil?.name || "") || ""));
+        sorted.sort((a, b) => ((b.name || b.nombre || b.perfil?.name || b.perfil?.nombre || "") || "").localeCompare((a.name || a.nombre || a.perfil?.name || a.perfil?.nombre || "") || ""));
         break;
       case "email-asc":
         sorted.sort((a, b) => ((a.email || a.perfil?.email || "") || "").localeCompare((b.email || b.perfil?.email || "") || ""));
@@ -432,12 +432,20 @@ const GestionUsuarios = () => {
     
     if (searchConductores) {
       const search = searchConductores.toLowerCase();
-      filtered = filtered.filter(t =>
-        (t.nombre || "").toLowerCase().includes(search) ||
-        (t.email || "").toLowerCase().includes(search) ||
-        (t.categorias || []).some(cat => cat.toLowerCase().includes(search)) ||
-        (flotas.find(f => f.id === t.flotaId)?.nombre || "").toLowerCase().includes(search)
-      );
+      filtered = filtered.filter(t => {
+        // Búsqueda por nombre en todos los campos posibles
+        const nombre = (t.nombre || t.perfil?.nombre || t.perfil?.name || t.name || "").toLowerCase();
+        // Búsqueda por email
+        const email = (t.email || "").toLowerCase();
+        // Búsqueda por teléfono
+        const telefono = (t.telefono || t.phoneNumber || "").toLowerCase();
+        // Búsqueda por categorías
+        const categorias = (t.categorias || []).some(cat => cat.toLowerCase().includes(search));
+        // Búsqueda por flota
+        const flota = (flotas.find(f => f.id === t.flotaId)?.nombre || "").toLowerCase();
+        
+        return nombre.includes(search) || email.includes(search) || telefono.includes(search) || categorias || flota.includes(search);
+      });
     }
     
     // Filtro por estado
@@ -514,10 +522,18 @@ const GestionUsuarios = () => {
     const sorted = [...filtered];
     switch (sortByConductores) {
       case "nombre-asc":
-        sorted.sort((a, b) => ((a.nombre || "") || "").localeCompare((b.nombre || "") || ""));
+        sorted.sort((a, b) => {
+          const nombreA = (a.nombre || a.perfil?.nombre || a.perfil?.name || a.name || "").toLowerCase();
+          const nombreB = (b.nombre || b.perfil?.nombre || b.perfil?.name || b.name || "").toLowerCase();
+          return nombreA.localeCompare(nombreB);
+        });
         break;
       case "nombre-desc":
-        sorted.sort((a, b) => ((b.nombre || "") || "").localeCompare((a.nombre || "") || ""));
+        sorted.sort((a, b) => {
+          const nombreA = (a.nombre || a.perfil?.nombre || a.perfil?.name || a.name || "").toLowerCase();
+          const nombreB = (b.nombre || b.perfil?.nombre || b.perfil?.name || b.name || "").toLowerCase();
+          return nombreB.localeCompare(nombreA);
+        });
         break;
       case "email-asc":
         sorted.sort((a, b) => ((a.email || "") || "").localeCompare((b.email || "") || ""));
@@ -588,7 +604,7 @@ const GestionUsuarios = () => {
             id: doc.id,
             ...data,
             // Mapeo de nueva estructura
-            nombre: data.nombre || data.perfil?.name || "Sin nombre",
+            nombre: data.nombre || data.perfil?.nombre || data.perfil?.name || data.name || "Sin nombre",
             email: data.email || data.perfil?.email || "",
             telefono: data.telefono || data.phoneNumber || "",
             phoneNumber: data.telefono || data.phoneNumber || "",
@@ -600,7 +616,7 @@ const GestionUsuarios = () => {
             fotoUrl: data.perfil?.fotoUrl || data.perfil?.foto || data.perfil?.photoURL || data.fotoUrl || data.photoURL || data.perfil?.photoUrl || "",
             // Mantener para compatibilidad
             perfil: data.perfil || {
-              name: data.nombre || "Sin nombre",
+              name: data.nombre || data.perfil?.nombre || "Sin nombre",
               email: data.email || "",
               createdAt: data.createdAt,
               photoUrl: data.fotoUrl || data.photoURL
@@ -1426,16 +1442,16 @@ const GestionUsuarios = () => {
                         <TableCell>
                           <Avatar
                             src={pasajero.perfil?.photoUrl || pasajero.photoURL}
-                            alt={pasajero.name || pasajero.perfil?.name || pasajero.email}
+                            alt={pasajero.name || pasajero.nombre || pasajero.perfil?.name || pasajero.perfil?.nombre || pasajero.email}
                             sx={{ width: 40, height: 40, bgcolor: "#d7171a" }}
                           >
-                            {(pasajero.name || pasajero.perfil?.name || pasajero.email || "?")?.charAt(0).toUpperCase()}
+                            {(pasajero.name || pasajero.nombre || pasajero.perfil?.name || pasajero.perfil?.nombre || pasajero.email || "?")?.charAt(0).toUpperCase()}
                           </Avatar>
                         </TableCell>
                       )}
                       {visibleColumnsPasajeros.nombre && (
                         <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                          {pasajero.name || pasajero.perfil?.name || "Sin nombre"}
+                          {pasajero.name || pasajero.nombre || pasajero.perfil?.name || pasajero.perfil?.nombre || "Sin nombre"}
                         </TableCell>
                       )}
                       {visibleColumnsPasajeros.email && (
@@ -1653,14 +1669,14 @@ const GestionUsuarios = () => {
                       <TableCell>
                         <Avatar
                           src={trabajador.perfil?.fotoUrl || trabajador.fotoUrl || trabajador.photoURL}
-                          alt={trabajador.nombre || trabajador.email}
+                          alt={trabajador.nombre || trabajador.perfil?.nombre || trabajador.perfil?.name || trabajador.name || trabajador.email}
                           sx={{ width: 40, height: 40, bgcolor: "#d7171a" }}
                         >
-                          {(trabajador.nombre || trabajador.email || "?")?.charAt(0).toUpperCase()}
+                          {(trabajador.nombre || trabajador.perfil?.nombre || trabajador.perfil?.name || trabajador.name || trabajador.email || "?")?.charAt(0).toUpperCase()}
                         </Avatar>
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                        {trabajador.nombre || "Sin nombre"}
+                        {trabajador.nombre || trabajador.perfil?.nombre || trabajador.perfil?.name || trabajador.name || trabajador.email || "Sin nombre"}
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                         {trabajador.email || "-"}
@@ -2095,7 +2111,7 @@ const GestionUsuarios = () => {
           {pasajeroToDelete && (
             <Box sx={{ backgroundColor: "#f5f5f5", p: 1.5, borderRadius: 1, mb: 2 }}>
               <Typography sx={{ fontWeight: 700, color: "#d7171a" }}>
-                {pasajeroToDelete.perfil?.name || pasajeroToDelete.name}
+                {pasajeroToDelete.perfil?.name || pasajeroToDelete.perfil?.nombre || pasajeroToDelete.name || pasajeroToDelete.nombre}
               </Typography>
               <Typography variant="caption" sx={{ color: "#666" }}>
                 {pasajeroToDelete.perfil?.email || pasajeroToDelete.email}

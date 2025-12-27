@@ -5,25 +5,23 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   Typography,
   Box,
-  Chip,
-  CircularProgress
+  CircularProgress,
+  Tabs,
+  Tab
 } from '@mui/material';
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../../data/firebase/firebase';
+import HistorialViajesTable from './HistorialViajesTable';
+import HistorialEnviosTable from './HistorialEnviosTable';
 
 export const HistorialViajesConductorModal = ({ open, onClose, conductorUID }) => {
   const [viajes, setViajes] = useState([]);
+  const [envios, setEnvios] = useState([]);
   const [loading, setLoading] = useState(false);
   const [pasajerosMap, setPasajerosMap] = useState({});
+  const [selectedTab, setSelectedTab] = useState(0);
 
   // Cargar datos del pasajero
   const cargarNombrePasajero = async (uidUser) => {
@@ -38,7 +36,7 @@ export const HistorialViajesConductorModal = ({ open, onClose, conductorUID }) =
       
       if (docSnap.exists()) {
         const pasajero = docSnap.data();
-        const nombre = pasajero.perfil?.name || pasajero.name || pasajero.email || '-';
+        const nombre = pasajero.perfil?.nombre || pasajero.perfil?.name || pasajero.nombre || pasajero.name || pasajero.email || '-';
         const rating = pasajero.rating || '-';
         setPasajerosMap(prev => ({ 
           ...prev, 
@@ -54,7 +52,7 @@ export const HistorialViajesConductorModal = ({ open, onClose, conductorUID }) =
       
       if (snapshot.docs.length > 0) {
         const pasajero = snapshot.docs[0].data();
-        const nombre = pasajero.perfil?.name || pasajero.name || pasajero.email || '-';
+        const nombre = pasajero.perfil?.nombre || pasajero.perfil?.name || pasajero.nombre || pasajero.name || pasajero.email || '-';
         const rating = pasajero.rating || '-';
         setPasajerosMap(prev => ({ 
           ...prev, 
@@ -71,16 +69,16 @@ export const HistorialViajesConductorModal = ({ open, onClose, conductorUID }) =
   };
 
   useEffect(() => {
-    const cargarViajes = async () => {
+    const cargarHistorial = async () => {
       setLoading(true);
       try {
-        // Cargar desde ordenes filtrando por uidTaxista
+        // Cargar viajes desde ordenes
         const ordenesCollection = collection(db, 'ordenes');
-        const q = query(ordenesCollection, where('uidTaxista', '==', conductorUID));
-        const snapshot = await getDocs(q);
+        const qViajes = query(ordenesCollection, where('uidTaxista', '==', conductorUID));
+        const snapshotViajes = await getDocs(qViajes);
         
-        if (snapshot.docs.length > 0) {
-          const viajesData = snapshot.docs.map(doc => ({
+        if (snapshotViajes.docs.length > 0) {
+          const viajesData = snapshotViajes.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
           })).sort((a, b) => {
@@ -92,7 +90,6 @@ export const HistorialViajesConductorModal = ({ open, onClose, conductorUID }) =
           // Cargar nombres de pasajeros para todos los viajes
           const viajesConPasajeros = await Promise.all(
             viajesData.map(async (viaje) => {
-              // uidUser está en el nivel raíz del documento, no dentro de orden
               if (viaje.uidUser) {
                 const datosPasajero = await cargarNombrePasajero(viaje.uidUser);
                 return {
@@ -108,16 +105,39 @@ export const HistorialViajesConductorModal = ({ open, onClose, conductorUID }) =
         } else {
           setViajes([]);
         }
+
+        // Cargar envios desde ordenes con categoria: "envios"
+        try {
+          const allOrders = await getDocs(collection(db, 'ordenes'));
+          const enviosData = allOrders.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter(doc => {
+              const esEnvio = doc.orden?.categoria === "envios";
+              const esDelConductor = doc.conductorUID === conductorUID || doc.uidUser === conductorUID;
+              return esEnvio && esDelConductor;
+            })
+            .sort((a, b) => {
+              const dateA = a.fechaCreacion?.toDate?.() || new Date(a.fechaCreacion);
+              const dateB = b.fechaCreacion?.toDate?.() || new Date(b.fechaCreacion);
+              return dateB - dateA;
+            });
+          
+          setEnvios(enviosData);
+        } catch (error) {
+          console.error('Error cargando envios:', error);
+          setEnvios([]);
+        }
       } catch (error) {
-        console.error('Error al cargar historial de viajes del conductor:', error);
+        console.error('Error al cargar historial:', error);
         setViajes([]);
+        setEnvios([]);
       } finally {
         setLoading(false);
       }
     };
 
     if (open && conductorUID) {
-      cargarViajes();
+      cargarHistorial();
     }
   }, [open, conductorUID]);
 
@@ -168,89 +188,47 @@ export const HistorialViajesConductorModal = ({ open, onClose, conductorUID }) =
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ backgroundColor: '#d7171a', color: 'white', fontWeight: 700 }}>
-        🚖 Historial de Viajes del Conductor
+      <DialogTitle sx={{ backgroundColor: '#d7171a', color: 'white', fontWeight: 700, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>📋 Historial del Conductor</span>
       </DialogTitle>
+      
+      {/* Pestañas */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2, pt: 1 }}>
+        <Tabs
+          value={selectedTab}
+          onChange={(e, newValue) => setSelectedTab(newValue)}
+          sx={{
+            "& .MuiTab-root": {
+              fontWeight: 600,
+              color: "#666",
+              "&.Mui-selected": {
+                color: "#d7171a"
+              }
+            },
+            "& .MuiTabs-indicator": {
+              backgroundColor: "#d7171a"
+            }
+          }}
+        >
+          <Tab label={`🚖 Viajes (${viajes.length})`} />
+          <Tab label={`📦 Envios (${envios.length})`} />
+        </Tabs>
+      </Box>
+
       <DialogContent sx={{ p: 2 }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
             <CircularProgress />
           </Box>
-        ) : viajes.length === 0 ? (
-          <Typography color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
-            No hay viajes registrados para este conductor
-          </Typography>
+        ) : selectedTab === 0 ? (
+          <HistorialViajesTable
+            viajes={viajes}
+          />
         ) : (
-          <TableContainer component={Paper} sx={{ mt: 2 }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                  <TableCell sx={{ fontWeight: 700 }}>Fecha</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Origen</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Destino</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Pasajero</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }} align="right">Precio</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }} align="center">Estado</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {viajes.map((viaje) => (
-                  <TableRow key={viaje.id} hover>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {formatearFecha(viaje.orden?.createdAt)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {obtenerCalle(viaje.orden?.origen)}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {obtenerDireccion(viaje.orden?.origen)}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        {obtenerCiudad(viaje.orden?.origen)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {obtenerCalle(viaje.orden?.destino)}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {obtenerDireccion(viaje.orden?.destino)}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        {obtenerCiudad(viaje.orden?.destino)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="body2">
-                          {viaje.pasajeroInfo?.nombre || '-'}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          ⭐ {viaje.pasajeroInfo?.rating || '-'}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        Bs. {viaje.orden?.precio || '-'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Chip
-                        label={viaje.estado === 'completado' ? '✓ Completado' : viaje.estado}
-                        size="small"
-                        color={viaje.estado === 'completado' ? 'success' : viaje.estado === 'cancelado' ? 'error' : 'default'}
-                        variant="outlined"
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <HistorialEnviosTable
+            envios={envios}
+            formatearFecha={formatearFecha}
+          />
         )}
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>

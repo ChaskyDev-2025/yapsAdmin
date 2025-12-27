@@ -3,7 +3,7 @@ import { Box, Avatar, Typography, Stack, Divider, Chip } from "@mui/material";
 export default function ModalIzquierdoPasajero({ rowData }) {
   if (!rowData) return null;
 
-  const nombre = rowData.perfil?.name || rowData.name || "-";
+  const nombre = rowData.perfil?.name || rowData.perfil?.nombre || rowData.name || rowData.nombre || "-";
   const email = rowData.perfil?.email || rowData.email || "-";
   const fotoUrl = rowData.perfil?.photoUrl || rowData.photoURL || "";
   const departamento = rowData.departamentoActual || "-";

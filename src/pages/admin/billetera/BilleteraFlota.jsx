@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useContext, useRef } from "react";
 import {
   Box,
   Paper,
@@ -24,6 +24,8 @@ import {
   Pagination,
   IconButton,
   Tooltip,
+  MenuItem,
+  Select,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import QrCodeIcon from "@mui/icons-material/QrCode";
@@ -63,14 +65,23 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
+import { NotificationContext } from "../../../context/NotificationContext";
 
 const BilleteraFlota = () => {
   const { userFlotaId } = useAuth();
+  const { addNotification } = useContext(NotificationContext);
   const flotaId = userFlotaId;
+  
+  // Refs para comparar cambios
+  const prevSolicitudesRef = useRef([]);
+  const prevDocumentosRef = useRef([]);
+  
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [datosIniciales, setDatosIniciales] = useState(false); // Flag para primera carga
   const [solicitudes, setSolicitudes] = useState([]);
   const [solicitudesConductores, setSolicitudesConductores] = useState([]);
+  const [documentosConductores, setDocumentosConductores] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [saldoActual, setSaldoActual] = useState(0);
   const [pageSolicitudes, setPageSolicitudes] = useState(0);
@@ -95,6 +106,12 @@ const BilleteraFlota = () => {
   const [searchHistorial, setSearchHistorial] = useState("");
   const [sortByHistorial, setSortByHistorial] = useState("fecha-desc");
   const [periodFilterHistorial, setPeriodFilterHistorial] = useState("todos");
+
+  // Estados para tabla de solicitudes de conductores
+  const [searchSolicitudesConductores, setSearchSolicitudesConductores] = useState("");
+  const [filterEstadoConductores, setFilterEstadoConductores] = useState("todas");
+  const [sortBySolicitudesConductores, setSortBySolicitudesConductores] = useState("fecha-desc");
+  const [pageSolicitudesConductores, setPageSolicitudesConductores] = useState(0);
 
   // Estados para columnas visibles en Solicitudes
   const [visibleColumnsSolicitudes, setVisibleColumnsSolicitudes] = useState({
@@ -201,6 +218,53 @@ const BilleteraFlota = () => {
     }
   }, [flotaId]);
 
+  const cargarDocumentosConductores = useCallback(async () => {
+    if (!flotaId) return;
+
+    try {
+      // Obtener los trabajadores de mi flota
+      const trabajadoresRef = collection(db, "trabajadores");
+      const qTrabajadores = query(
+        trabajadoresRef,
+        where("flotaId", "==", flotaId)
+      );
+      const trabajadoresSnapshot = await getDocs(qTrabajadores);
+
+      const todosDocumentos = [];
+
+      // Para cada trabajador, obtener sus documentos
+      for (const trabajadorDoc of trabajadoresSnapshot.docs) {
+        const trabajadorId = trabajadorDoc.id;
+        const trabajadorData = trabajadorDoc.data();
+
+        const documentosRef = collection(
+          db,
+          "trabajadores",
+          trabajadorId,
+          "documentos"
+        );
+
+        const documentosSnapshot = await getDocs(documentosRef);
+
+        documentosSnapshot.docs.forEach((docDoc) => {
+          todosDocumentos.push({
+            id: docDoc.id,
+            conductorId: trabajadorId,
+            conductorNombre:
+              trabajadorData.nombre ||
+              trabajadorData.displayName ||
+              "Conductor",
+            ...docDoc.data(),
+          });
+        });
+      }
+
+      setDocumentosConductores(todosDocumentos);
+    } catch (error) {
+      console.error("Error cargando documentos de conductores:", error);
+    }
+  }, [flotaId]);
+
   useEffect(() => {
     if (!flotaId) {
       setLoading(false);
@@ -277,13 +341,88 @@ const BilleteraFlota = () => {
     );
 
     // Cargar solicitudes de conductores inicialmente
-    cargarSolicitudesConductores();
+    const loadInitialSolicitudes = async () => {
+      await cargarSolicitudesConductores();
+      await cargarDocumentosConductores();
+      // Marcar que ya se cargaron los datos iniciales
+      setDatosIniciales(true);
+    };
+    
+    loadInitialSolicitudes();
 
-    // Listener en tiempo real para solicitudes de conductores
+    // Listener en tiempo real para cambios en trabajadores
     const unsubscribeConductores = onSnapshot(
       query(collection(db, "trabajadores"), where("flotaId", "==", flotaId)),
       () => {
         cargarSolicitudesConductores();
+        cargarDocumentosConductores();
+      }
+    );
+
+    // Listener en tiempo real para solicitudes de recarga usando collectionGroup
+    // Listener en tiempo real para solicitudes de recarga (SOLO de mi flota)
+    const unsubscribeSolicitudesRT = onSnapshot(
+      query(
+        collectionGroup(db, "solicitudes_recarga"),
+        // No podemos filtrar directamente por flotaId aquí porque está en trabajadores
+        // Así que validamos en el callback
+      ),
+      (snapshot) => {
+        if (isMounted) {
+          snapshot.docChanges().forEach(async (change) => {
+            if (change.type === "added") {
+              try {
+                // Nueva solicitud agregada
+                const docPath = change.doc.ref.path;
+                // Extraer trabajadorId del path: trabajadores/{trabajadorId}/billetera/data/solicitudes_recarga/{solicitudId}
+                const pathParts = docPath.split("/");
+                const trabajadorId = pathParts[1]; // El índice 1 es el trabajadorId
+                
+                // Verificar que este trabajador pertenece a mi flota
+                const trabajadorRef = doc(db, "trabajadores", trabajadorId);
+                const trabajadorSnap = await getDoc(trabajadorRef);
+                
+                if (trabajadorSnap.exists() && trabajadorSnap.data().flotaId === flotaId) {
+                  console.log(`✅ Nueva solicitud de trabajador en MI flota: ${trabajadorId}`);
+                  cargarSolicitudesConductores();
+                }
+              } catch (error) {
+                console.error("Error verificando solicitud:", error);
+              }
+            }
+          });
+        }
+      }
+    );
+
+    // Listener en tiempo real para documentos (SOLO de mi flota)
+    const unsubscribeDocumentosRT = onSnapshot(
+      query(collectionGroup(db, "documentos")),
+      (snapshot) => {
+        if (isMounted) {
+          snapshot.docChanges().forEach(async (change) => {
+            if (change.type === "added") {
+              try {
+                // Nuevo documento agregado
+                const docPath = change.doc.ref.path;
+                // Extraer trabajadorId del path: trabajadores/{trabajadorId}/documentos/{docId}
+                const pathParts = docPath.split("/");
+                const trabajadorId = pathParts[1]; // El índice 1 es el trabajadorId
+                
+                // Verificar que este trabajador pertenece a mi flota
+                const trabajadorRef = doc(db, "trabajadores", trabajadorId);
+                const trabajadorSnap = await getDoc(trabajadorRef);
+                
+                if (trabajadorSnap.exists() && trabajadorSnap.data().flotaId === flotaId) {
+                  console.log(`✅ Nuevo documento de trabajador en MI flota: ${trabajadorId}`);
+                  cargarDocumentosConductores();
+                }
+              } catch (error) {
+                console.error("Error verificando documento:", error);
+              }
+            }
+          });
+        }
       }
     );
 
@@ -294,8 +433,10 @@ const BilleteraFlota = () => {
       if (unsubscribeSolicitudes) unsubscribeSolicitudes();
       if (unsubscribeHistorial) unsubscribeHistorial();
       if (unsubscribeConductores) unsubscribeConductores();
+      if (unsubscribeSolicitudesRT) unsubscribeSolicitudesRT();
+      if (unsubscribeDocumentosRT) unsubscribeDocumentosRT();
     };
-  }, [flotaId, cargarSolicitudesConductores]);
+  }, [flotaId, cargarSolicitudesConductores, cargarDocumentosConductores]);
 
   // Reset página de solicitudes al cambiar búsqueda
   useEffect(() => {
@@ -307,8 +448,123 @@ const BilleteraFlota = () => {
     setPageHistorial(0);
   }, [searchHistorial]);
 
+  // Reset página de solicitudes de conductores al cambiar búsqueda o filtros
+  useEffect(() => {
+    setPageSolicitudesConductores(0);
+  }, [searchSolicitudesConductores, filterEstadoConductores]);
+
+  // Cuando se cargan los datos iniciales, actualizar los refs sin enviar notificaciones
+  useEffect(() => {
+    if (datosIniciales) {
+      // Actualizar los refs para que no envíe notificaciones de solicitudes/documentos antiguos
+      prevSolicitudesRef.current = solicitudesConductores;
+      prevDocumentosRef.current = documentosConductores;
+    }
+  }, [datosIniciales]);
+
+  // Detectar nuevas solicitudes de conductores
+  useEffect(() => {
+    // Solo enviar notificaciones DESPUÉS de que se cargaron los datos iniciales
+    if (!datosIniciales) {
+      return; // Todavía está cargando datos iniciales
+    }
+
+    // Comparar con el estado anterior
+    const prevSolicitudes = prevSolicitudesRef.current;
+    
+    // Solo procesar si el array cambió de verdad (longitud diferente)
+    if (prevSolicitudes.length === solicitudesConductores.length) {
+      // Misma cantidad de solicitudes = sin cambios
+      return;
+    }
+
+    // Si aumentó la cantidad, buscar cuáles son nuevas
+    if (solicitudesConductores.length > prevSolicitudes.length) {
+      const prevIds = new Set(prevSolicitudes.map(s => s.id));
+      const nuevasSolicitudes = solicitudesConductores.filter(
+        s => !prevIds.has(s.id)
+      );
+
+      // Enviar notificación para cada nueva solicitud
+      nuevasSolicitudes.forEach((solicitud) => {
+        addNotification({
+          message: `Nueva solicitud: ${solicitud.conductorNombre} solicita Bs. ${solicitud.monto || solicitud.amount || 0}`,
+          type: "warning",
+        });
+        playNotificationSound();
+      });
+    }
+
+    // Actualizar el ref con las solicitudes actuales
+    prevSolicitudesRef.current = solicitudesConductores;
+  }, [solicitudesConductores, datosIniciales, addNotification]);
+
+  // Detectar nuevos documentos de conductores
+  useEffect(() => {
+    // Solo enviar notificaciones DESPUÉS de que se cargaron los datos iniciales
+    if (!datosIniciales) {
+      return; // Todavía está cargando datos iniciales
+    }
+
+    // Comparar con el estado anterior
+    const prevDocumentos = prevDocumentosRef.current;
+    
+    // Solo procesar si el array cambió de verdad (longitud diferente)
+    if (prevDocumentos.length === documentosConductores.length) {
+      // Misma cantidad de documentos = sin cambios
+      return;
+    }
+
+    // Si aumentó la cantidad, buscar cuáles son nuevos
+    if (documentosConductores.length > prevDocumentos.length) {
+      const prevIds = new Set(prevDocumentos.map(d => d.id));
+      const nuevosDocumentos = documentosConductores.filter(
+        d => !prevIds.has(d.id)
+      );
+
+      // Enviar notificación para cada nuevo documento
+      nuevosDocumentos.forEach((documento) => {
+        const tipoDoc = documento.tipo || "Documento";
+        const estado = documento.estado || "pendiente";
+        
+        addNotification({
+          message: `Nuevo documento: ${documento.conductorNombre} - ${tipoDoc} (${estado})`,
+          type: "info",
+        });
+        playNotificationSound();
+      });
+    }
+
+    // Actualizar el ref con los documentos actuales
+    prevDocumentosRef.current = documentosConductores;
+  }, [documentosConductores, datosIniciales, addNotification]);
+
   const mostrarSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
+  };
+
+  const playNotificationSound = () => {
+    try {
+      // Crear un sonido simple de notificación usando Web Audio API
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      
+      // Sonido de notificación: dos tonos
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+      
+      gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (error) {
+      console.log("No se pudo reproducir sonido de notificación");
+    }
   };
 
   // Funciones para validar solicitudes de conductores
@@ -461,6 +717,7 @@ const BilleteraFlota = () => {
 
       // Recargar lista de solicitudes después de aprobar
       await cargarSolicitudesConductores();
+      await cargarDocumentosConductores();
 
       handleCerrarValidacion();
     } catch (error) {
@@ -500,6 +757,7 @@ const BilleteraFlota = () => {
 
       // Recargar lista de solicitudes después de rechazar
       await cargarSolicitudesConductores();
+      await cargarDocumentosConductores();
 
       handleCerrarValidacion();
     } catch (error) {
@@ -957,6 +1215,71 @@ const BilleteraFlota = () => {
     historialFiltrado.length / ITEMS_PER_PAGE
   );
 
+  // Filtrado y ordenamiento para solicitudes de conductores
+  const solicitudesConductoresFiltradas = useMemo(() => {
+    let filtered = solicitudesConductores;
+
+    // Filtro por estado
+    if (filterEstadoConductores !== "todas") {
+      filtered = filtered.filter((s) => s.estado === filterEstadoConductores);
+    }
+
+    // Filtro por búsqueda
+    if (searchSolicitudesConductores) {
+      const search = searchSolicitudesConductores.toLowerCase();
+      filtered = filtered.filter(
+        (s) =>
+          (s.conductorNombre || "").toLowerCase().includes(search) ||
+          (s.referencia || "").toLowerCase().includes(search)
+      );
+    }
+
+    // Ordenamiento
+    const sorted = [...filtered];
+    switch (sortBySolicitudesConductores) {
+      case "fecha-asc":
+        sorted.sort(
+          (a, b) =>
+            new Date(a.fechaSolicitud?.toDate?.() || 0) -
+            new Date(b.fechaSolicitud?.toDate?.() || 0)
+        );
+        break;
+      case "fecha-desc":
+        sorted.sort(
+          (a, b) =>
+            new Date(b.fechaSolicitud?.toDate?.() || 0) -
+            new Date(a.fechaSolicitud?.toDate?.() || 0)
+        );
+        break;
+      case "monto-asc":
+        sorted.sort((a, b) => a.monto - b.monto);
+        break;
+      case "monto-desc":
+        sorted.sort((a, b) => b.monto - a.monto);
+        break;
+      default:
+        break;
+    }
+
+    return sorted;
+  }, [
+    solicitudesConductores,
+    searchSolicitudesConductores,
+    filterEstadoConductores,
+    sortBySolicitudesConductores,
+  ]);
+
+  // Paginación para solicitudes de conductores
+  const solicitudesConductoresPaginadas = useMemo(() => {
+    const start = pageSolicitudesConductores * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return solicitudesConductoresFiltradas.slice(start, end);
+  }, [solicitudesConductoresFiltradas, pageSolicitudesConductores]);
+
+  const totalPagesSolicitudesConductores = Math.ceil(
+    solicitudesConductoresFiltradas.length / ITEMS_PER_PAGE
+  );
+
   if (!flotaId) {
     return (
       <Box sx={{ p: 3 }}>
@@ -1381,12 +1704,53 @@ const BilleteraFlota = () => {
         {/* TAB 2: SOLICITUDES DE CONDUCTORES */}
         {tabValue === 1 && (
           <>
-            <Typography
-              variant="h6"
-              sx={{ mb: 2, fontWeight: 600, color: "#d7171a" }}
+            
+            
+            {/* Barra de herramientas con filtros y búsqueda */}
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 3,
+                gap: 2,
+                flexWrap: "wrap",
+              }}
             >
-              Solicitudes de Recarga de Conductores
-            </Typography>
+              <Box sx={{ flex: 1, minWidth: 250 }}>
+                <TableToolbar
+                  searchValue={searchSolicitudesConductores}
+                  onSearchChange={setSearchSolicitudesConductores}
+                  sortValue={sortBySolicitudesConductores}
+                  onSortChange={setSortBySolicitudesConductores}
+                  sortOptions={[
+                    { label: "Fecha más reciente", value: "fecha-desc" },
+                    { label: "Fecha más antigua", value: "fecha-asc" },
+                    { label: "Monto menor", value: "monto-asc" },
+                    { label: "Monto mayor", value: "monto-desc" },
+                  ]}
+                  placeholder="Buscar por conductor o referencia..."
+                />
+              </Box>
+              
+              {/* Filtro por estado */}
+              <Box sx={{ minWidth: 200 }}>
+                <TextField
+                  select
+                  label="Estado"
+                  value={filterEstadoConductores}
+                  onChange={(e) => setFilterEstadoConductores(e.target.value)}
+                  size="small"
+                  fullWidth
+                >
+                  <MenuItem value="todas">Todas</MenuItem>
+                  <MenuItem value="pendiente">Pendiente</MenuItem>
+                  <MenuItem value="aprobada">Aprobada</MenuItem>
+                  <MenuItem value="rechazada">Rechazada</MenuItem>
+                </TextField>
+              </Box>
+            </Box>
+
             <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
               <Table stickyHeader>
                 <TableHead sx={{ backgroundColor: "#000000" }}>
@@ -1454,7 +1818,7 @@ const BilleteraFlota = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {solicitudesConductores.length === 0 ? (
+                  {solicitudesConductoresFiltradas.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} align="center">
                         <Typography
@@ -1469,7 +1833,7 @@ const BilleteraFlota = () => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    solicitudesConductores.map((solicitud) => (
+                    solicitudesConductoresPaginadas.map((solicitud) => (
                       <TableRow key={solicitud.id} hover>
                         <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                           {solicitud.conductorNombre || "Conductor"}
@@ -1583,6 +1947,40 @@ const BilleteraFlota = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+            
+            {/* Paginación */}
+            {solicitudesConductoresFiltradas.length > 0 && (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  mt: 3,
+                  gap: 2,
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{ fontFamily: "Mulish, sans-serif" }}
+                >
+                  Mostrando {pageSolicitudesConductores * ITEMS_PER_PAGE + 1} -{" "}
+                  {Math.min(
+                    (pageSolicitudesConductores + 1) * ITEMS_PER_PAGE,
+                    solicitudesConductoresFiltradas.length
+                  )}{" "}
+                  de {solicitudesConductoresFiltradas.length}
+                </Typography>
+                <Pagination
+                  count={totalPagesSolicitudesConductores}
+                  page={pageSolicitudesConductores + 1}
+                  onChange={(event, page) =>
+                    setPageSolicitudesConductores(page - 1)
+                  }
+                  color="standard"
+                  variant="outlined"
+                />
+              </Box>
+            )}
           </>
         )}
 

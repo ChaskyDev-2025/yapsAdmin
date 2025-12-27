@@ -32,7 +32,7 @@ export default function ModalDerechoPasajero({ userId }) {
 
       if (docSnap.exists()) {
         const taxista = docSnap.data();
-        const nombre = taxista.perfil?.name || taxista.name || "Sin nombre";
+        const nombre = taxista.perfil?.nombre || taxista.perfil?.name || taxista.nombre || taxista.name || "Sin nombre";
         setTaxistasMap(prev => ({
           ...prev,
           [uidTaxista]: nombre

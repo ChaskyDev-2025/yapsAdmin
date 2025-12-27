@@ -10,7 +10,7 @@ import ModalDerechoPasajero from "./ModalDerechoPasajero";
 export default function ModalDetallePasajero({ open, onClose, rowData }) {
   if (!rowData) return null;
 
-  const nombre = rowData.perfil?.name || rowData.name || "-";
+  const nombre = rowData.perfil?.name || rowData.perfil?.nombre || rowData.name || rowData.nombre || "-";
 
   return (
     <Dialog

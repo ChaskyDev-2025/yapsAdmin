@@ -10,7 +10,7 @@ import ModalDerechoConductor from "./ModalDerechoConductor";
 export default function ModalDetalleConductor({ open, onClose, rowData }) {
   if (!rowData) return null;
 
-  const nombre = rowData.nombre || rowData.perfil?.name || rowData.name || "-";
+  const nombre = rowData.nombre || rowData.perfil?.nombre || rowData.perfil?.name || rowData.name || "-";
 
   return (
     <Dialog
@@ -20,7 +20,6 @@ export default function ModalDetalleConductor({ open, onClose, rowData }) {
       maxWidth="xl"
       PaperProps={{ sx: { borderRadius: 3, p: 0, bgcolor: "#fafafa" } }}
     >
-      {/* Encabezado */}
       <Box sx={{ display: "flex", alignItems: "center", px: 3, py: 2, bgcolor: "#FFFFFF", borderBottom: "1px solid #e0e0e0" }}>
         <PersonIcon sx={{ mr: 1, color: "#d7171a" }} />
         <DialogTitle sx={{ flexGrow: 1, p: 0, fontWeight: 700, fontSize: "1.3rem" }}>
@@ -31,7 +30,6 @@ export default function ModalDetalleConductor({ open, onClose, rowData }) {
         </IconButton>
       </Box>
 
-      {/* Contenido a dos columnas */}
       <DialogContent dividers sx={{ p: 0, overflow: "hidden", bgcolor: "#FFFFFF" }}>
         <Box sx={{ display: "flex", height: "600px", gap: 0 }}>
           <ModalIzquierdoConductor rowData={rowData} />
@@ -40,7 +38,6 @@ export default function ModalDetalleConductor({ open, onClose, rowData }) {
         </Box>
       </DialogContent>
 
-      {/* Acciones */}
       <DialogActions sx={{ px: 3, py: 2, bgcolor: "#FFFFFF", borderTop: "1px solid #e0e0e0" }}>
         <Button
           onClick={onClose}

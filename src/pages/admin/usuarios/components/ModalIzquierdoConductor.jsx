@@ -3,7 +3,7 @@ import { Box, Avatar, Typography, Stack, Divider, Chip } from "@mui/material";
 export default function ModalIzquierdoConductor({ rowData }) {
   if (!rowData) return null;
 
-  const nombre = rowData.nombre || rowData.perfil?.name || rowData.name || "-";
+  const nombre = rowData.nombre || rowData.perfil?.nombre || rowData.perfil?.name || rowData.name || rowData.email || "-";
   const email = rowData.email || rowData.perfil?.email || "-";
   const telefono = rowData.telefono || rowData.phoneNumber || "Sin teléfono";
   const fotoUrl = rowData.perfil?.fotoUrl || rowData.perfil?.foto || rowData.perfil?.photoURL || rowData.fotoUrl || rowData.photoURL || rowData.perfil?.photoUrl || "";

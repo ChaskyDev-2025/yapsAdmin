@@ -23,6 +23,7 @@ import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import Navbar          from "../components/Navbar";
 import Footer          from "../components/Footer";
 import Sidebar         from "../components/Sidebar";
+import NotificationToaster from "../components/NotificationToaster";
 import LogoImg         from "../assets/YAAPS_LOGO.png";
 import { useAuth } from "../auth/AuthContext";
 import { isSuperAdmin } from "../services/userService";
@@ -97,6 +98,9 @@ const AdminLayout = () => {
       >
         {/* Navbar */}
         <Navbar />
+
+        {/* Notificaciones flotantes */}
+        <NotificationToaster />
 
         {/* Main con scroll propio */}
         <Box

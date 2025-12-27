@@ -5,11 +5,12 @@ import PeopleIcon from "@mui/icons-material/People";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import CardGiftcardIcon from "@mui/icons-material/CardGiftcard";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
+import LocalAtmIcon from "@mui/icons-material/LocalAtm";
 
 const StatsGrid = ({ stats, loading }) => {
   return (
     <Grid container spacing={3} sx={{ mb: 4 }}>
-      <Grid item xs={12} sm={6} md={3}>
+      <Grid item xs={12} sm={6} md={2.4}>
         <StatCard
           title="Total participantes"
           value={loading ? "..." : stats.total}
@@ -18,7 +19,7 @@ const StatsGrid = ({ stats, loading }) => {
           color="#9c27b0"
         />
       </Grid>
-      <Grid item xs={12} sm={6} md={3}>
+      <Grid item xs={12} sm={6} md={2.4}>
         <StatCard
           title="Total Referidos"
           value={loading ? "..." : stats.totalReferidos}
@@ -27,7 +28,7 @@ const StatsGrid = ({ stats, loading }) => {
           color="#4caf50"
         />
       </Grid>
-      <Grid item xs={12} sm={6} md={3}>
+      <Grid item xs={12} sm={6} md={2.4}>
         <StatCard
           title="Tickets Generados"
           value={loading ? "..." : stats.totalTickets}
@@ -36,7 +37,16 @@ const StatsGrid = ({ stats, loading }) => {
           color="#ff9800"
         />
       </Grid>
-      <Grid item xs={12} sm={6} md={3}>
+      <Grid item xs={12} sm={6} md={2.4}>
+        <StatCard
+          title="Total Donaciones"
+          value={loading ? "..." : `Bs. ${(stats.totalDonaciones || 0).toFixed(2)}`}
+          subtitle="Monto acumulado"
+          icon={LocalAtmIcon}
+          color="#2196f3"
+        />
+      </Grid>
+      <Grid item xs={12} sm={6} md={2.4}>
         <StatCard
           title="Promedio"
           value={

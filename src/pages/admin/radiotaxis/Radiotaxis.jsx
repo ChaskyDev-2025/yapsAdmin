@@ -3,7 +3,6 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Typography,
   Paper,
-  Stack,
   Box,
   Table,
   TableBody,
@@ -84,7 +83,7 @@ const Radiotaxis = () => {
       const data = snapshot.docs.map((docSnap) => {
         const trabajador = docSnap.data();
         // Nueva estructura: datos en la raíz del documento
-        const nombreUsuario = trabajador.nombre || trabajador.perfil?.name || "Trabajador sin nombre";
+        const nombreUsuario = trabajador.nombre || trabajador.perfil?.nombre || trabajador.perfil?.name || "Trabajador sin nombre";
         const telefono = trabajador.telefono || trabajador.phoneNumber || "Sin teléfono";
         const email = trabajador.perfil?.email || trabajador.email || "Sin email";
         const fotoUrl = trabajador.perfil?.fotoUrl || trabajador.perfil?.foto || trabajador.perfil?.photoURL || "";
@@ -250,11 +249,6 @@ const Radiotaxis = () => {
     }
   };
 
-  // Función para verificar si documentos están aprobados
-  const verificarDocumentosAprobados = (documentosObj) => {
-    return documentosObj?.documentos_aprobados === true;
-  };
-
   // Filtrado y ordenamiento
   const radiotaxisFiltrados = useMemo(() => {
     let filtered = displayRows;
@@ -315,10 +309,12 @@ const Radiotaxis = () => {
     // Filtro por búsqueda
     if (searchRadiotaxis) {
       const search = searchRadiotaxis.toLowerCase();
-      filtered = filtered.filter(r =>
-        (r.nombreEmpresa || "").toLowerCase().includes(search) ||
-        (r.email || "").toLowerCase().includes(search)
-      );
+      filtered = filtered.filter(r => {
+        const nombre = (r.nombreEmpresa || "").toLowerCase();
+        const email = (r.email || "").toLowerCase();
+        const telefono = (r.telefono || "").toLowerCase();
+        return nombre.includes(search) || email.includes(search) || telefono.includes(search);
+      });
     }
     
     // Ordenamiento
