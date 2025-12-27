@@ -5,7 +5,7 @@ import Icons from "../../../../shared/constants/Icons";
 import useBannerForm from "../hooks/useBannerForm";
 
 const ModalAgregar = ({ onReady }) => {
-  const { preview, inputRef, abrirSelector, onChangeInput, saving, error, save, titulo, setTitulo } = useBannerForm();
+  const { preview, inputRef, abrirSelector, onChangeInput, saving, error, save, titulo, setTitulo, linkBanner, setLinkBanner } = useBannerForm();
 
   useEffect(() => {
     if (typeof onReady === "function") onReady({ save, saving });
@@ -24,6 +24,27 @@ const ModalAgregar = ({ onReady }) => {
         size="small"
         sx={{
           mt: 2,
+          "& .MuiOutlinedInput-root": {
+            "&:hover fieldset": {
+              borderColor: "#d7171a",
+            },
+            "&.Mui-focused fieldset": {
+              borderColor: "#d7171a",
+            },
+          },
+        }}
+      />
+
+      {/* Campo de Link del Banner */}
+      <TextField
+        fullWidth
+        label="Link del Banner"
+        placeholder="Ej: https://ejemplo.com"
+        value={linkBanner}
+        onChange={(e) => setLinkBanner(e.target.value)}
+        variant="outlined"
+        size="small"
+        sx={{
           "& .MuiOutlinedInput-root": {
             "&:hover fieldset": {
               borderColor: "#d7171a",

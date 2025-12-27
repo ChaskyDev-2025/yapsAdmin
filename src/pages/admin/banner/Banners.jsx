@@ -37,6 +37,7 @@ const Banners = () => {
   const [visibleColumnsBanners, setVisibleColumnsBanners] = React.useState({
     imagen: true,
     titulo: true,
+    linkBanner: true,
     estado: true,
     fechaCreacion: true,
     acciones: true,
@@ -241,6 +242,11 @@ const Banners = () => {
                     Título
                   </TableCell>
                 )}
+                {visibleColumnsBanners.linkBanner && (
+                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                    Link
+                  </TableCell>
+                )}
                 {visibleColumnsBanners.estado && (
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
                     Estado
@@ -286,6 +292,22 @@ const Banners = () => {
                     {visibleColumnsBanners.titulo && (
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
                         {banner.titulo || "-"}
+                      </TableCell>
+                    )}
+                    {visibleColumnsBanners.linkBanner && (
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        {banner.linkBanner ? (
+                          <a 
+                            href={banner.linkBanner} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            style={{ color: "#d7171a", textDecoration: "none", wordBreak: "break-all" }}
+                          >
+                            {banner.linkBanner.length > 40 ? banner.linkBanner.substring(0, 40) + "..." : banner.linkBanner}
+                          </a>
+                        ) : (
+                          "-"
+                        )}
                       </TableCell>
                     )}
                     {visibleColumnsBanners.estado && (

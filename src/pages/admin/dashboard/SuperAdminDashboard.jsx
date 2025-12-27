@@ -218,12 +218,6 @@ const SuperAdminDashboard = () => {
             icon={CancelOutlined}
             color="#d7171a"
           />
-          <StatCard
-            title="Total Donaciones"
-            value={`Bs. ${metricas.donaciones.totalAcumuladas.toFixed(2)}`}
-            icon={FavoriteBorder}
-            color="#d7171a"
-          />
         </CardGrid>
 
         {/* FILA 3: Documentos */}

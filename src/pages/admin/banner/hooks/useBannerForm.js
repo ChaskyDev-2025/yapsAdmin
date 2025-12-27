@@ -7,6 +7,7 @@ export default function useBannerForm() {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState("");
   const [titulo, setTitulo] = useState("");
+  const [linkBanner, setLinkBanner] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -35,8 +36,8 @@ export default function useBannerForm() {
     setError("");
 
     try {
-      const banner = await createBanner(file, titulo); // sube a Storage y crea doc
-      return banner; // { id, imagen, estado, titulo }
+      const banner = await createBanner(file, titulo, linkBanner); // sube a Storage y crea doc
+      return banner; // { id, imagen, estado, titulo, linkBanner }
     } catch (err) {
       console.error("[hook] ❌ save() error:", err?.code || err?.message, err);
       setError(err?.code || err?.message || "Error al guardar");
@@ -44,11 +45,11 @@ export default function useBannerForm() {
     } finally {
       setSaving(false);
     }
-  }, [file, titulo]);
+  }, [file, titulo, linkBanner]);
 
   const api = useMemo(
-    () => ({ inputRef, abrirSelector, onChangeInput, preview, saving, error, save, titulo, setTitulo }),
-    [preview, saving, error, abrirSelector, onChangeInput, save, titulo]
+    () => ({ inputRef, abrirSelector, onChangeInput, preview, saving, error, save, titulo, setTitulo, linkBanner, setLinkBanner }),
+    [preview, saving, error, abrirSelector, onChangeInput, save, titulo, linkBanner]
   );
 
   return api;

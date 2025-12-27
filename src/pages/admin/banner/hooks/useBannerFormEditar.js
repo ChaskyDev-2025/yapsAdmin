@@ -7,6 +7,7 @@ export default function useBannerFormEditar(bannerInicial) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(bannerInicial?.imagen || "");
   const [titulo, setTitulo] = useState(bannerInicial?.titulo || "");
+  const [linkBanner, setLinkBanner] = useState(bannerInicial?.linkBanner || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -31,7 +32,7 @@ export default function useBannerFormEditar(bannerInicial) {
     setError("");
 
     try {
-      const banner = await updateBanner(bannerInicial.id, titulo, file); // actualiza título y opcionalmente imagen
+      const banner = await updateBanner(bannerInicial.id, titulo, file, linkBanner); // actualiza título, link y opcionalmente imagen
       return banner;
     } catch (err) {
       console.error("[hook] ❌ save() error:", err?.code || err?.message, err);
@@ -40,11 +41,11 @@ export default function useBannerFormEditar(bannerInicial) {
     } finally {
       setSaving(false);
     }
-  }, [file, titulo, bannerInicial.id]);
+  }, [file, titulo, linkBanner, bannerInicial.id]);
 
   const api = useMemo(
-    () => ({ inputRef, onChangeInput, preview, saving, error, save, titulo, setTitulo, setPreview }),
-    [preview, saving, error, onChangeInput, save, titulo]
+    () => ({ inputRef, onChangeInput, preview, saving, error, save, titulo, setTitulo, setPreview, linkBanner, setLinkBanner }),
+    [preview, saving, error, onChangeInput, save, titulo, linkBanner]
   );
 
   return api;
