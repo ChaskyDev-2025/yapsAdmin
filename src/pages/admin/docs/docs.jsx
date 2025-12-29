@@ -163,7 +163,6 @@ const Documentos = () => {
         color="error"
         onClick={(e) => {
           e.stopPropagation();
-          console.log("🗑️ Click eliminar sobre:", row.titulo);
           setDocToDelete(row);
           setOpenDeleteDialog(true);
         }}
@@ -175,7 +174,6 @@ const Documentos = () => {
   const handleConfirmDelete = async () => {
     if (!docToDelete) return;
     try {
-      console.log("✅ Confirmando eliminación de:", docToDelete.titulo);
       await remove(docToDelete.id);
       setOpenDeleteDialog(false);
       setDocToDelete(null);
@@ -186,7 +184,6 @@ const Documentos = () => {
   };
 
   const handleCancelDelete = () => {
-    console.log("❌ Cancelada eliminación");
     setOpenDeleteDialog(false);
     setDocToDelete(null);
   };
@@ -378,7 +375,6 @@ const Documentos = () => {
                         size="small"
                         onClick={(e) => {
                           e.stopPropagation();
-                          console.log("🗑️ Click eliminar sobre:", doc.titulo);
                           setDocToDelete(doc);
                           setOpenDeleteDialog(true);
                         }}

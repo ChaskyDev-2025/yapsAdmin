@@ -15,6 +15,12 @@ const playNotificationSound = () => {
   try {
     // Usar Web Audio API para crear un sonido más confiable
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Algunos navegadores requieren activar el contexto primero
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+    
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 
@@ -41,7 +47,7 @@ const playNotificationSound = () => {
       osc2.stop(audioContext.currentTime + 0.2);
     }, 250);
   } catch (error) {
-    console.error("Error reproduciendo sonido:", error);
+    console.error("❌ Error reproduciendo sonido:", error);
   }
 };
 
@@ -88,13 +94,24 @@ export const useNotifications = () => {
             snapshot.docChanges().forEach((change) => {
               const data = change.doc.data();
               
-              // Aceptamos "pendiente" o estados vacíos
+              // Notificar cuando llega una NUEVA solicitud pendiente
               const isPending = data.estado === "pendiente" || !data.estado;
               if (isPending && (change.type === "added" || change.type === "modified")) {
                 addNotification({
                   type: "solicitud_servicio",
                   title: "Nueva solicitud de servicio",
                   message: `Solicitud de ${data.solicitud?.detalles?.servicio || "servicio"} - ${data.solicitud?.detalles?.ciudad || ""}`,
+                  data: { id: change.doc.id, ...data },
+                });
+                playNotificationSound();
+              }
+              
+              // Notificar cuando una solicitud es RECHAZADA
+              if (data.estado === "rechazada" && change.type === "modified") {
+                addNotification({
+                  type: "solicitud_rechazada",
+                  title: "Solicitud Rechazada",
+                  message: `${data.solicitud?.detalles?.servicio || "Solicitud"} - ${data.solicitud?.detalles?.ciudad || ""} fue rechazada por la flota`,
                   data: { id: change.doc.id, ...data },
                 });
                 playNotificationSound();
@@ -111,15 +128,16 @@ export const useNotifications = () => {
         const flotasRef = collection(db, "flotas");
         
         const flotasSnapshot = await getDocs(flotasRef);
-        
+
         flotasSnapshot.forEach((flotaDoc) => {
           const flotaId = flotaDoc.id;
-          
+          const flotaNombre = flotaDoc.data().nombre || flotaId;
+
           const solicitudesRecargaRef = collection(
             doc(db, "flotas", flotaId),
             "solicitudesRecarga"
           );
-          
+
           // Primero obtenemos TODOS los documentos para ver qué estados tienen
           getDocs(solicitudesRecargaRef)
             .then((existentes) => {
@@ -134,29 +152,18 @@ export const useNotifications = () => {
             (snapshot) => {
               snapshot.docChanges().forEach((change) => {
                 const data = change.doc.data();
-                
+
                 // Aceptamos cualquier documento con estado "pendiente" que cambie
                 if (data.estado === "pendiente" && (change.type === "added" || change.type === "modified")) {
                   addNotification({
                     type: "solicitud_recarga",
                     title: "Nueva solicitud de recarga",
-                    message: `${data.nombreFlota || "Flota"} - $${data.monto || "0"}`,
-                    data: { 
-                      id: change.doc.id, 
+                    message: `${flotaNombre} - $${data.monto || "0"}`,
+                    data: {
+                      id: change.doc.id,
                       flotaId: flotaId,
-                      ...data 
-                    },
-                  });
-                  playNotificationSound();
-                } else if (change.type === "modified" && data.estado === "pendiente") {
-                  addNotification({
-                    type: "solicitud_recarga",
-                    title: "Solicitud de recarga actualizada",
-                    message: `${data.nombreFlota || "Flota"} - $${data.monto || "0"}`,
-                    data: { 
-                      id: change.doc.id, 
-                      flotaId: flotaId,
-                      ...data 
+                      flotaNombre: flotaNombre,
+                      ...data
                     },
                   });
                   playNotificationSound();

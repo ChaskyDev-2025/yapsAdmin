@@ -123,7 +123,7 @@ const DocumentosPendientes = () => {
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.2);
     } catch (error) {
-      console.log("No se pudo reproducir sonido de notificación");
+      // Error reproduciendo sonido
     }
   };
 

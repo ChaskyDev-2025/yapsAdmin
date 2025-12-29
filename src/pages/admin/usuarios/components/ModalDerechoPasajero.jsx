@@ -53,8 +53,6 @@ export default function ModalDerechoPasajero({ userId }) {
       return;
     }
 
-    console.log("ModalDerechoPasajero - userId:", userId);
-
     let cancel = false;
 
     const loadViajes = async () => {
@@ -63,8 +61,6 @@ export default function ModalDerechoPasajero({ userId }) {
         const ordenesCollection = collection(db, "ordenes");
         const q = query(ordenesCollection, where("uidUser", "==", userId));
         const snapshot = await getDocs(q);
-
-        console.log("Ordenes encontradas:", snapshot.docs.length);
 
         if (snapshot.docs.length > 0) {
           const viajesData = snapshot.docs.map(doc => ({

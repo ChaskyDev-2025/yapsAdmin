@@ -25,7 +25,7 @@ import {
   Grid,
   Pagination,
 } from "@mui/material";
-import { collection, getDocs, updateDoc, doc, query, where } from "firebase/firestore";
+import { collection, getDocs, updateDoc, doc, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 import { useAuth } from "../../../auth/AuthContext";
 import { NotificationContext } from "../../../context/NotificationContext";
@@ -80,6 +80,8 @@ const SolicitudesAsignadas = () => {
   const [solicitudOferta, setSolicitudOferta] = useState(null);
   const [pageSolicitudes, setPageSolicitudes] = useState(0);
   const [periodFilterSolicitudes, setPeriodFilterSolicitudes] = useState("todos");
+  const [rechazarDialogOpen, setRechazarDialogOpen] = useState(false);
+  const [solicitudParaRechazar, setSolicitudParaRechazar] = useState(null);
   const ITEMS_PER_PAGE = 10;
 
   // Resetear página al cambiar búsqueda
@@ -109,52 +111,50 @@ const SolicitudesAsignadas = () => {
     }
   ];
 
-  // Cargar solicitudes asignadas a esta flota específicamente
+  // Cargar solicitudes asignadas a esta flota específicamente en tiempo real
   useEffect(() => {
-    const cargarSolicitudes = async () => {
-      if (!userFlotaId) {
-        setSolicitudes([]);
-        setCargando(false);
-        return;
-      }
+    if (!userFlotaId) {
+      setSolicitudes([]);
+      setCargando(false);
+      return;
+    }
 
-      try {
-        setCargando(true);
-        // Filtrar solo las solicitudes de la flota actual del usuario
-        const q = query(
-          collection(db, "solicitudes"),
-          where("flota_asignada", "==", userFlotaId)
-        );
-        const snapshot = await getDocs(q);
-        const data = snapshot.docs
-          .map(doc => {
-            const docData = doc.data();
-            return {
-              id: doc.id,
-              ...docData,
-              fechaCreacion: docData.fechaCreacion?.toDate ? docData.fechaCreacion.toDate() : (docData.fechaCreacion instanceof Date ? docData.fechaCreacion : null),
-              solicitud: {
-                ...docData.solicitud,
-                fechaCreacion: docData.solicitud?.fechaCreacion?.toDate ? docData.solicitud.fechaCreacion.toDate() : (docData.solicitud?.fechaCreacion instanceof Date ? docData.solicitud.fechaCreacion : null),
-                detalles: {
-                  ...docData.solicitud?.detalles,
-                  fechaProgramada: docData.solicitud?.detalles?.fechaProgramada?.toDate ? docData.solicitud.detalles.fechaProgramada.toDate() : null,
-                  fechaInicio: docData.solicitud?.detalles?.fechaInicio?.toDate ? docData.solicitud.detalles.fechaInicio.toDate() : null,
-                }
+    setCargando(true);
+    // Filtrar solo las solicitudes de la flota actual del usuario
+    const q = query(
+      collection(db, "solicitudes"),
+      where("flota_asignada", "==", userFlotaId)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs
+        .map(doc => {
+          const docData = doc.data();
+          return {
+            id: doc.id,
+            ...docData,
+            fechaCreacion: docData.fechaCreacion?.toDate ? docData.fechaCreacion.toDate() : (docData.fechaCreacion instanceof Date ? docData.fechaCreacion : null),
+            solicitud: {
+              ...docData.solicitud,
+              fechaCreacion: docData.solicitud?.fechaCreacion?.toDate ? docData.solicitud.fechaCreacion.toDate() : (docData.solicitud?.fechaCreacion instanceof Date ? docData.solicitud.fechaCreacion : null),
+              detalles: {
+                ...docData.solicitud?.detalles,
+                fechaProgramada: docData.solicitud?.detalles?.fechaProgramada?.toDate ? docData.solicitud.detalles.fechaProgramada.toDate() : null,
+                fechaInicio: docData.solicitud?.detalles?.fechaInicio?.toDate ? docData.solicitud.detalles.fechaInicio.toDate() : null,
               }
-            };
-          });
-        
-        setSolicitudes(data);
-        setFlotaId(userFlotaId);
-        setCargando(false);
-      } catch (error) {
-        console.error("Error cargando solicitudes:", error);
-        setCargando(false);
-      }
-    };
+            }
+          };
+        });
+      
+      setSolicitudes(data);
+      setFlotaId(userFlotaId);
+      setCargando(false);
+    }, (error) => {
+      console.error("Error cargando solicitudes:", error);
+      setCargando(false);
+    });
 
-    cargarSolicitudes();
+    return () => unsubscribe();
   }, [userFlotaId]);
 
   // Marcar cuando se cargan los datos iniciales
@@ -222,7 +222,7 @@ const SolicitudesAsignadas = () => {
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.2);
     } catch (error) {
-      console.log("No se pudo reproducir sonido de notificación");
+      // Error reproduciendo sonido
     }
   };
 
@@ -526,21 +526,37 @@ const SolicitudesAsignadas = () => {
   };
 
   // Rechazar solicitud
-  const handleRechazarSolicitud = async (solicitud) => {
-    if (!window.confirm("¿Seguro que deseas rechazar esta solicitud?")) return;
+  const handleAbrirRechazarDialog = (solicitud) => {
+    setSolicitudParaRechazar(solicitud);
+    setRechazarDialogOpen(true);
+  };
+
+  const handleConfirmarRechazo = async () => {
+    if (!solicitudParaRechazar) return;
 
     try {
-      await updateDoc(doc(db, "solicitudes", solicitud.id), {
+      await updateDoc(doc(db, "solicitudes", solicitudParaRechazar.id), {
         estado: "rechazada",
         motivo_rechazo: "Rechazada por la flota"
       });
 
-      setSolicitudes(prevSolicitudes => prevSolicitudes.filter(sol => sol.id !== solicitud.id));
-      alert("Solicitud rechazada");
+      setSolicitudes(prevSolicitudes => prevSolicitudes.filter(sol => sol.id !== solicitudParaRechazar.id));
+      setRechazarDialogOpen(false);
+      setSolicitudParaRechazar(null);
     } catch (error) {
       console.error("Error rechazando solicitud:", error);
-      alert("Error al rechazar solicitud");
+      addNotification({
+        type: "error",
+        title: "Error",
+        message: "Hubo un error al rechazar la solicitud.",
+        duration: 2000,
+      });
     }
+  };
+
+  const handleCancelarRechazo = () => {
+    setRechazarDialogOpen(false);
+    setSolicitudParaRechazar(null);
   };
 
   return (
@@ -704,7 +720,7 @@ const SolicitudesAsignadas = () => {
                           </IconButton>
                           <IconButton
                             size="small"
-                            onClick={() => handleRechazarSolicitud(solicitud)}
+                            onClick={() => handleAbrirRechazarDialog(solicitud)}
                             title="Rechazar"
                             sx={{ color: "#f44336" }}
                           >
@@ -724,7 +740,7 @@ const SolicitudesAsignadas = () => {
                           </IconButton>
                           <IconButton
                             size="small"
-                            onClick={() => handleRechazarSolicitud(solicitud)}
+                            onClick={() => handleAbrirRechazarDialog(solicitud)}
                             title="Rechazar"
                             color="error"
                           >
@@ -1096,6 +1112,82 @@ const SolicitudesAsignadas = () => {
         onClose={handleCloseOfertaModal}
         onSave={handleSaveOferta}
       />
+
+      {/* Diálogo para rechazar solicitud */}
+      <Dialog 
+        open={rechazarDialogOpen} 
+        onClose={handleCancelarRechazo}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ 
+          backgroundColor: "#d7171a", 
+          color: "white",
+          fontWeight: "bold",
+          fontSize: "1.3rem"
+        }}>
+          ⚠️ Rechazar Solicitud
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Typography variant="body1" sx={{ color: "#333" }}>
+              ¿Estás seguro de que deseas rechazar esta solicitud?
+            </Typography>
+            {solicitudParaRechazar && (
+              <Box sx={{ 
+                backgroundColor: "#fff3e0", 
+                p: 2, 
+                borderRadius: 1,
+                border: "1px solid #ffe0b2"
+              }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: "bold", mb: 1 }}>
+                  Detalles de la solicitud:
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Categoría:</strong> {solicitudParaRechazar.solicitud?.categoria || "N/A"}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Servicio:</strong> {solicitudParaRechazar.solicitud?.servicio || "N/A"}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Dirección:</strong> {solicitudParaRechazar.solicitud?.ubicacion?.direccion || "N/A"}
+                </Typography>
+              </Box>
+            )}
+            <Typography variant="body2" sx={{ color: "#999", fontStyle: "italic" }}>
+              Esta acción no se puede deshacer. La solicitud volverá a estado pendiente y podrá ser reasignada.
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button 
+            onClick={handleCancelarRechazo}
+            variant="outlined"
+            sx={{ 
+              borderColor: "#999",
+              color: "#999",
+              "&:hover": {
+                borderColor: "#666",
+                backgroundColor: "#f5f5f5"
+              }
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleConfirmarRechazo}
+            variant="contained" 
+            sx={{ 
+              backgroundColor: "#d7171a",
+              "&:hover": {
+                backgroundColor: "#b81315"
+              }
+            }}
+          >
+            Sí, Rechazar
+          </Button>
+        </DialogActions>
+      </Dialog>
       </Paper>
     </Box>
   );

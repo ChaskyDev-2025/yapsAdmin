@@ -77,7 +77,7 @@ const SolicitudesTable = ({
                       <AttachMoneyIcon />
                     </IconButton>
                   )}
-                  {solicitud.estado === "solicitado" && (
+                  {solicitud.estado === "solicitado" || solicitud.estado === "pendiente" || solicitud.estado === "rechazada" ? (
                     <>
                       <IconButton
                         size="small"
@@ -87,16 +87,18 @@ const SolicitudesTable = ({
                       >
                         <CheckCircleIcon />
                       </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => onRechazar(solicitud.id)}
-                        sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcdd2" } }}
-                        title="Rechazar"
-                      >
-                        <CancelIcon />
-                      </IconButton>
+                      {solicitud.estado !== "rechazada" && (
+                        <IconButton
+                          size="small"
+                          onClick={() => onRechazar(solicitud.id)}
+                          sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcdd2" } }}
+                          title="Rechazar"
+                        >
+                          <CancelIcon />
+                        </IconButton>
+                      )}
                     </>
-                  )}
+                  ) : null}
                 </TableCell>
               </TableRow>
             ))

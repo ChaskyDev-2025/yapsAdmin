@@ -134,12 +134,6 @@ export const obtenerHistorialFlota = async (flotaId) => {
     // Primero intentar sin orderBy (sin requerir índice)
     const snapshot = await getDocs(transaccionesRef);
     
-    console.log(`[DEBUG] Historial para flota ${flotaId}:`, {
-      ruta: `flotas/${flotaId}/billetera/saldo/transacciones`,
-      cantidad: snapshot.docs.length,
-      datos: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-    });
-    
     // Obtener todas las solicitudes para buscar comprobantes
     let solicitudesMap = {};
     try {
@@ -300,11 +294,6 @@ export const obtenerTodasLasTransacciones = async () => {
       const timestampA = a.timestamp?.seconds || 0;
       const timestampB = b.timestamp?.seconds || 0;
       return timestampB - timestampA;
-    });
-    
-    console.log("[DEBUG] Todas las transacciones obtenidas:", {
-      cantidad: todasLasTransacciones.length,
-      datos: todasLasTransacciones
     });
     
     return todasLasTransacciones;

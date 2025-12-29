@@ -216,8 +216,7 @@ export class FirebaseDocumentRepository extends DocumentRepository {
                 await updateDoc(flotaRef, {
                   [`documentos.${ciudad}.${categoria}.${slug}`]: deleteField()
                 });
-                console.log(`✅ Documento ${id} eliminado de flota ${this.flotaId}`);
-                return;
+                
               }
             }
           }
@@ -269,7 +268,6 @@ export class FirebaseDocumentRepository extends DocumentRepository {
                   await updateDoc(doc(db, "flotas", flotaDoc.id), {
                     [`documentos.${ciudad}.${categoria}.${slug}`]: deleteField()
                   });
-                  console.log(`✅ Documento ${id} eliminado de flota: ${flotaDoc.id} (${ciudad}/${categoria}/${slug})`);
                 }
               }
             }

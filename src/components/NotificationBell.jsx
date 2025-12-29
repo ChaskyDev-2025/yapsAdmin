@@ -96,8 +96,8 @@ const NotificationBell = () => {
         slotProps={{
           paper: {
             sx: {
-              width: 400,
-              maxHeight: 500,
+              width: 480,
+              maxHeight: 600,
               boxShadow: 3,
             },
           },
@@ -193,8 +193,19 @@ const NotificationBell = () => {
         {notifications.length > 0 && (
           <>
             <Divider />
-            <MenuItem onClick={markAllAsRead} sx={{ justifyContent: "center" }}>
-              <Typography variant="body2">Marcar todas como leídas</Typography>
+            <MenuItem 
+              onClick={markAllAsRead} 
+              sx={{ 
+                justifyContent: "center",
+                py: 1.5,
+                '&:hover': {
+                  backgroundColor: '#f0f0f0'
+                }
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                Marcar todas como leídas
+              </Typography>
             </MenuItem>
           </>
         )}

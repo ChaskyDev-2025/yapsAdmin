@@ -383,7 +383,6 @@ const BilleteraFlota = () => {
                 const trabajadorSnap = await getDoc(trabajadorRef);
                 
                 if (trabajadorSnap.exists() && trabajadorSnap.data().flotaId === flotaId) {
-                  console.log(`✅ Nueva solicitud de trabajador en MI flota: ${trabajadorId}`);
                   cargarSolicitudesConductores();
                 }
               } catch (error) {
@@ -414,7 +413,6 @@ const BilleteraFlota = () => {
                 const trabajadorSnap = await getDoc(trabajadorRef);
                 
                 if (trabajadorSnap.exists() && trabajadorSnap.data().flotaId === flotaId) {
-                  console.log(`✅ Nuevo documento de trabajador en MI flota: ${trabajadorId}`);
                   cargarDocumentosConductores();
                 }
               } catch (error) {
@@ -563,7 +561,7 @@ const BilleteraFlota = () => {
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.2);
     } catch (error) {
-      console.log("No se pudo reproducir sonido de notificación");
+      // Error reproduciendo sonido
     }
   };
 

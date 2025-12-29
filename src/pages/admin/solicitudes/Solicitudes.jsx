@@ -1,13 +1,25 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useContext } from "react";
 import {
   Container,
   Paper,
   Box,
   Pagination,
   Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
 } from "@mui/material";
-import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  updateDoc,
+  doc,
+  onSnapshot,
+} from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
+import { NotificationContext } from "../../../context/NotificationContext";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
 import DateFilterComponent from "../usuarios/components/DateFilterComponent";
 
@@ -19,6 +31,8 @@ import DetallesDialog from "./components/DetallesDialog";
 import OfertaDialog from "./components/OfertaDialog";
 
 const Solicitudes = () => {
+  const { addNotification } = useContext(NotificationContext);
+  
   // Estilos para campos deshabilitados
   const disabledTextFieldStyles = {
     "& .MuiInputBase-input.Mui-disabled": {
@@ -39,6 +53,8 @@ const Solicitudes = () => {
   const [solicitudSeleccionada, setSolicitudSeleccionada] = useState(null);
   const [ofertaDialogOpen, setOfertaDialogOpen] = useState(false);
   const [solicitudOferta, setSolicitudOferta] = useState(null);
+  const [rechazarDialogOpen, setRechazarDialogOpen] = useState(false);
+  const [solicitudParaRechazar, setSolicitudParaRechazar] = useState(null);
 
   // Estados para filtro de fecha
   const [dateFilterTypeSolicitudes, setDateFilterTypeSolicitudes] = useState("todos");
@@ -54,35 +70,32 @@ const Solicitudes = () => {
     setPageSolicitudes(0);
   }, [searchSolicitudes, filterEstado]);
 
-  // Cargar solicitudes
+  // Cargar solicitudes en tiempo real
   useEffect(() => {
-    const cargarSolicitudes = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, "solicitudes"));
-        const data = snapshot.docs.map(doc => {
-          const docData = doc.data();
-          return {
-            id: doc.id,
-            ...docData,
-            fechaCreacion: docData.fechaCreacion?.toDate ? docData.fechaCreacion.toDate() : (docData.fechaCreacion instanceof Date ? docData.fechaCreacion : null),
-            solicitud: {
-              ...docData.solicitud,
-              fechaCreacion: docData.solicitud?.fechaCreacion?.toDate ? docData.solicitud.fechaCreacion.toDate() : (docData.solicitud?.fechaCreacion instanceof Date ? docData.solicitud.fechaCreacion : null),
-              detalles: {
-                ...docData.solicitud?.detalles,
-                fechaProgramada: docData.solicitud?.detalles?.fechaProgramada?.toDate ? docData.solicitud.detalles.fechaProgramada.toDate() : null,
-                fechaInicio: docData.solicitud?.detalles?.fechaInicio?.toDate ? docData.solicitud.detalles.fechaInicio.toDate() : null,
-              }
+    const unsubscribe = onSnapshot(collection(db, "solicitudes"), (snapshot) => {
+      const data = snapshot.docs.map(doc => {
+        const docData = doc.data();
+        return {
+          id: doc.id,
+          ...docData,
+          fechaCreacion: docData.fechaCreacion?.toDate ? docData.fechaCreacion.toDate() : (docData.fechaCreacion instanceof Date ? docData.fechaCreacion : null),
+          solicitud: {
+            ...docData.solicitud,
+            fechaCreacion: docData.solicitud?.fechaCreacion?.toDate ? docData.solicitud.fechaCreacion.toDate() : (docData.solicitud?.fechaCreacion instanceof Date ? docData.solicitud.fechaCreacion : null),
+            detalles: {
+              ...docData.solicitud?.detalles,
+              fechaProgramada: docData.solicitud?.detalles?.fechaProgramada?.toDate ? docData.solicitud.detalles.fechaProgramada.toDate() : null,
+              fechaInicio: docData.solicitud?.detalles?.fechaInicio?.toDate ? docData.solicitud.detalles.fechaInicio.toDate() : null,
             }
-          };
-        });
-        setSolicitudes(data);
-      } catch (error) {
-        console.error("Error cargando solicitudes:", error);
-      }
-    };
+          }
+        };
+      });
+      setSolicitudes(data);
+    }, (error) => {
+      console.error("Error cargando solicitudes:", error);
+    });
 
-    cargarSolicitudes();
+    return () => unsubscribe();
   }, []);
 
   // Cargar flotas para el dropdown
@@ -125,20 +138,44 @@ const Solicitudes = () => {
     if (!categoria) return [];
     
     const categoriaNorm = normalizarTexto(categoria);
+    const servicioNorm = normalizarTexto(servicio);
     
     const flotasDisponibles = flotas.filter(flota => {
-      // Buscar en el array de servicios
       const servicios = flota.servicios;
-      if (!Array.isArray(servicios)) return false;
+      if (!servicios || typeof servicios !== 'object') {
+        return false;
+      }
       
-      // Buscar servicios que contengan la categoría normalizada
-      const encontrado = servicios.some(svc => {
-        const svcNorm = normalizarTexto(svc);
-        // Solo verificar que el servicio comience o contenga la categoría
-        return svcNorm.includes(categoriaNorm);
-      });
+      // Buscar en todas las ciudades
+      for (const ciudad of Object.keys(servicios)) {
+        const serviciosCiudad = servicios[ciudad];
+        if (!serviciosCiudad || typeof serviciosCiudad !== 'object') continue;
+        
+        // Buscar servicios que coincidan con la categoría y servicio
+        for (const servicioDato of Object.values(serviciosCiudad)) {
+          if (!servicioDato || typeof servicioDato !== 'object') continue;
+          
+          const catFlota = normalizarTexto(servicioDato.categoria || "");
+          // Buscar tanto en servicio como en nombre_visible
+          const servFlota = normalizarTexto(servicioDato.servicio || servicioDato.nombre_visible || "");
+          
+          // Comparar: buscar si la categoría coincide (incluyendo variaciones de idioma)
+          const categoriasCoinciden = 
+            catFlota === categoriaNorm || 
+            (categoriaNorm.includes("construction") && catFlota.includes("construccion")) ||
+            (categoriaNorm.includes("construccion") && catFlota.includes("construccion")) ||
+            (categoriaNorm.includes("maquinaria") && catFlota.includes("maquinaria"));
+          
+          // Si servicioNorm está vacío, solo verificar categoría
+          const servicioCoincide = servicioNorm === "" || servFlota.includes(servicioNorm);
+          
+          if (categoriasCoinciden && servicioCoincide) {
+            return true;
+          }
+        }
+      }
       
-      return encontrado;
+      return false;
     });
     
     return flotasDisponibles;
@@ -388,25 +425,60 @@ const Solicitudes = () => {
       handleCloseDialog();
     } catch (error) {
       console.error("Error asignando flota:", error);
+      addNotification({
+        type: "error",
+        title: "Error",
+        message: "Hubo un error al asignar la solicitud. Intenta de nuevo.",
+        duration: 2000,
+      });
     }
   };
 
   // Rechazar solicitud
-  const handleRechazarSolicitud = async (id) => {
-    if (!window.confirm("¿Rechazar esta solicitud?")) return;
+  const handleAbrirRechazarDialog = (solicitud) => {
+    setSolicitudParaRechazar(solicitud);
+    setRechazarDialogOpen(true);
+  };
+
+  const handleConfirmarRechazo = async () => {
+    if (!solicitudParaRechazar) return;
 
     try {
-      await updateDoc(doc(db, "solicitudes", id), {
-        estado: "rechazada",
-        fecha_rechazo: new Date()
+      await updateDoc(doc(db, "solicitudes", solicitudParaRechazar.id), {
+        estado: "pendiente", // Vuelve a pendiente para poder reasignarla
+        fecha_rechazo: new Date(),
+        flota_asignada: null, // Limpia la asignación anterior
+        fecha_asignacion: null
       });
 
       setSolicitudes(solicitudes.map(s =>
-        s.id === id ? { ...s, estado: "rechazada" } : s
+        s.id === solicitudParaRechazar.id ? { ...s, estado: "pendiente", flota_asignada: null } : s
       ));
+
+      // Agregar notificación
+      addNotification({
+        type: "info",
+        title: "Solicitud Rechazada",
+        message: "La solicitud ha sido rechazada y vuelve a pendiente para reasignación.",
+        duration: 2000,
+      });
+
+      setRechazarDialogOpen(false);
+      setSolicitudParaRechazar(null);
     } catch (error) {
       console.error("Error rechazando solicitud:", error);
+      addNotification({
+        type: "error",
+        title: "Error",
+        message: "Hubo un error al rechazar la solicitud. Intenta de nuevo.",
+        duration: 2000,
+      });
     }
+  };
+
+  const handleCancelarRechazo = () => {
+    setRechazarDialogOpen(false);
+    setSolicitudParaRechazar(null);
   };
 
   // Manejadores para filtro de fecha
@@ -541,7 +613,7 @@ const Solicitudes = () => {
           onVerDetalles={handleVerDetalles}
           onVerOferta={handleVerOferta}
           onAsignarFlota={handleOpenDialog}
-          onRechazar={handleRechazarSolicitud}
+          onRechazar={handleAbrirRechazarDialog}
           formatearFecha={formatearFecha}
           getEstadoColor={getEstadoColor}
         />
@@ -575,7 +647,10 @@ const Solicitudes = () => {
         asignadaFlota={asignadaFlota}
         onFlotaChange={setAsignadaFlota}
         onAsignar={handleAsignarFlota}
-        flotasDisponibles={obtenerFlotasDisponibles(selectedSolicitud?.solicitud?.categoria || "")}
+        flotasDisponibles={obtenerFlotasDisponibles(
+          selectedSolicitud?.solicitud?.categoria || "",
+          selectedSolicitud?.solicitud?.servicio || ""
+        )}
       />
 
       <DetallesDialog
@@ -591,6 +666,82 @@ const Solicitudes = () => {
         onClose={handleCloseOfertaDialog}
         solicitudOferta={solicitudOferta}
       />
+
+      {/* Diálogo para rechazar solicitud */}
+      <Dialog 
+        open={rechazarDialogOpen} 
+        onClose={handleCancelarRechazo}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ 
+          backgroundColor: "#d7171a", 
+          color: "white",
+          fontWeight: "bold",
+          fontSize: "1.3rem"
+        }}>
+          ⚠️ Rechazar Solicitud
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Typography variant="body1" sx={{ color: "#333" }}>
+              ¿Estás seguro de que deseas rechazar esta solicitud?
+            </Typography>
+            {solicitudParaRechazar && (
+              <Box sx={{ 
+                backgroundColor: "#fff3e0", 
+                p: 2, 
+                borderRadius: 1,
+                border: "1px solid #ffe0b2"
+              }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: "bold", mb: 1 }}>
+                  Detalles de la solicitud:
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Categoría:</strong> {solicitudParaRechazar.solicitud?.categoria || "N/A"}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Servicio:</strong> {solicitudParaRechazar.solicitud?.servicio || "N/A"}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Dirección:</strong> {solicitudParaRechazar.solicitud?.ubicacion?.direccion || "N/A"}
+                </Typography>
+              </Box>
+            )}
+            <Typography variant="body2" sx={{ color: "#999", fontStyle: "italic" }}>
+              Esta acción no se puede deshacer. La solicitud volverá a estado pendiente y podrá ser reasignada.
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button 
+            onClick={handleCancelarRechazo}
+            variant="outlined"
+            sx={{ 
+              borderColor: "#999",
+              color: "#999",
+              "&:hover": {
+                borderColor: "#666",
+                backgroundColor: "#f5f5f5"
+              }
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleConfirmarRechazo}
+            variant="contained" 
+            sx={{ 
+              backgroundColor: "#d7171a",
+              "&:hover": {
+                backgroundColor: "#b81315"
+              }
+            }}
+          >
+            Sí, Rechazar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

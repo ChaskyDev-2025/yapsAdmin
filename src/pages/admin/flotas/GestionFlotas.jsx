@@ -17,8 +17,12 @@ import { FlotasTable } from "./components/FlotasTable";
 import { FlotaFormDialog } from "./components/FlotaFormDialog";
 import { DocsManagerModal } from "./components/DocsManagerModal";
 import ServiciosManagerModalNew from "./components/ServiciosManagerModalNew";
+import ReasignarConductoresModal from "./components/ReasignarConductoresModal";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
 import DateFilterComponent from "../usuarios/components/DateFilterComponent";
+
+// Hooks para reasignación
+import { useReasignarConductores } from "./hooks/useReasignarConductores";
 
 const GestionFlotas = () => {
   // Hooks personalizados
@@ -26,6 +30,7 @@ const GestionFlotas = () => {
   const { administradores } = useAdministradores();
   const { serviciosDisponibles, serviciosPorCiudad } = useServicios();
   const { documentosPorCiudad } = useDocumentosPorCiudad();
+  const { reasignarConductoresYEliminarFlota } = useReasignarConductores();
 
   // Estados locales
   const [openDialog, setOpenDialog] = useState(false);
@@ -87,6 +92,9 @@ const GestionFlotas = () => {
 
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const [confirmDialog, setConfirmDialog] = useState({ open: false, flotaId: null, flotaNombre: "" });
+  const [reasignarModalOpen, setReasignarModalOpen] = useState(false);
+  const [flotaEnReasignacion, setFlotaEnReasignacion] = useState(null);
+  const [reasignandoConductores, setReasignandoConductores] = useState(false);
 
   const showSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
@@ -432,10 +440,39 @@ const GestionFlotas = () => {
     }
   };
 
-  const handleDelete = (flotaId, flotaNombre) => {
-    setConfirmDialog({ open: true, flotaId, flotaNombre });
+  const handleDelete = (flota) => {
+    setFlotaEnReasignacion(flota);
+    setReasignarModalOpen(true);
   };
 
+  const handleConfirmReasignacion = async (reasignaciones) => {
+    try {
+      setReasignandoConductores(true);
+      await reasignarConductoresYEliminarFlota(
+        flotaEnReasignacion.id,
+        reasignaciones
+      );
+      showSnackbar(
+        "Flota eliminada y conductores reasignados exitosamente",
+        "success"
+      );
+      setReasignarModalOpen(false);
+      setFlotaEnReasignacion(null);
+      await fetchFlotas();
+    } catch (error) {
+      console.error("Error:", error);
+      showSnackbar("Error al procesar la reasignación", "error");
+    } finally {
+      setReasignandoConductores(false);
+    }
+  };
+
+  const handleCancelReasignacion = () => {
+    setReasignarModalOpen(false);
+    setFlotaEnReasignacion(null);
+  };
+
+  // Deprecated: Usar handleConfirmReasignacion en su lugar
   const handleConfirmDelete = async () => {
     const { flotaId } = confirmDialog;
     setConfirmDialog({ open: false, flotaId: null, flotaNombre: "" });
@@ -679,6 +716,15 @@ const GestionFlotas = () => {
         flota={selectedFlotaForServicios}
         serviciosPorCiudad={serviciosPorCiudad}
         onSaveServicios={handleSaveServicios}
+      />
+
+      {/* Modal de reasignación de conductores */}
+      <ReasignarConductoresModal
+        open={reasignarModalOpen}
+        onClose={handleCancelReasignacion}
+        flota={flotaEnReasignacion}
+        onConfirm={handleConfirmReasignacion}
+        loading={reasignandoConductores}
       />
 
       {/* Diálogo de confirmación de eliminación */}

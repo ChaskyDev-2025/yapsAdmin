@@ -11,6 +11,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Alert,
 } from "@mui/material";
 
 const AsignarFlotaDialog = ({
@@ -22,6 +23,9 @@ const AsignarFlotaDialog = ({
   onAsignar,
   flotasDisponibles,
 }) => {
+  const noHayFlotas = !flotasDisponibles || flotasDisponibles.length === 0;
+  const sinSeleccionar = !asignadaFlota;
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Asignar Flota a Solicitud</DialogTitle>
@@ -42,20 +46,27 @@ const AsignarFlotaDialog = ({
               fullWidth
               size="small"
             />
-            <FormControl fullWidth size="small">
-              <InputLabel>Seleccionar Flota</InputLabel>
-              <Select
-                value={asignadaFlota}
-                label="Seleccionar Flota"
-                onChange={(e) => onFlotaChange(e.target.value)}
-              >
-                {flotasDisponibles.map((flota) => (
-                  <MenuItem key={flota.id} value={flota.id}>
-                    {flota.nombre || flota.id}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            
+            {noHayFlotas ? (
+              <Alert severity="error">
+                No hay flotas disponibles con el servicio "{selectedSolicitud.solicitud?.servicio || ''}"
+              </Alert>
+            ) : (
+              <FormControl fullWidth size="small">
+                <InputLabel>Seleccionar Flota</InputLabel>
+                <Select
+                  value={asignadaFlota}
+                  label="Seleccionar Flota"
+                  onChange={(e) => onFlotaChange(e.target.value)}
+                >
+                  {flotasDisponibles.map((flota) => (
+                    <MenuItem key={flota.id} value={flota.id}>
+                      {flota.nombre || flota.id}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
           </Box>
         )}
       </DialogContent>
@@ -64,7 +75,14 @@ const AsignarFlotaDialog = ({
         <Button
           onClick={onAsignar}
           variant="contained"
-          sx={{ backgroundColor: "#d7171a" }}
+          disabled={noHayFlotas || sinSeleccionar}
+          sx={{ 
+            backgroundColor: "#d7171a",
+            "&:disabled": {
+              backgroundColor: "#ccc",
+              color: "#999"
+            }
+          }}
         >
           Asignar
         </Button>

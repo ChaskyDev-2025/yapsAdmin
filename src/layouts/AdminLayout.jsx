@@ -28,12 +28,16 @@ import LogoImg         from "../assets/YAAPS_LOGO.png";
 import { useAuth } from "../auth/AuthContext";
 import { isSuperAdmin } from "../services/userService";
 import { useNotifications } from "../hooks/useNotifications";
+import { useFlotaSolicitudesListener } from "../hooks/useFlotaSolicitudesListener";
 
 const AdminLayout = () => {
-  const { userRole } = useAuth();
+  const { userRole, userFlotaId } = useAuth();
   
   // Inicializar listeners de notificaciones para SuperAdmin
   useNotifications();
+
+  // Inicializar listener de nuevas solicitudes asignadas (para admin de flotas)
+  useFlotaSolicitudesListener(userFlotaId);
 
   // Menú dinámico según el rol
   const menuItems = useMemo(() => {

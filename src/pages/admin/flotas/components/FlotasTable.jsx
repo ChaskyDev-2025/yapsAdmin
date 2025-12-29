@@ -263,7 +263,7 @@ export const FlotasTable = ({
                     <IconButton onClick={() => onEdit(flota)} sx={{ color: "#d7171a" }}>
                       <EditIcon />
                     </IconButton>
-                    <IconButton onClick={() => onDelete(flota.id, flota.nombre)} sx={{ color: "#484848" }}>
+                    <IconButton onClick={() => onDelete(flota)} sx={{ color: "#484848" }}>
                       <DeleteIcon />
                     </IconButton>
                   </TableCell>
