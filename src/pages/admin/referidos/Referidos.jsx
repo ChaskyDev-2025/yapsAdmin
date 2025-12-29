@@ -27,7 +27,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import HistoryIcon from "@mui/icons-material/History";
 import TableToolbar from "../usuarios/components/TableToolbar";
-import { collection, getDocs, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, onSnapshot, doc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 import { obtenerTodosLosCodeigos } from "../../../services/codigosPromoService";
 
@@ -36,12 +36,14 @@ import ReferidosHeader from "./components/ReferidosHeader";
 import StatsGrid from "./components/StatsGrid";
 import HistorialModal from "./components/HistorialModal";
 import ModalCodigoPromo from "./components/ModalCodigoPromo";
+import SorteosTab from "./components/SorteosTab";
 
 const Referidos = () => {
   const [referidosData, setReferidosData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState(0);
   const [pasajerosDonaciones, setPasajerosDonaciones] = useState([]);
+  const [totalCupones, setTotalCupones] = useState(0);
   const [stats, setStats] = useState({
     total: 0,
     totalReferidos: 0,
@@ -96,22 +98,20 @@ const Referidos = () => {
   const [pagePasajeros, setPagePasajeros] = useState(0);
   const [pageDonaciones, setPageDonaciones] = useState(0);
 
-  // Resetear página al cambiar búsqueda
+  // Cargar total de cupones del documento sorteo_apertura
   useEffect(() => {
-    setPageTrabajadores(0);
-  }, [searchTrabajadores]);
-
-  useEffect(() => {
-    setPagePasajeros(0);
-  }, [searchPasajeros]);
-
-  useEffect(() => {
-    setPageDonaciones(0);
-  }, [searchDonaciones]);
-
-  useEffect(() => {
-    setPageDonaciones(0);
-  }, [filterDepartamentoDonaciones]);
+    try {
+      const sorteoAperturaRef = doc(db, "sorteos", "sorteo_apertura");
+      const unsubscribe = onSnapshot(sorteoAperturaRef, (docSnap) => {
+        if (docSnap.exists()) {
+          setTotalCupones(docSnap.data().ultimoNumero || 0);
+        }
+      });
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Error cargando total de cupones:", error);
+    }
+  }, []);
 
   useEffect(() => {
     // Listeners en tiempo real
@@ -197,6 +197,31 @@ const Referidos = () => {
     };
   }, []);
 
+  // Resetear página al cambiar búsqueda
+  useEffect(() => {
+    setPageTrabajadores(0);
+  }, [searchTrabajadores]);
+
+  useEffect(() => {
+    setPagePasajeros(0);
+  }, [searchPasajeros]);
+
+  useEffect(() => {
+    setPageDonaciones(0);
+  }, [searchDonaciones]);
+
+  useEffect(() => {
+    setPageDonaciones(0);
+  }, [filterDepartamentoDonaciones]);
+
+  // Actualizar stats cuando totalCupones cambia
+  useEffect(() => {
+    setStats(prevStats => ({
+      ...prevStats,
+      totalCupones
+    }));
+  }, [totalCupones]);
+
   const fetchReferidosDataRealtime = (trabajadoresSnapshot, pasajerosMap) => {
     try {
       let totalReferidos = 0;
@@ -280,6 +305,7 @@ const Referidos = () => {
         totalReferidos,
         totalTickets,
         totalDonaciones,
+        totalCupones,
       });
     } catch (error) {
       console.error("Error al procesar datos de referidos en tiempo real:", error);
@@ -334,6 +360,8 @@ const Referidos = () => {
         total: conductores.length,
         totalReferidos,
         totalTickets,
+        totalDonaciones: stats.totalDonaciones,
+        totalCupones: stats.totalCupones,
       };
     } else if (selectedTab === 1) {
       // Pasajeros
@@ -348,12 +376,14 @@ const Referidos = () => {
         total: pasajeros.length,
         totalReferidos,
         totalTickets,
+        totalDonaciones: stats.totalDonaciones,
+        totalCupones: stats.totalCupones,
       };
     } else if (selectedTab === 2) {
-      // Donaciones - no tiene stats específicas por ahora
+      // Donaciones - retorna stats completo
       return stats;
     } else {
-      // Códigos Promo
+      // Códigos Promo - retorna stats completo
       return stats;
     }
   }, [selectedTab, referidosData, stats]);
@@ -502,6 +532,7 @@ const Referidos = () => {
           <Tab label="👤 Pasajeros" icon={undefined} />
           <Tab label="💝 Donaciones" icon={undefined} />
           <Tab label="🎟️ Códigos Promocionales" icon={undefined} />
+          <Tab label="🎰 Sorteos" icon={undefined} />
         </Tabs>
       </Box>
 
@@ -1254,6 +1285,13 @@ const Referidos = () => {
                   No hay códigos promocionales registrados
                 </Typography>
               )}
+            </Box>
+          )}
+
+          {/* PESTAÑA DE SORTEOS */}
+          {selectedTab === 4 && (
+            <Box>
+              <SorteosTab />
             </Box>
           )}
         </Box>

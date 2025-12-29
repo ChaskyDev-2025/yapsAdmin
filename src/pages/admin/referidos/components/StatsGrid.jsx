@@ -6,11 +6,12 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import CardGiftcardIcon from "@mui/icons-material/CardGiftcard";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import LocalAtmIcon from "@mui/icons-material/LocalAtm";
+import CardBoardIcon from "@mui/icons-material/CardGiftcard";
 
 const StatsGrid = ({ stats, loading }) => {
   return (
     <Grid container spacing={3} sx={{ mb: 4 }}>
-      <Grid item xs={12} sm={6} md={2.4}>
+      <Grid item xs={12} sm={6} md={2}>
         <StatCard
           title="Total participantes"
           value={loading ? "..." : stats.total}
@@ -19,7 +20,7 @@ const StatsGrid = ({ stats, loading }) => {
           color="#9c27b0"
         />
       </Grid>
-      <Grid item xs={12} sm={6} md={2.4}>
+      <Grid item xs={12} sm={6} md={2}>
         <StatCard
           title="Total Referidos"
           value={loading ? "..." : stats.totalReferidos}
@@ -28,7 +29,7 @@ const StatsGrid = ({ stats, loading }) => {
           color="#4caf50"
         />
       </Grid>
-      <Grid item xs={12} sm={6} md={2.4}>
+      <Grid item xs={12} sm={6} md={2}>
         <StatCard
           title="Tickets Generados"
           value={loading ? "..." : stats.totalTickets}
@@ -37,7 +38,7 @@ const StatsGrid = ({ stats, loading }) => {
           color="#ff9800"
         />
       </Grid>
-      <Grid item xs={12} sm={6} md={2.4}>
+      <Grid item xs={12} sm={6} md={2}>
         <StatCard
           title="Total Donaciones"
           value={loading ? "..." : `Bs. ${(stats.totalDonaciones || 0).toFixed(2)}`}
@@ -46,7 +47,7 @@ const StatsGrid = ({ stats, loading }) => {
           color="#2196f3"
         />
       </Grid>
-      <Grid item xs={12} sm={6} md={2.4}>
+      <Grid item xs={12} sm={6} md={2}>
         <StatCard
           title="Promedio"
           value={
@@ -59,6 +60,15 @@ const StatsGrid = ({ stats, loading }) => {
           subtitle="Referidos por usuario"
           icon={EmojiEventsIcon}
           color="#f44336"
+        />
+      </Grid>
+      <Grid item xs={12} sm={6} md={2}>
+        <StatCard
+          title="Total Cupones"
+          value={loading ? "..." : stats.totalCupones || 0}
+          subtitle="Rifas generadas"
+          icon={CardBoardIcon}
+          color="#d7171a"
         />
       </Grid>
     </Grid>
