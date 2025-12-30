@@ -11,7 +11,11 @@ import {
   Tab,
   Chip,
   Stack,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from "@mui/material";
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CheckIcon from "@mui/icons-material/Check";
 
 export const ServiciosManagerModalNew = ({
@@ -65,13 +69,18 @@ export const ServiciosManagerModalNew = ({
         // Agregarlo con el campo original que tiene el servicio
         const nombreValue = servicio.servicio || servicio.nombre_visible || servicio.nombre;
         const servicioObj = { categoria: servicio.categoria };
-        
+
         if (servicio._nombreField === 'servicio' || servicio.hasOwnProperty('servicio')) {
           servicioObj.servicio = nombreValue;
         } else if (servicio._nombreField === 'nombre_visible' || servicio.hasOwnProperty('nombre_visible')) {
           servicioObj.nombre_visible = nombreValue;
         } else {
           servicioObj.nombre = nombreValue;
+        }
+
+        // Incluir zona si el servicio la tiene (caso La Paz)
+        if (servicio.zona) {
+          servicioObj.zona = servicio.zona;
         }
         
         return { 
@@ -171,49 +180,6 @@ export const ServiciosManagerModalNew = ({
         )}
 
         <Box sx={{ p: 2 }}>
-          {/* Servicios seleccionados por ciudad */}
-          {Object.keys(serviciosSeleccionados).length > 0 && (
-            <Box sx={{ mb: 3, pb: 2, borderBottom: "1px solid #e0e0e0" }}>
-              <Typography
-                variant="h6"
-                sx={{
-                  fontFamily: "Mulish, sans-serif",
-                  fontWeight: 600,
-                  mb: 1,
-                  color: "#d7171a",
-                }}
-              >
-                Servicios Asignados ({totalServicios})
-              </Typography>
-              {Object.entries(serviciosSeleccionados).map(([ciudad, servicios]) => (
-                <Box key={ciudad} sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 500, mb: 1 }}>
-                    📌 {ciudad}
-                  </Typography>
-                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, pl: 1 }}>
-                    {Object.entries(servicios || {}).map(([slug, servicio]) => {
-                      const nombreServicio = servicio.servicio || servicio.nombre_visible || servicio.nombre;
-                      return (
-                      <Chip
-                        key={slug}
-                        label={`${nombreServicio} - ${servicio.categoria}`}
-                        onDelete={() => handleRemoveServicio(ciudad, slug)}
-                        sx={{
-                          bgcolor: "#d7171a",
-                          color: "white",
-                          fontFamily: "Mulish, sans-serif",
-                          fontWeight: 500,
-                          "& .MuiChip-deleteIcon": { color: "white" },
-                        }}
-                      />
-                    );
-                    })}
-                  </Box>
-                </Box>
-              ))}
-            </Box>
-          )}
-
           {/* Servicios disponibles de la ciudad seleccionada */}
           {ciudadSeleccionada && serviciosPorCiudad[ciudadSeleccionada] && (
             <Box>
@@ -265,15 +231,22 @@ export const ServiciosManagerModalNew = ({
                               bgcolor: isSelected ? "rgba(215, 23, 26, 0.1)" : "transparent",
                             }}
                           >
-                            <Typography
-                              sx={{
-                                fontFamily: "Mulish, sans-serif",
-                                fontWeight: 500,
-                                flex: 1,
-                              }}
-                            >
-                              {servicio.servicio || servicio.nombre_visible || servicio.nombre}
-                            </Typography>
+                            <Box sx={{ flex: 1 }}>
+                              <Typography
+                                sx={{
+                                  fontFamily: "Mulish, sans-serif",
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {servicio.servicio || servicio.nombre_visible || servicio.nombre}
+                              </Typography>
+                              {/* Mostrar zona solo para La Paz (si existe) */}
+                              {ciudadSeleccionada === 'La Paz' && servicio.zona && (
+                                <Typography sx={{ fontFamily: "Mulish, sans-serif", fontSize: '0.8rem', color: '#666' }}>
+                                  Zona: {servicio.zona}
+                                </Typography>
+                              )}
+                            </Box>
                             <Button
                               size="small"
                               variant={isSelected ? "contained" : "outlined"}

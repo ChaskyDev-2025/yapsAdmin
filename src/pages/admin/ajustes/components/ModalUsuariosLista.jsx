@@ -9,6 +9,12 @@ import { useState, useEffect } from "react";
 import { collection, getDocs, doc, getDoc, query, where, deleteDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../../../data/firebase/firebase";
 
+// Función para capitalizar texto
+const capitalize = (str) => {
+  if (!str) return "";
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
+
 export default function ModalUsuariosLista({ userId }) {
   const [usuarios, setUsuarios] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -53,9 +59,9 @@ export default function ModalUsuariosLista({ userId }) {
           const trabajador = doc.data();
           return {
             id: doc.id,
-            nombre: trabajador.perfil?.name || "Sin nombre",
-            email: trabajador.perfil?.email || "Sin email",
-            telefono: trabajador.perfil?.phone || "Sin teléfono",
+            nombre: trabajador.perfil?.name || trabajador.perfil?.nombre || trabajador.nombre || "Sin nombre",
+            email: trabajador.perfil?.email || trabajador.email || "Sin email",
+            telefono: trabajador.perfil?.phone || trabajador.perfil?.telefono || trabajador.telefono || "Sin teléfono",
             rol: "Trabajador",
             cargo: "Conductor",
             ...trabajador,
@@ -196,7 +202,7 @@ export default function ModalUsuariosLista({ userId }) {
                   primary={
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
                       <Typography variant="subtitle1" fontWeight="bold">
-                        {usuario.nombre || "Sin nombre"}
+                        {capitalize(usuario.nombre) || "Sin nombre"}
                       </Typography>
                       <Chip
                         label={usuario.rol || "Usuario"}

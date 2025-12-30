@@ -31,25 +31,30 @@ const AdminRoutes = () => (
     <Route path="" element={<AdminLayout />}>
       <Route path="dashboard" element={<Dashboard />} />
 
-      <Route path="usuarios" element={<GestionUsuarios />} />
-      <Route path="gestion-usuarios" element={<GestionUsuarios />} />
-      <Route path="verificar-rol" element={<VerificarRol />} />
-      <Route path="radiotaxis" element={<Radiotaxis />} />
-      <Route path="servicios" element={<GestionServicios />} />
-      <Route path="ajustes" element={<Ajustes />} />
-      <Route path="landing" element={<Landing />} />
-      <Route path="onboarding" element={<Onboarding />} />
-      <Route path="banners" element={<Banners />} />
-      <Route path="personalizar" element={<Personalizar />} />
+      {/* RUTAS SOLO SUPERADMIN */}
+      <Route path="usuarios" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><GestionUsuarios /></RoleProtectedRoute>} />
+      <Route path="gestion-usuarios" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><GestionUsuarios /></RoleProtectedRoute>} />
+      <Route path="verificar-rol" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><VerificarRol /></RoleProtectedRoute>} />
+      <Route path="radiotaxis" element={<RoleProtectedRoute allowedRoles={["superadmin", "admin"]}><Radiotaxis /></RoleProtectedRoute>} />
+      <Route path="servicios" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><GestionServicios /></RoleProtectedRoute>} />
+      <Route path="ajustes" element={<RoleProtectedRoute allowedRoles={["superadmin", "admin"]}><Ajustes /></RoleProtectedRoute>} />
+      <Route path="landing" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Landing /></RoleProtectedRoute>} />
+      <Route path="onboarding" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Onboarding /></RoleProtectedRoute>} />
+      <Route path="banners" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Banners /></RoleProtectedRoute>} />
+      <Route path="personalizar" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Personalizar /></RoleProtectedRoute>} />
       <Route path="perfil" element={<Perfil />} />
-      <Route path="documentos" element={<Documentos />} />
-      <Route path="documentos-pendientes" element={<DocumentosPendientes />} />
-      <Route path="flotas" element={<GestionFlotas />} />
-      <Route path="referidos" element={<Referidos />} />
-      <Route path="solicitudes" element={<Solicitudes />} />
-      <Route path="solicitudes-asignadas" element={<SolicitudesAsignadas />} />
-      <Route path="billetera" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Billetera /></RoleProtectedRoute>} />
+      <Route path="documentos" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Documentos /></RoleProtectedRoute>} />
+      <Route path="documentos-pendientes" element={<RoleProtectedRoute allowedRoles={["superadmin", "admin"]}><DocumentosPendientes /></RoleProtectedRoute>} />
+      <Route path="flotas" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><GestionFlotas /></RoleProtectedRoute>} />
+      <Route path="referidos" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Referidos /></RoleProtectedRoute>} />
+      <Route path="solicitudes" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Solicitudes /></RoleProtectedRoute>} />
+      
+      {/* RUTAS PARA FLOTAS */}
+      <Route path="solicitudes-asignadas" element={<FlotaProtectedRoute><SolicitudesAsignadas /></FlotaProtectedRoute>} />
       <Route path="billetera-flota" element={<FlotaProtectedRoute><BilleteraFlota /></FlotaProtectedRoute>} />
+      
+      {/* RUTAS SOLO SUPERADMIN (BILLETERA Y SOLICITUDES DE RECARGA) */}
+      <Route path="billetera" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Billetera /></RoleProtectedRoute>} />
       <Route path="solicitudes-recarga" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><GestionarSolicitudes /></RoleProtectedRoute>} />
     </Route>
   </Routes>

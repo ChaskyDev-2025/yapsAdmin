@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useContext } from "react";
+import React, { useState, useEffect, useMemo, useContext, useRef } from "react";
 import {
   Container,
   Paper,
@@ -14,6 +14,7 @@ import {
 import {
   collection,
   getDocs,
+  getDoc,
   updateDoc,
   doc,
   onSnapshot,
@@ -31,7 +32,7 @@ import DetallesDialog from "./components/DetallesDialog";
 import OfertaDialog from "./components/OfertaDialog";
 
 const Solicitudes = () => {
-  const { addNotification } = useContext(NotificationContext);
+  const { addNotification, deleteNotification } = useContext(NotificationContext);
   
   // Estilos para campos deshabilitados
   const disabledTextFieldStyles = {
@@ -65,6 +66,10 @@ const Solicitudes = () => {
   const ITEMS_PER_PAGE = 10;
   const [pageSolicitudes, setPageSolicitudes] = useState(0);
 
+  // Refs para comparar cambios entre snapshots (evita capturar estado stale)
+  const prevSolicitudesRef = useRef([]);
+  const initializedRef = useRef(false);
+
   // Resetear página al cambiar búsqueda o filtros
   useEffect(() => {
     setPageSolicitudes(0);
@@ -90,7 +95,12 @@ const Solicitudes = () => {
           }
         };
       });
+
       setSolicitudes(data);
+      // Guardar snapshot actual para comparaciones en la siguiente actualización
+      try {
+        prevSolicitudesRef.current = data;
+      } catch (e) {}
     }, (error) => {
       console.error("Error cargando solicitudes:", error);
     });
@@ -132,6 +142,8 @@ const Solicitudes = () => {
       .replace(/ú/g, "u")
       .replace(/ñ/g, "n");
   };
+
+  
 
   // Obtener flotas disponibles para una categoría y servicio
   const obtenerFlotasDisponibles = (categoria, servicio) => {
@@ -512,13 +524,18 @@ const Solicitudes = () => {
       } else if (typeof fecha === 'object' && fecha.toDate) {
         // Si es un Timestamp de Firebase
         d = fecha.toDate();
+      } else if (typeof fecha === 'object' && typeof fecha.seconds === 'number') {
+        // Objeto REST-like { seconds, nanoseconds }
+        d = new Date(fecha.seconds * 1000);
+      } else if (typeof fecha === 'number') {
+        d = new Date(fecha);
       } else {
-        // Intentar crear una fecha
+        // Intentar crear una fecha desde string u otro
         d = new Date(fecha);
       }
-      
+
       if (isNaN(d.getTime())) return "-";
-      
+
       return d.toLocaleDateString("es-ES", {
         year: "numeric",
         month: "2-digit",
@@ -547,6 +564,39 @@ const Solicitudes = () => {
       default:
         return "default";
     }
+  };
+
+  // Cache local para nombres de usuarios (pasajeros)
+  const nombresPasajerosCacheRef = useRef({});
+  const [, setForceRender] = useState(0);
+
+  const obtenerNombreUsuario = (uid) => {
+    if (!uid) return "No disponible";
+    // Si lo tenemos en cache, devolverlo
+    if (nombresPasajerosCacheRef.current[uid]) return nombresPasajerosCacheRef.current[uid];
+
+    // Sino, iniciar fetch asíncrono y devolver 'Cargando...'
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, "pasajeros", uid));
+        if (snap && snap.exists && snap.exists()) {
+          const data = snap.data();
+          const nombre = data?.perfil?.name || data?.name || data?.email || "Usuario desconocido";
+          nombresPasajerosCacheRef.current[uid] = nombre;
+          setForceRender(f => f + 1);
+          return;
+        }
+
+        // Si no existe, marcar como desconocido
+        nombresPasajerosCacheRef.current[uid] = "Usuario desconocido";
+        setForceRender(f => f + 1);
+      } catch (e) {
+        nombresPasajerosCacheRef.current[uid] = "Usuario desconocido";
+        setForceRender(f => f + 1);
+      }
+    })();
+
+    return "Cargando...";
   };
 
   return (
@@ -659,6 +709,7 @@ const Solicitudes = () => {
         solicitudSeleccionada={solicitudSeleccionada}
         formatearFecha={formatearFecha}
         disabledTextFieldStyles={disabledTextFieldStyles}
+        obtenerNombreUsuario={obtenerNombreUsuario}
       />
 
       <OfertaDialog

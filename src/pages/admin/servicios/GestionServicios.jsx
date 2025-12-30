@@ -71,6 +71,7 @@ const CAMPOS_POR_CATEGORIA = {
 const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }) => {
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState('');
+  const [selectedZona, setSelectedZona] = useState('La Paz');
   const [serviceName, setServiceName] = useState('');
   const [camposDinamicos, setCamposDinamicos] = useState([]);
   const [formData, setFormData] = useState({
@@ -246,6 +247,8 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
     setFormData(prev => ({ ...prev, horasPico: newArr }));
   };
 
+  
+
   const handleSubmit = async () => {
     if (!category || !serviceName) return alert('Debe seleccionar una categoría y un servicio');
     setLoading(true);
@@ -324,10 +327,11 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
           tipo_calculo: formData.tipo_calculo,
           reglas_tarifa: tarifa_general_numerica
         };
+        // No incluir tarifas por zona (revertido a comportamiento original)
         key = `${category}_${serviceName}`.replace(/[^a-zA-Z0-9]/g, '_');
       }
 
-      await onSave(key, dataToSave);
+      await onSave(key, dataToSave, selectedZona);
       onClose();
     } catch (error) {
       console.error("Error saving service:", error);
@@ -390,6 +394,20 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
                 >
                   <MenuItem value="Bs">Bs</MenuItem>
                   <MenuItem value="USD">USD</MenuItem>
+                </Select>
+              </FormControl>
+            )}
+            {/* Mantener solo selector de zona junto a Unidad Precio (sin lógica adicional) */}
+            {department === 'La Paz' && (
+              <FormControl sx={{ minWidth: 160 }}>
+                <InputLabel>Zona</InputLabel>
+                <Select
+                  value={selectedZona}
+                  label="Zona"
+                  onChange={(e) => setSelectedZona(e.target.value)}
+                >
+                  <MenuItem value="La Paz">La Paz</MenuItem>
+                  <MenuItem value="El Alto">El Alto</MenuItem>
                 </Select>
               </FormControl>
             )}
@@ -701,17 +719,22 @@ const GestionServicios = () => {
     }
   };
 
-  const handleSaveService = async (serviceName, serviceData) => {
+  const handleSaveService = async (serviceName, serviceData, zona) => {
     if (!selectedDept) return;
+    // Attach zona as a simple field on the service object (no subcollections)
+    const payload = zona ? { ...serviceData, zona } : serviceData;
     try {
+      // If zona provided, save under a composite key: <serviceName>_<Zona_con_underscores>
+      const saveKey = zona ? `${serviceName}_${String(zona).replace(/\s+/g, '_')}` : serviceName;
       await updateDoc(doc(db, 'Tarifas', selectedDept), {
-        [serviceName]: serviceData
+        [saveKey]: payload
       });
     } catch (err) {
-      // If doc doesn't exist, create it
+      // If doc doesn't exist, create it with the service field
       try {
+        const saveKey = zona ? `${serviceName}_${String(zona).replace(/\s+/g, '_')}` : serviceName;
         await setDoc(doc(db, 'Tarifas', selectedDept), {
-          [serviceName]: serviceData,
+          [saveKey]: payload,
           enabled: deptStatus[selectedDept] || false
         }, { merge: true });
       } catch (setDocErr) {
@@ -924,6 +947,9 @@ const GestionServicios = () => {
                       <TableRow>
                         {visibleColumnsServicios.categoria && <TableCell sx={{ backgroundColor: '#000000', color: 'white', fontWeight: 700, fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>Categoría</TableCell>}
                         {visibleColumnsServicios.nombre && <TableCell sx={{ backgroundColor: '#000000', color: 'white', fontWeight: 700, fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>Servicio</TableCell>}
+                        {selectedDept === 'La Paz' && (
+                          <TableCell sx={{ backgroundColor: '#000000', color: 'white', fontWeight: 700, fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>Zona</TableCell>
+                        )}
                         {visibleColumnsServicios.estado && <TableCell sx={{ backgroundColor: '#000000', color: 'white', fontWeight: 700, fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>Estado</TableCell>}
                         {visibleColumnsServicios.tarifa_base && <TableCell sx={{ backgroundColor: '#000000', color: 'white', fontWeight: 700, fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>Tarifa Base</TableCell>}
                         {visibleColumnsServicios.acciones && <TableCell align="right" sx={{ backgroundColor: '#000000', color: 'white', fontWeight: 700, fontFamily: 'Mulish, sans-serif', fontSize: '0.95rem' }}>Acciones</TableCell>}
@@ -934,6 +960,9 @@ const GestionServicios = () => {
                         <TableRow key={srv.id}>
                           {visibleColumnsServicios.categoria && <TableCell>{formatearCategoria(srv.categoria)}</TableCell>}
                           {visibleColumnsServicios.nombre && <TableCell>{srv.servicio || srv.nombre_visible || srv.nombre || '-'}</TableCell>}
+                          {selectedDept === 'La Paz' && (
+                            <TableCell>{srv.zona || '-'}</TableCell>
+                          )}
                           {visibleColumnsServicios.estado && (
                             <TableCell>
                               <Typography color={srv.activo ? 'green' : 'text.secondary'}>
@@ -994,7 +1023,7 @@ const GestionServicios = () => {
                       ))}
                       {servicesFiltrados.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={5} align="center">No hay servicios registrados en este departamento.</TableCell>
+                          <TableCell colSpan={selectedDept === 'La Paz' ? 6 : 5} align="center">No hay servicios registrados en este departamento.</TableCell>
                         </TableRow>
                       )}
                     </TableBody>

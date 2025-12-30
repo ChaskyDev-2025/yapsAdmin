@@ -707,6 +707,7 @@ const GestionFlotas = () => {
         onClose={handleCloseDocsManagerModal}
         flota={selectedFlotaForDocs}
         onAssignTemplates={handleAssignTemplatesToFlota}
+        serviciosPorCiudad={serviciosPorCiudad}
       />
 
       {/* Modal de gestión de servicios por flota */}

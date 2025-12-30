@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -17,6 +17,42 @@ const GenerarOfertaModal = ({ open, onClose, solicitud, onSave }) => {
   const [costo, setCosto] = useState('');
   const [campos, setCampos] = useState([]);
   const [nuevoCampo, setNuevoField] = useState({ nombre: '', valor: '' });
+  const [showSolicitudPreview, setShowSolicitudPreview] = useState(false);
+
+  // Prefill costo from solicitud if available (check top-level and nested places)
+  useEffect(() => {
+    if (!solicitud) return;
+    const top = solicitud || {};
+    const nested = solicitud.solicitud || {};
+    const est = top.precioEstimado ?? nested.precioEstimado ?? null;
+    const base = top.precioBase ?? nested.precioBase ?? null;
+    const value = est ?? base;
+    if (value != null) setCosto(String(Number(value)));
+  }, [solicitud]);
+
+  // Buscar precio de referencia recursivamente en el objeto solicitud (hasta profundidad limitada)
+  const buscarPrecioRecursivo = (obj, depth = 0, maxDepth = 3) => {
+    if (!obj || typeof obj !== 'object' || depth > maxDepth) return null;
+    if (Object.prototype.hasOwnProperty.call(obj, 'precioEstimado') && obj.precioEstimado != null) return { value: Number(obj.precioEstimado), source: 'precioEstimado' };
+    if (Object.prototype.hasOwnProperty.call(obj, 'precioBase') && obj.precioBase != null) return { value: Number(obj.precioBase), source: 'precioBase' };
+    for (const k of Object.keys(obj)) {
+      try {
+        const v = obj[k];
+        if (v && typeof v === 'object') {
+          const found = buscarPrecioRecursivo(v, depth + 1, maxDepth);
+          if (found) return found;
+        }
+      } catch (e) { continue; }
+    }
+    return null;
+  };
+
+  // valor de referencia para mostrar en UI
+  const referenciaPrecio = (() => {
+    if (!solicitud) return { value: null, source: null };
+    const found = buscarPrecioRecursivo(solicitud, 0, 3);
+    return found ?? { value: null, source: null };
+  })();
 
   const handleAddCampo = () => {
     if (nuevoCampo.nombre.trim() && nuevoCampo.valor.trim()) {
@@ -44,6 +80,7 @@ const GenerarOfertaModal = ({ open, onClose, solicitud, onSave }) => {
 
     const oferta = {
       costo: calcularTotal(), // Total a cobrar (costo base + suma de campos)
+      costoServicio: parseFloat(costo) || 0, // Costo base del servicio (sin campos adicionales)
       campos: campos.reduce((acc, c) => {
         acc[c.nombre] = c.valor;
         return acc;
@@ -71,25 +108,39 @@ const GenerarOfertaModal = ({ open, onClose, solicitud, onSave }) => {
       <DialogTitle sx={{ backgroundColor: '#d7171a', color: 'white', fontWeight: 'bold' }}>
         💰 Generar Oferta
       </DialogTitle>
-      <DialogContent sx={{ pt: 3 }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <DialogContent sx={{ pt: 2, pb: 4 }}>
+        <Box sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {/* Categoría y Servicio */}
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
             <TextField
               label="Categoría"
-              value={solicitud?.solicitud?.categoria || ''}
+              value={solicitud?.solicitud?.categoria || solicitud?.categoria || ''}
               disabled
               size="small"
             />
             <TextField
               label="Servicio"
-              value={solicitud?.solicitud?.servicio || ''}
+              value={solicitud?.solicitud?.servicio || solicitud?.servicio || ''}
               disabled
               size="small"
             />
           </Box>
 
+          
+
           {/* Costo */}
+          {/* Referencia de precio (solo lectura, informativa) */}
+          {referenciaPrecio.value != null && (
+            <Box sx={{ mb: 1, p: 1, borderRadius: 1, backgroundColor: '#f5f5f5' }}>
+              <Typography variant="caption" sx={{ color: '#666' }}>
+                Referencia ({referenciaPrecio.source}):
+              </Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#333' }}>
+                Bs. {referenciaPrecio.value.toFixed(2)}
+              </Typography>
+            </Box>
+          )}
           <TextField
             label="Costo del Servicio (Bs)"
             type="number"
@@ -198,14 +249,102 @@ const GenerarOfertaModal = ({ open, onClose, solicitud, onSave }) => {
               </Box>
             </Box>
           </Box>
+          </Box>
         </Box>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
         <Button onClick={handleClose}>Cancelar</Button>
+        <Button onClick={() => setShowSolicitudPreview(true)}>Ver Solicitud</Button>
         <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#d7171a' }}>
           Enviar Oferta
         </Button>
       </DialogActions>
+      
+      {/* Diálogo de vista previa de la solicitud (no cierra el modal de oferta) */}
+      <Dialog open={showSolicitudPreview} onClose={() => setShowSolicitudPreview(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Vista previa de la solicitud</DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField label="Categoría" value={solicitud?.solicitud?.categoria || solicitud?.categoria || ''} disabled fullWidth size="small" />
+            <TextField label="Servicio" value={solicitud?.solicitud?.servicio || solicitud?.servicio || ''} disabled fullWidth size="small" />
+            <TextField
+              label="Dirección"
+              value={solicitud?.solicitud?.ubicacion?.direccion || solicitud?.ubicacion?.direccion || ''}
+              disabled
+              fullWidth
+              size="small"
+              multiline
+              minRows={2}
+            />
+            <TextField
+              label="Descripción"
+              value={solicitud?.solicitud?.descripcion || solicitud?.descripcion || ''}
+              disabled
+              fullWidth
+              size="small"
+              multiline
+              minRows={2}
+            />
+            <TextField
+              label="Precio estimado (referencia)"
+              value={referenciaPrecio.value != null ? `Bs. ${referenciaPrecio.value.toFixed(2)} (${referenciaPrecio.source})` : 'No disponible'}
+              disabled
+              fullWidth
+              size="small"
+            />
+
+            {/* Datos Específicos: renderizado flexible para objects/arrays/primitivos */}
+            {(() => {
+              const datos = solicitud?.solicitud?.datosEspecificos ?? solicitud?.datosEspecificos;
+              if (!datos) return null;
+
+              // Si es un array, iterar por elementos
+              if (Array.isArray(datos)) {
+                return (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#d7171a' }}>🔎 Datos Específicos</Typography>
+                    {datos.map((item, idx) => (
+                      <Box key={idx} sx={{ p: 1, backgroundColor: '#fafafa', borderRadius: 1 }}>
+                        {item && typeof item === 'object' ? (
+                          Object.entries(item).map(([k, v]) => (
+                            <TextField key={k} label={k} value={v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v))} disabled fullWidth size="small" sx={{ mb: 1 }} />
+                          ))
+                        ) : (
+                          <TextField label={`item ${idx + 1}`} value={item == null ? '' : String(item)} disabled fullWidth size="small" />
+                        )}
+                      </Box>
+                    ))}
+                  </Box>
+                );
+              }
+
+              // Si es un objeto, iterar keys
+              if (typeof datos === 'object') {
+                return (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#d7171a' }}>🔎 Datos Específicos</Typography>
+                    {Object.entries(datos).map(([k, v]) => (
+                      <TextField key={k} label={k} value={v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v))} disabled fullWidth size="small" sx={{ mb: 1 }} />
+                    ))}
+                  </Box>
+                );
+              }
+
+              // Primitivo
+              return (
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#d7171a' }}>🔎 Datos Específicos</Typography>
+                  <TextField value={String(datos)} disabled fullWidth size="small" />
+                </Box>
+              );
+            })()}
+
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowSolicitudPreview(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 };

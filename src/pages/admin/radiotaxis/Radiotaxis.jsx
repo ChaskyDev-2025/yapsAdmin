@@ -27,6 +27,7 @@ import {
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import DetalleModal from "./components/modalGenerico";
 import TableToolbar from "../usuarios/components/TableToolbar";
 import DateFilterComponent from "../usuarios/components/DateFilterComponent";
@@ -249,6 +250,31 @@ const Radiotaxis = () => {
     }
   };
 
+  // Enviar mensaje por WhatsApp al número del radiotaxi/conductor
+  const sendWhatsApp = (phone, name) => {
+    try {
+      if (!phone) {
+        alert("No hay número de teléfono disponible para este radiotaxi.");
+        return;
+      }
+
+      const cleaned = String(phone).replace(/[^0-9+]/g, "");
+      const digits = cleaned.startsWith("+") ? cleaned.slice(1) : cleaned;
+
+      if (!digits || digits.length < 6) {
+        alert("Número de teléfono inválido para WhatsApp: " + phone);
+        return;
+      }
+
+      const text = `Hola ${name || ""}, te escribo desde la plataforma YAAPS.`;
+      const url = `https://wa.me/${encodeURIComponent(digits)}?text=${encodeURIComponent(text)}`;
+      window.open(url, "_blank");
+    } catch (err) {
+      console.error("Error al abrir WhatsApp:", err);
+      alert("No se pudo abrir WhatsApp");
+    }
+  };
+
   // Filtrado y ordenamiento
   const radiotaxisFiltrados = useMemo(() => {
     let filtered = displayRows;
@@ -400,6 +426,9 @@ const Radiotaxis = () => {
                     Teléfono
                   </TableCell>
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                    Contactar
+                  </TableCell>
+                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
                     Fecha Registro
                   </TableCell>
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
@@ -416,7 +445,7 @@ const Radiotaxis = () => {
               <TableBody>
                 {radiotaxisPaginados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center">
+                    <TableCell colSpan={9} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                         No hay conductores registrados
                       </Typography>
@@ -464,6 +493,21 @@ const Radiotaxis = () => {
                             />
                           </Tooltip>
                         </Box>
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", textAlign: "center" }}>
+                        {radio.telefono ? (
+                          <Tooltip title="Contactar por WhatsApp">
+                            <IconButton
+                              size="small"
+                              onClick={() => sendWhatsApp(radio.telefono || radio.phoneNumber || radio.representante || radio.representanteTelefono, radio.nombreEmpresa)}
+                              sx={{ bgcolor: "#e6f7ea", color: "#25D366", "&:hover": { bgcolor: "#d9f0df" } }}
+                            >
+                              <WhatsAppIcon />
+                            </IconButton>
+                          </Tooltip>
+                        ) : (
+                          <Typography sx={{ color: "#9e9e9e" }}>-</Typography>
+                        )}
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontSize: "0.9rem" }}>
                         {radio.createdAt
@@ -527,6 +571,7 @@ const Radiotaxis = () => {
                               <EditIcon />
                             </IconButton>
                           </Tooltip>
+                        
                           <Tooltip title="Eliminar">
                             <IconButton
                               size="small"

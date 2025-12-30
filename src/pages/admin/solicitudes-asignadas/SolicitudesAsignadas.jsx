@@ -25,7 +25,7 @@ import {
   Grid,
   Pagination,
 } from "@mui/material";
-import { collection, getDocs, updateDoc, doc, query, where, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, updateDoc, doc, query, where, onSnapshot, getDoc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 import { useAuth } from "../../../auth/AuthContext";
 import { NotificationContext } from "../../../context/NotificationContext";
@@ -34,6 +34,7 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import DetallesDialog from "../solicitudes/components/DetallesDialog";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
 import DateFilterComponent from "../usuarios/components/DateFilterComponent";
 import GenerarOfertaModal from "./components/GenerarOfertaModal";
@@ -44,6 +45,7 @@ const SolicitudesAsignadas = () => {
   
   // Refs para comparar cambios
   const prevSolicitudesRef = useRef([]);
+  const initializedRef = useRef(false);
   
   const disabledTextFieldStyles = {
     "& .MuiInputBase-input.Mui-disabled": {
@@ -56,6 +58,7 @@ const SolicitudesAsignadas = () => {
   const [datosIniciales, setDatosIniciales] = useState(false);
   const [conductores, setConductores] = useState([]);
   const [pasajeros, setPasajeros] = useState([]);
+  const [flotaServicios, setFlotaServicios] = useState(null);
   const [flotaId, setFlotaId] = useState(null);
   const [searchSolicitudes, setSearchSolicitudes] = useState("");
   const [filterEstado, setFilterEstado] = useState("todas");
@@ -120,6 +123,21 @@ const SolicitudesAsignadas = () => {
     }
 
     setCargando(true);
+    // Cargar datos de la flota del usuario para comparar servicios
+    const cargarFlotaServicios = async () => {
+      try {
+        const flotaDoc = await getDoc(doc(db, "flotas", userFlotaId));
+        if (flotaDoc.exists()) {
+          setFlotaServicios(flotaDoc.data());
+        } else {
+          setFlotaServicios(null);
+        }
+      } catch (e) {
+        console.error('Error cargando flota servicios', e);
+        setFlotaServicios(null);
+      }
+    };
+    cargarFlotaServicios();
     // Filtrar solo las solicitudes de la flota actual del usuario
     const q = query(
       collection(db, "solicitudes"),
@@ -145,7 +163,92 @@ const SolicitudesAsignadas = () => {
             }
           };
         });
-      
+
+      // Si no inicializado, solo cargar sin notificar
+      if (!initializedRef.current) {
+        setSolicitudes(data);
+        setFlotaId(userFlotaId);
+        setCargando(false);
+        initializedRef.current = true;
+        return;
+      }
+
+      // Procesar cambios incrementales para notificaciones (docChanges)
+      try {
+        const raw = localStorage.getItem('notifiedSolicitudes');
+        const notified = raw ? new Set(JSON.parse(raw)) : new Set();
+
+        const normalize = (str) => String(str || "").toLowerCase().replace(/[_\s-]+/g, "_").replace(/á/g, "a").replace(/é/g, "e").replace(/í/g, "i").replace(/ó/g, "o").replace(/ú/g, "u").replace(/ñ/g, "n");
+
+        const flotaMatchesSolicitud = (docData) => {
+          try {
+            if (!flotaServicios) return false;
+            const catSol = normalize(docData.solicitud?.categoria || docData.categoria || "");
+            const servSol = normalize(docData.solicitud?.servicio || docData.servicio || docData.solicitud?.servicioVisible || "");
+
+            // flotaServicios expected structure: { servicios: { ciudad: { id: { categoria, servicio, nombre_visible } } } }
+            const serviciosObj = flotaServicios.servicios || flotaServicios;
+            for (const ciudad of Object.keys(serviciosObj || {})) {
+              const serviciosCiudad = serviciosObj[ciudad];
+              if (!serviciosCiudad) continue;
+              for (const sKey of Object.keys(serviciosCiudad)) {
+                const s = serviciosCiudad[sKey];
+                const catFlota = normalize(s.categoria || s.categoria_servicio || "");
+                const servFlota = normalize(s.servicio || s.nombre_visible || s.servicio_visible || "");
+
+                if (catFlota && catSol && (catFlota === catSol || catFlota.includes(catSol) || catSol.includes(catFlota))) {
+                  if (!servSol) return true;
+                  if (servFlota && (servFlota === servSol || servFlota.includes(servSol) || servSol.includes(servFlota))) return true;
+                }
+              }
+            }
+          } catch (e) {
+            return false;
+          }
+          return false;
+        };
+
+        snapshot.docChanges().forEach((change) => {
+          const doc = change.doc;
+          const docData = doc.data();
+
+          // Estado actual y previo
+          const prev = prevSolicitudesRef.current.find(s => s.id === doc.id);
+          const prevEstado = prev?.estado;
+          const nuevoEstado = docData.estado;
+
+          const isSolicitadoNow = nuevoEstado === 'solicitado';
+
+          const shouldNotify = () => {
+            // If flota_asignada explicitly points to this flota and state is solicitado
+            if (docData.flota_asignada === userFlotaId && isSolicitadoNow) return true;
+
+            // If state changed to solicitado and the solicitud matches this flota's services
+            if ((change.type === 'added' && isSolicitadoNow) || (change.type === 'modified' && prev && prevEstado !== 'solicitado' && isSolicitadoNow)) {
+              return flotaMatchesSolicitud(docData);
+            }
+
+            return false;
+          };
+
+          if (shouldNotify() && !notified.has(doc.id)) {
+            const origen = docData.solicitud?.origen?.nombre || "Nueva solicitud";
+            addNotification({ message: `Solicitud solicitada: ${origen}`, type: "warning" });
+            playNotificationSound();
+            notified.add(doc.id);
+          }
+        });
+
+        try {
+          localStorage.setItem('notifiedSolicitudes', JSON.stringify(Array.from(notified)));
+        } catch (e) {
+          // ignore storage errors
+        }
+      } catch (e) {
+        console.error('Error procesando docChanges para notificaciones', e);
+      }
+
+      // Finalmente actualizar el listado completo
       setSolicitudes(data);
       setFlotaId(userFlotaId);
       setCargando(false);
@@ -271,7 +374,23 @@ const SolicitudesAsignadas = () => {
   const formatearFecha = (fecha) => {
     if (!fecha) return "-";
     try {
-      return new Date(fecha).toLocaleString("es-ES", {
+      // Firestore Timestamp (.toDate())
+      if (fecha?.toDate && typeof fecha.toDate === 'function') {
+        fecha = fecha.toDate();
+      } else if (typeof fecha === 'object' && typeof fecha.seconds === 'number') {
+        // REST-like timestamp object { seconds, nanoseconds }
+        fecha = new Date(fecha.seconds * 1000);
+      } else if (typeof fecha === 'number') {
+        // epoch ms
+        fecha = new Date(fecha);
+      } else {
+        // try parsing strings or other representations
+        fecha = new Date(fecha);
+      }
+
+      if (!(fecha instanceof Date) || isNaN(fecha.getTime())) return "-";
+
+      return fecha.toLocaleString("es-ES", {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
@@ -462,6 +581,7 @@ const SolicitudesAsignadas = () => {
           ...solicitudParaOferta.solicitud,
           oferta: {
             costo: ofertaData.costo, // Total a cobrar (costo base + campos)
+            costoServicio: ofertaData.costoServicio || 0,
             campos: ofertaData.campos,
             fechaOferta: new Date()
           }
@@ -478,6 +598,7 @@ const SolicitudesAsignadas = () => {
                   ...sol.solicitud,
                   oferta: {
                     costo: ofertaData.costo,
+                    costoServicio: ofertaData.costoServicio || 0,
                     campos: ofertaData.campos,
                     fechaOferta: new Date()
                   }
@@ -667,7 +788,7 @@ const SolicitudesAsignadas = () => {
                   >
                     <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>{solicitud.solicitud?.categoria || "-"}</TableCell>
                     <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>{solicitud.solicitud?.servicio || "-"}</TableCell>
-                    <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>{formatearFecha(solicitud.solicitud?.fechaCreacion)}</TableCell>
+                    <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>{formatearFecha(solicitud.solicitud?.fechaCreacion || solicitud.fechaCreacion)}</TableCell>
                     <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>{obtenerNombreConductor(solicitud.conductor_asignado)}</TableCell>
                     <TableCell>
                       <Chip
@@ -833,215 +954,15 @@ const SolicitudesAsignadas = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog para ver detalles del formulario */}
-      <Dialog open={detallesDialogOpen} onClose={handleCloseDetalles} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ backgroundColor: "#d7171a", color: "white", fontWeight: "bold" }}>
-          Detalles de la Solicitud
-        </DialogTitle>
-        <DialogContent sx={{ pt: 3, backgroundColor: "#fafafa", maxHeight: "80vh", overflow: "auto" }}>
-          {solicitudSeleccionada && (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {/* Información General */}
-              <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                  ℹ️ Información General
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={6} sm={4}>
-                    <TextField
-                      label="Categoría"
-                      value={solicitudSeleccionada.solicitud?.categoria || ""}
-                      disabled
-                      fullWidth
-                      size="small"
-                      sx={disabledTextFieldStyles}
-                    />
-                  </Grid>
-                  <Grid item xs={6} sm={4}>
-                    <TextField
-                      label="Servicio"
-                      value={solicitudSeleccionada.solicitud?.servicio || ""}
-                      disabled
-                      fullWidth
-                      size="small"
-                      sx={disabledTextFieldStyles}
-                    />
-                  </Grid>
-                  <Grid item xs={6} sm={4}>
-                    <TextField
-                      label="Estado"
-                      value={solicitudSeleccionada.estado || ""}
-                      disabled
-                      fullWidth
-                      size="small"
-                      sx={disabledTextFieldStyles}
-                    />
-                  </Grid>
-                  <Grid item xs={6} sm={4}>
-                    <TextField
-                      label="Fecha de Creación"
-                      value={formatearFecha(solicitudSeleccionada.solicitud?.fechaCreacion)}
-                      disabled
-                      fullWidth
-                      size="small"
-                      sx={disabledTextFieldStyles}
-                    />
-                  </Grid>
-                  <Grid item xs={6} sm={4}>
-                    <TextField
-                      label="Conductor Asignado"
-                      value={obtenerNombreConductor(solicitudSeleccionada.conductor_asignado)}
-                      disabled
-                      fullWidth
-                      size="small"
-                      sx={disabledTextFieldStyles}
-                    />
-                  </Grid>
-                </Grid>
-              </Box>
-
-              {/* Ubicación - Origen */}
-              {solicitudSeleccionada.solicitud?.detalles?.origen && (
-                <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                  <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                    📍 Origen
-                  </Typography>
-                  <TextField
-                    label="Dirección"
-                    value={solicitudSeleccionada.solicitud.detalles.origen.direccion || ""}
-                    disabled
-                    fullWidth
-                    size="small"
-                    multiline
-                    minRows={3}
-                    sx={{ ...disabledTextFieldStyles, "& .MuiOutlinedInput-root": { overflow: "auto", alignItems: "flex-start", width: "100%" }, "& .MuiInputBase-input": { overflow: "auto !important", width: "100%" } }}
-                  />
-                </Box>
-              )}
-
-              {/* Ubicación - Destino */}
-              {solicitudSeleccionada.solicitud?.destino && (
-                <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                  <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                    📍 Destino
-                  </Typography>
-                  <TextField
-                    label="Dirección"
-                    value={solicitudSeleccionada.solicitud.destino.direccion || ""}
-                    disabled
-                    fullWidth
-                    size="small"
-                    multiline
-                    minRows={3}
-                    InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000", overflow: "auto", whiteSpace: "pre-wrap", wordWrap: "break-word", maxHeight: "150px" } }}
-                    InputLabelProps={{ style: { color: "#000" } }}
-                    sx={{ ...disabledTextFieldStyles, "& .MuiOutlinedInput-root": { overflow: "auto", alignItems: "flex-start", width: "100%" }, "& .MuiInputBase-input": { overflow: "auto !important", width: "100%" } }}
-                  />
-                </Box>
-              )}
-
-              {/* Ubicación - Si existe */}
-              {solicitudSeleccionada.solicitud?.ubicacion && (
-                <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                  <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                    📍 Ubicación
-                  </Typography>
-                  <TextField
-                    label="Dirección"
-                    value={solicitudSeleccionada.solicitud.ubicacion.direccion || ""}
-                    disabled
-                    fullWidth
-                    size="small"
-                    multiline
-                    minRows={3}
-                    InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000", overflow: "auto", whiteSpace: "pre-wrap", wordWrap: "break-word", maxHeight: "150px" } }}
-                    InputLabelProps={{ style: { color: "#000" } }}
-                    sx={{ ...disabledTextFieldStyles, "& .MuiOutlinedInput-root": { overflow: "auto", alignItems: "flex-start", width: "100%" }, "& .MuiInputBase-input": { overflow: "auto !important", width: "100%" } }}
-                  />
-                </Box>
-              )}
-
-              {/* Detalles Adicionales - Mostrar todos los campos dinámicamente */}
-              {solicitudSeleccionada.solicitud?.detalles && (
-                <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                  <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                    📝 Detalles Adicionales
-                  </Typography>
-                  <Grid container spacing={2}>
-                    {/* Mostrar descripción primero si existe */}
-                    {solicitudSeleccionada.solicitud.detalles.descripcion && (
-                      <Grid item xs={12} key="descripcion">
-                        <TextField
-                          label="Descripción"
-                          value={solicitudSeleccionada.solicitud.detalles.descripcion || ""}
-                          disabled
-                          fullWidth
-                          size="small"
-                          multiline
-                          rows={3}
-                          InputProps={{ style: { backgroundColor: "#f5f5f5", color: "#000", overflow: "auto" } }}
-                          InputLabelProps={{ style: { color: "#000" } }}
-                          sx={disabledTextFieldStyles}
-                        />
-                      </Grid>
-                    )}
-                    {Object.entries(solicitudSeleccionada.solicitud.detalles).map(([key, value]) => {
-                      // Ignorar campos complejos (origen, destino, descripcion)
-                      if (typeof value === 'object' || key === 'descripcion' || key === 'origen' || key === 'destino') {
-                        return null;
-                      }
-
-                      // Si es vacío, no mostrar
-                      if (value === "" || value === null || value === undefined) {
-                        return null;
-                      }
-
-                      // Formatear el label
-                      const label = key
-                        .replace(/([A-Z])/g, " $1")
-                        .replace(/_/g, " ")
-                        .trim()
-                        .split(" ")
-                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                        .join(" ");
-
-                      return (
-                        <Grid item xs={6} key={key}>
-                          <TextField
-                            label={label}
-                            value={value || ""}
-                            disabled
-                            fullWidth
-                            size="small"
-                            sx={disabledTextFieldStyles}
-                          />
-                        </Grid>
-                      );
-                    })}
-                  </Grid>
-                </Box>
-              )}
-
-              {/* Usuario - Campo completo al final */}
-              <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                <TextField
-                  label="Usuario"
-                  value={obtenerNombreUsuario(solicitudSeleccionada.uidUser || solicitudSeleccionada.solicitud?.uidUser)}
-                  disabled
-                  fullWidth
-                  size="small"
-                  sx={disabledTextFieldStyles}
-                />
-              </Box>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={handleCloseDetalles} variant="contained" color="primary">
-            Cerrar
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DetallesDialog
+        open={detallesDialogOpen}
+        onClose={handleCloseDetalles}
+        solicitudSeleccionada={solicitudSeleccionada}
+        formatearFecha={formatearFecha}
+        disabledTextFieldStyles={disabledTextFieldStyles}
+        obtenerNombreUsuario={obtenerNombreUsuario}
+        obtenerNombreConductor={obtenerNombreConductor}
+      />
 
       {/* Dialog para ver oferta */}
       <Dialog open={ofertaDialogOpen} onClose={handleCloseOfertaDialog} maxWidth="sm" fullWidth>
@@ -1110,6 +1031,7 @@ const SolicitudesAsignadas = () => {
       <GenerarOfertaModal
         open={ofertaModalOpen}
         onClose={handleCloseOfertaModal}
+        solicitud={solicitudParaOferta}
         onSave={handleSaveOferta}
       />
 

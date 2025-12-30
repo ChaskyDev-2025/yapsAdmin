@@ -16,8 +16,22 @@ const OfertaDialog = ({ open, onClose, solicitudOferta }) => {
         💰 Oferta
       </DialogTitle>
       <DialogContent sx={{ pt: 3, backgroundColor: "#fafafa" }}>
-        {solicitudOferta && solicitudOferta.solicitud?.oferta ? (
+        {solicitudOferta && solicitudOferta.solicitud ? (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {/* Mostrar precio estimado / precio base de la solicitud si existe */}
+            <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
+              <Typography variant="subtitle2" sx={{ color: "#666" }}>Precio sugerido por la solicitud</Typography>
+              <Typography variant="h6" sx={{ fontWeight: "bold", color: "#333" }}>
+                {(() => {
+                  const s = solicitudOferta.solicitud || {};
+                  const est = s.precioEstimado ?? s.solicitud?.precioEstimado ?? null;
+                  const base = s.precioBase ?? s.solicitud?.precioBase ?? null;
+                  const value = est ?? base;
+                  return value != null ? `Bs. ${Number(value).toFixed(2)}` : "No disponible";
+                })()}
+              </Typography>
+            </Box>
+
             <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
               <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#ff9800" }}>
                 Detalles de la Oferta

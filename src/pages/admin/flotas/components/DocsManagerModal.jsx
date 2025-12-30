@@ -23,13 +23,14 @@ const CIUDADES = [
   "Oruro", "Potosí", "Tarija", "Pando", "Beni"
 ];
 
-const CATEGORIAS_SERVICIO = ["Viajes", "Envios", "viajes_envios"];
+// Nota: las categorías adicionales se extraerán dinámicamente de los servicios (Tarifas)
 
 export const DocsManagerModal = ({
   open,
   onClose,
   flota,
   onAssignTemplates,
+  serviciosPorCiudad = {}, // nuevo prop opcional con servicios cargados desde Tarifas
 }) => {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [templates, setTemplates] = useState([]);
@@ -176,14 +177,60 @@ export const DocsManagerModal = ({
     fetchTemplates();
   }, []);
 
+  // Construir lista dinámica de categorías basadas en los servicios (Tarifas)
+  // Mostrar las categorías: mantener Viajes/Envios/viajes_envios y añadir categorías de tarifas (como etiquetas)
+  const CATEGORIAS_SERVICIO = useMemo(() => [
+    "Viajes",
+    "Envios",
+    "viajes_envios",
+    "Carga Nacional",
+    "Carga Internacional",
+    "Carga Local",
+    "Mudanza",
+    "Maquinaria Y Gruas",
+    "Construccion",
+  ], []);
+
   // Inicializar selectedTemplates desde flota.documentos cuando se abre el modal
   useEffect(() => {
     if (!open) {
       return;
     }
-    
+    // Cuando cargamos desde Firestore, las claves pueden estar normalizadas (ej: maquinaria_y_gruas)
+    // Convertimos esas claves a las etiquetas que usa la UI (ej: 'Maquinaria Y Gruas') para que se muestren correctamente
+    const denormalizeKeyToLabel = (key) => {
+      if (!key) return key;
+      if (key === 'viajes_envios') return 'viajes_envios';
+      if (String(key).toLowerCase() === 'viajes') return 'Viajes';
+      if (String(key).toLowerCase() === 'envios') return 'Envios';
+      // Si contiene guion bajo, convertir a palabras con mayúscula inicial
+      if (String(key).includes('_')) {
+        return String(key)
+          .split('_')
+          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ');
+      }
+      // Si ya está en formato con espacios, normalizar capitalización
+      if (String(key).includes(' ')) {
+        return String(key)
+          .split(' ')
+          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ');
+      }
+      return key;
+    };
+
     if (flota?.documentos && typeof flota.documentos === 'object' && !Array.isArray(flota.documentos)) {
-      const initialized = JSON.parse(JSON.stringify(flota.documentos));
+      const raw = JSON.parse(JSON.stringify(flota.documentos));
+      const initialized = {};
+      Object.entries(raw).forEach(([ciudad, categorias]) => {
+        if (!categorias || typeof categorias !== 'object') return;
+        initialized[ciudad] = {};
+        Object.entries(categorias).forEach(([catKey, docs]) => {
+          const label = denormalizeKeyToLabel(catKey);
+          initialized[ciudad][label] = docs;
+        });
+      });
       setSelectedTemplates(initialized);
     } else {
       setSelectedTemplates({});
@@ -282,6 +329,39 @@ export const DocsManagerModal = ({
       return updated;
     });
   }, []);
+
+  // Normalizar nombre de categoría para guardado en Firebase
+  const normalizeCategoryKey = (categoria) => {
+    if (!categoria) return categoria;
+    // Mantener la clave combinada como está
+    if (String(categoria) === 'viajes_envios') return 'viajes_envios';
+    // Si la categoría ya es 'Viajes' o 'Envios' mantener mayúsculas (compatibilidad),
+    // pero si contiene espacios, convertir a slug en minúsculas
+    if (String(categoria).includes(' ')) {
+      // Convertir a Title Case por palabra y unir con guion bajo, p.ej. 'Maquinaria Y Gruas' -> 'Maquinaria_Y_Gruas'
+      return String(categoria)
+        .trim()
+        .split(/\s+/)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join('_');
+    }
+    return categoria;
+  };
+
+  // Convierte el objeto selectedTemplates a un formato con claves de categoría normalizadas
+  const normalizeTemplatesForSave = (templatesObj) => {
+    if (!templatesObj || typeof templatesObj !== 'object') return templatesObj;
+    const out = {};
+    Object.entries(templatesObj).forEach(([ciudad, categorias]) => {
+      if (!categorias || typeof categorias !== 'object') return;
+      out[ciudad] = {};
+      Object.entries(categorias).forEach(([categoriaKey, docsObj]) => {
+        const normKey = normalizeCategoryKey(categoriaKey);
+        out[ciudad][normKey] = docsObj;
+      });
+    });
+    return out;
+  };
 
   return (
     <>
@@ -453,7 +533,7 @@ export const DocsManagerModal = ({
         {!cambiosGuardados && (
           <Button 
             onClick={() => {
-              if (onAssignTemplates) onAssignTemplates(selectedTemplates);
+              if (onAssignTemplates) onAssignTemplates(normalizeTemplatesForSave(selectedTemplates));
               setCambiosGuardados(true);
             }}
             variant="contained"
@@ -717,7 +797,7 @@ export const DocsManagerModal = ({
               }
             });
             
-            if (onAssignTemplates) onAssignTemplates(documentosParaGuardar);
+            if (onAssignTemplates) onAssignTemplates(normalizeTemplatesForSave(documentosParaGuardar));
             setAssignDialogOpen(false);
           }} 
           variant="contained"

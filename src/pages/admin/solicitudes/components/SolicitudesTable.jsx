@@ -47,7 +47,7 @@ const SolicitudesTable = ({
           ) : (
             solicitudesFiltradas.map((solicitud) => (
               <TableRow key={solicitud.id} sx={{ "&:hover": { backgroundColor: "#f9f9f9" }, borderBottom: "1px solid #d0d0d0" }}>
-                <TableCell>{formatearFecha(solicitud.solicitud?.fechaCreacion)}</TableCell>
+                <TableCell>{formatearFecha(solicitud.solicitud?.fechaCreacion || solicitud.fechaCreacion || solicitud.createdAt)}</TableCell>
                 <TableCell>{solicitud.solicitud?.categoria || "-"}</TableCell>
                 <TableCell>{solicitud.solicitud?.servicio || "-"}</TableCell>
                 <TableCell>
