@@ -14,7 +14,7 @@ export default function DateFilterComponent({
   currentSort = "recientes",
   currentDateFilter = "todos",
 }) {
-  const [dateFilter, setDateFilter] = React.useState(currentDateFilter);
+  const [dateFilter, setDateFilter] = React.useState(currentDateFilter || "todos");
   const [customStartDate, setCustomStartDate] = React.useState("");
   const [customEndDate, setCustomEndDate] = React.useState("");
 
@@ -56,6 +56,7 @@ export default function DateFilterComponent({
           label="Período"
           onChange={handleDateFilterChange}
           size="small"
+          displayEmpty
         >
           <MenuItem value="todos">Todos</MenuItem>
           <MenuItem value="hoy">Hoy</MenuItem>

@@ -60,6 +60,15 @@ const DEPARTAMENTOS = [
 const GestionUsuarios = () => {
   const { userRole, user } = useAuth();
   const [tabValue, setTabValue] = useState(0);
+  
+  // Función para capitalizar nombres
+  const capitalizarNombre = (nombre) => {
+    if (!nombre) return "";
+    return nombre
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
   const [usuarios, setUsuarios] = useState([]);
   const [pasajeros, setPasajeros] = useState([]);
   const [trabajadores, setTrabajadores] = useState([]);
@@ -613,7 +622,7 @@ const GestionUsuarios = () => {
             servicios: data.servicios || {},
             documentos_aprobados: data.documentos_aprobados || false,
             createdAt: data.createdAt || data.perfil?.createdAt || null,
-            fotoUrl: data.perfil?.fotoUrl || data.perfil?.foto || data.perfil?.photoURL || data.fotoUrl || data.photoURL || data.perfil?.photoUrl || "",
+            fotoUrl: data.perfil?.foto || data.perfil?.fotoUrl || "",
             // Mantener para compatibilidad
             perfil: data.perfil || {
               name: data.nombre || data.perfil?.nombre || "Sin nombre",
@@ -1668,7 +1677,7 @@ const GestionUsuarios = () => {
                     <TableRow key={trabajador.id} hover>
                       <TableCell>
                         <Avatar
-                          src={trabajador.perfil?.fotoUrl || trabajador.fotoUrl || trabajador.photoURL}
+                          src={trabajador.perfil?.foto || trabajador.perfil?.fotoUrl || trabajador.fotoUrl}
                           alt={trabajador.nombre || trabajador.perfil?.nombre || trabajador.perfil?.name || trabajador.name || trabajador.email}
                           sx={{ width: 40, height: 40, bgcolor: "#d7171a" }}
                         >
@@ -1676,7 +1685,7 @@ const GestionUsuarios = () => {
                         </Avatar>
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                        {trabajador.nombre || trabajador.perfil?.nombre || trabajador.perfil?.name || trabajador.name || trabajador.email || "Sin nombre"}
+                        {capitalizarNombre(trabajador.nombre || trabajador.perfil?.nombre || trabajador.perfil?.name || trabajador.name || trabajador.email || "Sin nombre")}
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                         {trabajador.email || "-"}

@@ -2,6 +2,17 @@ import { Avatar, Stack, Chip } from "@mui/material";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
 import IconActionButton from "../../../../shared/components/botones/Botones";
 
+// Función para obtener la foto desde múltiples ubicaciones posibles
+const obtenerFoto = (perfil) => {
+  return (
+    perfil?.foto ||
+    perfil?.fotoUrl ||
+    perfil?.photoUrl ||
+    perfil?.photoURL ||
+    ""
+  );
+};
+
 export const getDocumentosColumns = (onViewDocuments) => [
   {
     field: "nro",
@@ -17,7 +28,7 @@ export const getDocumentosColumns = (onViewDocuments) => [
     filterable: false,
     renderCell: (params) => (
       <Avatar
-        src={params.row.perfil?.photoUrl}
+        src={obtenerFoto(params.row.perfil)}
         alt={params.row.perfil?.name}
         sx={{ width: 40, height: 40, bgcolor: "#d7171a" }}
       >

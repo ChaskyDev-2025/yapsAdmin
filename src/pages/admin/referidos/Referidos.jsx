@@ -61,16 +61,6 @@ const Referidos = () => {
   const [codigosPromo, setCodigosPromo] = useState([]);
   const [modalPromoOpen, setModalPromoOpen] = useState(false);
   const [selectedPromo, setSelectedPromo] = useState(null);
-  const [searchTrabajadores, setSearchTrabajadores] = useState("");
-  const [sortByTrabajadores, setSortByTrabajadores] = useState("tickets-desc");
-  const [visibleColumnsTrabajadores, setVisibleColumnsTrabajadores] = useState({
-    ranking: true,
-    usuario: true,
-    codigo: true,
-    referidos: true,
-    tickets: true,
-    acciones: true,
-  });
   const [searchPasajeros, setSearchPasajeros] = useState("");
   const [sortByPasajeros, setSortByPasajeros] = useState("tickets-desc");
   const [visibleColumnsPasajeros, setVisibleColumnsPasajeros] = useState({
@@ -94,7 +84,6 @@ const Referidos = () => {
 
   // Estados para paginación
   const ITEMS_PER_PAGE = 10;
-  const [pageTrabajadores, setPageTrabajadores] = useState(0);
   const [pagePasajeros, setPagePasajeros] = useState(0);
   const [pageDonaciones, setPageDonaciones] = useState(0);
 
@@ -117,9 +106,7 @@ const Referidos = () => {
     // Listeners en tiempo real
     setLoading(true);
     let unsubscribePasajeros = null;
-    let unsubscribeTrabajadores = null;
     let pasajerosMap = {};
-    let trabajadoresSnapshot = null;
     let isInitialLoad = true;
 
     try {
@@ -155,10 +142,8 @@ const Referidos = () => {
 
           setPasajerosDonaciones(donacionesData);
 
-          // Si ya tenemos datos de trabajadores, actualizar referidos
-          if (trabajadoresSnapshot) {
-            fetchReferidosDataRealtime(trabajadoresSnapshot, pasajerosMap);
-          }
+          // Actualizar datos de referidos con pasajeros
+          fetchReferidosDataRealtime(pasajerosMap);
 
           if (isInitialLoad) {
             isInitialLoad = false;
@@ -168,18 +153,6 @@ const Referidos = () => {
         (error) => {
           console.error("Error en listener de pasajeros:", error);
           setLoading(false);
-        }
-      );
-
-      // Listener para trabajadores - usado en la pestaña de referidos
-      unsubscribeTrabajadores = onSnapshot(
-        collection(db, "trabajadores"),
-        (snapshot) => {
-          trabajadoresSnapshot = snapshot;
-          fetchReferidosDataRealtime(snapshot, pasajerosMap);
-        },
-        (error) => {
-          console.error("Error en listener de trabajadores:", error);
         }
       );
 
@@ -193,15 +166,10 @@ const Referidos = () => {
     // Retornar función de cleanup
     return () => {
       if (unsubscribePasajeros) unsubscribePasajeros();
-      if (unsubscribeTrabajadores) unsubscribeTrabajadores();
     };
   }, []);
 
   // Resetear página al cambiar búsqueda
-  useEffect(() => {
-    setPageTrabajadores(0);
-  }, [searchTrabajadores]);
-
   useEffect(() => {
     setPagePasajeros(0);
   }, [searchPasajeros]);
@@ -222,40 +190,10 @@ const Referidos = () => {
     }));
   }, [totalCupones]);
 
-  const fetchReferidosDataRealtime = (trabajadoresSnapshot, pasajerosMap) => {
+  const fetchReferidosDataRealtime = (pasajerosMap) => {
     try {
       let totalReferidos = 0;
       let totalTickets = 0;
-
-      // Procesar trabajadores
-      const data = trabajadoresSnapshot.docs.map((doc) => {
-        const trabajador = doc.data();
-        
-        const referidosCount = trabajador.referidosAplicados?.length || 0;
-        const ticketsCount = typeof trabajador.tickets === 'object' && !Array.isArray(trabajador.tickets)
-          ? Object.values(trabajador.tickets)
-              .filter(v => typeof v === 'number')
-              .reduce((sum, count) => sum + count, 0)
-          : 0;
-
-        totalReferidos += referidosCount;
-        totalTickets += ticketsCount;
-
-        return {
-          id: doc.id,
-          nombre: trabajador.perfil?.name || trabajador.perfil?.nombre || trabajador.nombre || "Sin nombre",
-          email: trabajador.perfil?.email || trabajador.email || "Sin email",
-          codigo: trabajador.codigoReferido || "-",
-          referidos: referidosCount,
-          tickets: ticketsCount,
-          ticketsMap: trabajador.tickets || {},
-          photoUrl: trabajador.perfil?.photoURL || trabajador.perfil?.photoUrl || trabajador.perfil?.foto || null,
-          referidosAplicados: trabajador.referidosAplicados || [],
-          pasajerosMap: pasajerosMap,
-          modo: "trabajador",
-          tieneCodigoReferido: !!trabajador.codigoReferido,
-        };
-      });
 
       // Procesar pasajeros desde pasajerosMap
       const dataPasajeros = Object.entries(pasajerosMap).map(([id, pasajero]) => {
@@ -290,18 +228,17 @@ const Referidos = () => {
         return sum + (pasajero.donacionesAcumuladas || 0);
       }, 0);
 
-      // Combinar y ordenar
-      const allData = [...data, ...dataPasajeros];
-      allData.sort((a, b) => {
+      // Ordenar pasajeros
+      dataPasajeros.sort((a, b) => {
         if (b.tickets !== a.tickets) {
           return b.tickets - a.tickets;
         }
         return a.nombre.localeCompare(b.nombre);
       });
 
-      setReferidosData(allData);
+      setReferidosData(dataPasajeros);
       setStats({
-        total: allData.length,
+        total: dataPasajeros.length,
         totalReferidos,
         totalTickets,
         totalDonaciones,
@@ -314,18 +251,15 @@ const Referidos = () => {
 
   const fetchReferidosData = async () => {
     try {
-      // Cargar pasajeros y trabajadores EN PARALELO (SOLO LECTURA)
-      const [pasajerosSnapshot, trabajadoresSnapshot] = await Promise.all([
-        getDocs(collection(db, "pasajeros")),
-        getDocs(collection(db, "trabajadores")),
-      ]);
+      // Cargar pasajeros
+      const pasajerosSnapshot = await getDocs(collection(db, "pasajeros"));
 
       const pasajerosMap = {};
       pasajerosSnapshot.docs.forEach((doc) => {
         pasajerosMap[doc.id] = doc.data();
       });
 
-      fetchReferidosDataRealtime(trabajadoresSnapshot, pasajerosMap);
+      fetchReferidosDataRealtime(pasajerosMap);
     } catch (error) {
       console.error("Error al cargar referidos:", error);
     }
@@ -348,22 +282,6 @@ const Referidos = () => {
   // Calcular estadísticas por pestaña
   const getTabStats = useMemo(() => {
     if (selectedTab === 0) {
-      // Conductores
-      const conductores = referidosData.filter(r => r.modo === "trabajador");
-      let totalReferidos = 0;
-      let totalTickets = 0;
-      conductores.forEach(c => {
-        totalReferidos += c.referidos;
-        totalTickets += c.tickets;
-      });
-      return {
-        total: conductores.length,
-        totalReferidos,
-        totalTickets,
-        totalDonaciones: stats.totalDonaciones,
-        totalCupones: stats.totalCupones,
-      };
-    } else if (selectedTab === 1) {
       // Pasajeros
       const pasajeros = referidosData.filter(r => r.modo === "pasajero");
       let totalReferidos = 0;
@@ -379,7 +297,7 @@ const Referidos = () => {
         totalDonaciones: stats.totalDonaciones,
         totalCupones: stats.totalCupones,
       };
-    } else if (selectedTab === 2) {
+    } else if (selectedTab === 1) {
       // Donaciones - retorna stats completo
       return stats;
     } else {
@@ -387,29 +305,6 @@ const Referidos = () => {
       return stats;
     }
   }, [selectedTab, referidosData, stats]);
-
-  // Filtrar y ordenar trabajadores
-  const filteredTrabajadores = useMemo(() => {
-    let result = referidosData.filter(r => r.modo === "trabajador");
-    
-    // Filtrar por búsqueda
-    if (searchTrabajadores.trim()) {
-      const search = searchTrabajadores.toLowerCase();
-      result = result.filter(ref =>
-        (ref.nombre || "").toLowerCase().includes(search) ||
-        (ref.codigo || "").toLowerCase().includes(search)
-      );
-    }
-    
-    // Ordenar por tickets (no por referidos, ya que referidos están incluidos en tickets)
-    if (sortByTrabajadores === "tickets-asc") {
-      result.sort((a, b) => a.tickets - b.tickets);
-    } else if (sortByTrabajadores === "tickets-desc") {
-      result.sort((a, b) => b.tickets - a.tickets);
-    }
-    
-    return result;
-  }, [referidosData, searchTrabajadores, sortByTrabajadores]);
 
   // Filtrar y ordenar pasajeros
   const filteredPasajeros = useMemo(() => {
@@ -434,15 +329,6 @@ const Referidos = () => {
     return result;
   }, [referidosData, searchPasajeros, sortByPasajeros]);
 
-  // Datos paginados para Trabajadores
-  const trabajadoresPaginados = useMemo(() => {
-    const start = pageTrabajadores * ITEMS_PER_PAGE;
-    const end = start + ITEMS_PER_PAGE;
-    return filteredTrabajadores.slice(start, end);
-  }, [filteredTrabajadores, pageTrabajadores]);
-
-  const totalPagesTrabajadores = Math.ceil(filteredTrabajadores.length / ITEMS_PER_PAGE);
-
   // Datos paginados para Pasajeros
   const pasajerosPaginados = useMemo(() => {
     const start = pagePasajeros * ITEMS_PER_PAGE;
@@ -451,11 +337,6 @@ const Referidos = () => {
   }, [filteredPasajeros, pagePasajeros]);
 
   const totalPagesPasajeros = Math.ceil(filteredPasajeros.length / ITEMS_PER_PAGE);
-
-  // Calcular colSpan dinámico para trabajadores
-  const getColSpanTrabajadores = useMemo(() => {
-    return Object.values(visibleColumnsTrabajadores).filter(Boolean).length;
-  }, [visibleColumnsTrabajadores]);
 
   // Calcular colSpan dinámico para pasajeros
   const getColSpanPasajeros = useMemo(() => {
@@ -528,7 +409,6 @@ const Referidos = () => {
             },
           }}
         >
-          <Tab label="👷 Trabajadores" icon={undefined} />
           <Tab label="👤 Pasajeros" icon={undefined} />
           <Tab label="💝 Donaciones" icon={undefined} />
           <Tab label="🎟️ Códigos Promocionales" icon={undefined} />
@@ -539,213 +419,8 @@ const Referidos = () => {
       {/* Contenido de las pestañas */}
       {!loading && (
         <Box>
-          {/* TABLA DE TRABAJADORES */}
-          {selectedTab === 0 && (
-            <Box>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
-                <Box sx={{ flex: 1 }}>
-                  <TableToolbar
-                    searchValue={searchTrabajadores}
-                    onSearchChange={setSearchTrabajadores}
-                    sortValue={sortByTrabajadores}
-                    onSortChange={setSortByTrabajadores}
-                    sortOptions={[
-                      { label: "↑ Sort by Referidos (ASC)", value: "referidos-asc" },
-                      { label: "↑ Sort by Tickets (ASC)", value: "tickets-asc" },
-                      { label: "↓ Sort by Tickets (DESC)", value: "tickets-desc" },
-                    ]}
-                    visibleColumns={visibleColumnsTrabajadores}
-                    onColumnChange={(col, visible) => setVisibleColumnsTrabajadores(prev => ({ ...prev, [col]: visible }))}
-                    showClearButton={searchTrabajadores !== ""}
-                    onClear={() => {
-                      setSearchTrabajadores("");
-                      setSortByTrabajadores("tickets-desc");
-                    }}
-                  />
-                </Box>
-              </Box>
-              {filteredTrabajadores.length > 0 ? (
-                <Paper sx={{ boxShadow: 0 }}>
-                  <TableContainer>
-                    <Table>
-                    <TableHead sx={{ backgroundColor: "#000000" }}>
-                      <TableRow>
-                        {visibleColumnsTrabajadores.ranking && (
-                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Ranking</TableCell>
-                        )}
-                        {visibleColumnsTrabajadores.usuario && (
-                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Usuario</TableCell>
-                        )}
-                        {visibleColumnsTrabajadores.codigo && (
-                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Código</TableCell>
-                        )}
-                        {visibleColumnsTrabajadores.referidos && (
-                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
-                            Referidos
-                          </TableCell>
-                        )}
-                        {visibleColumnsTrabajadores.tickets && (
-                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
-                            Tickets
-                          </TableCell>
-                        )}
-                        {visibleColumnsTrabajadores.acciones && (
-                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
-                            Acciones
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {trabajadoresPaginados.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={getColSpanTrabajadores} align="center">
-                            <Typography sx={{ py: 2, color: "#484848" }}>No hay datos para mostrar</Typography>
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        trabajadoresPaginados.map((referido, index) => (
-                          <TableRow key={referido.id} hover>
-                            {visibleColumnsTrabajadores.ranking && (
-                              <TableCell>
-                                <Chip
-                                  icon={index < 3 && referido.referidos > 0 ? <EmojiEventsIcon /> : undefined}
-                                  label={`#${index + 1}`}
-                                  size="small"
-                                  sx={{
-                                    fontWeight: 700,
-                                    bgcolor:
-                                      index === 0 && referido.referidos > 0
-                                        ? "#ffd700"
-                                        : index === 1 && referido.referidos > 0
-                                        ? "#c0c0c0"
-                                        : index === 2 && referido.referidos > 0
-                                        ? "#cd7f32"
-                                        : "#e0e0e0",
-                                    color: index < 3 && referido.referidos > 0 ? "white" : "#484848",
-                                  }}
-                                />
-                              </TableCell>
-                            )}
-                            {visibleColumnsTrabajadores.usuario && (
-                              <TableCell>
-                                <Box display="flex" alignItems="center" gap={2}>
-                                  <Avatar
-                                    src={referido.photoUrl}
-                                    sx={{
-                                      bgcolor: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
-                                      width: 40,
-                                      height: 40,
-                                    }}
-                                  >
-                                    {referido.nombre.charAt(0).toUpperCase()}
-                                  </Avatar>
-                                  <Box>
-                                    <Typography variant="body1" fontWeight={600}>
-                                      {referido.nombre}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                      {referido.email}
-                                    </Typography>
-                                  </Box>
-                                </Box>
-                              </TableCell>
-                            )}
-                            {visibleColumnsTrabajadores.codigo && (
-                              <TableCell>
-                                <Chip
-                                  label={referido.codigo}
-                                  sx={{
-                                    fontFamily: "monospace",
-                                    fontWeight: 700,
-                                    bgcolor: referido.tieneCodigoReferido ? "#ffe0e0" : "#f5f5f5",
-                                    color: referido.tieneCodigoReferido ? "#b01217" : "#757575",
-                                  }}
-                                />
-                              </TableCell>
-                            )}
-                            {visibleColumnsTrabajadores.referidos && (
-                              <TableCell align="center">
-                                <Typography
-                                  variant="h6"
-                                  fontWeight="bold"
-                                  color={referido.referidos > 0 ? "#d7171a" : "#bdbdbd"}
-                                >
-                                  {referido.referidos}
-                                </Typography>
-                              </TableCell>
-                            )}
-                            {visibleColumnsTrabajadores.tickets && (
-                              <TableCell align="center">
-                                <Typography
-                                  variant="h6"
-                                  fontWeight="bold"
-                                  color={referido.tickets > 0 ? "#ff9800" : "#bdbdbd"}
-                                >
-                                  {referido.tickets}
-                                </Typography>
-                              </TableCell>
-                            )}
-                            {visibleColumnsTrabajadores.acciones && (
-                              <TableCell align="center">
-                                {referido.tieneCodigoReferido && (
-                                  <Tooltip title="Copiar código">
-                                    <IconButton
-                                      onClick={() => copyToClipboard(referido.codigo)}
-                                      size="small"
-                                      sx={{ color: "#d7171a", mr: 1 }}
-                                    >
-                                      <ContentCopyIcon />
-                                    </IconButton>
-                                  </Tooltip>
-                                )}
-                                {referido.referidos > 0 && (
-                                  <Tooltip title="Ver historial de referidos">
-                                    <IconButton
-                                      onClick={() => handleOpenHistorial(referido)}
-                                      size="small"
-                                      sx={{ color: "#d7171a" }}
-                                    >
-                                      <HistoryIcon />
-                                    </IconButton>
-                                  </Tooltip>
-                                )}
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                  </TableContainer>
-                  {filteredTrabajadores.length > 0 && (
-                    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
-                      <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        Mostrando {trabajadoresPaginados.length > 0 ? (pageTrabajadores * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pageTrabajadores + 1) * ITEMS_PER_PAGE, filteredTrabajadores.length)} de {filteredTrabajadores.length}
-                      </Typography>
-                      <Pagination 
-                        count={totalPagesTrabajadores}
-                        page={pageTrabajadores + 1}
-                        onChange={(e, page) => setPageTrabajadores(page - 1)}
-                        sx={{
-                          "& .MuiPaginationItem-root": {
-                            fontFamily: "Mulish, sans-serif",
-                          }
-                        }}
-                      />
-                    </Box>
-                  )}
-                </Paper>
-              ) : (
-                <Typography align="center" color="text.secondary" sx={{ py: 3 }}>
-                  No hay trabajadores registrados
-                </Typography>
-              )}
-            </Box>
-          )}
-
           {/* TABLA DE PASAJEROS */}
-          {selectedTab === 1 && (
+          {selectedTab === 0 && (
             <Box>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
                 <Box sx={{ flex: 1 }}>
@@ -770,7 +445,7 @@ const Referidos = () => {
               </Box>
               {filteredPasajeros.length > 0 ? (
                 <Paper sx={{ boxShadow: 0 }}>
-                  <TableContainer>
+                  <TableContainer sx={{ borderRadius: 2, overflow: "hidden" }}>
                     <Table>
                     <TableHead sx={{ backgroundColor: "#000000" }}>
                       <TableRow>
@@ -949,7 +624,7 @@ const Referidos = () => {
           )}
 
           {/* TABLA DE DONACIONES */}
-          {selectedTab === 2 && (
+          {selectedTab === 1 && (
             <Box>
               <Box sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2 }}>
                 <Box sx={{ flex: 1 }}>
@@ -1010,7 +685,7 @@ const Referidos = () => {
               </Box>
 
               {pasajerosDonaciones.length > 0 ? (
-                <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e0e0e0" }}>
+                <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e0e0e0", borderRadius: 2, overflow: "hidden" }}>
                   <Table>
                     <TableHead sx={{ backgroundColor: "#000000" }}>
                       <TableRow>
@@ -1166,7 +841,7 @@ const Referidos = () => {
           )}
 
           {/* TABLA DE CÓDIGOS PROMOCIONALES */}
-          {selectedTab === 3 && (
+          {selectedTab === 2 && (
             <Box>
               <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end" }}>
                 <Button
@@ -1182,9 +857,9 @@ const Referidos = () => {
               </Box>
 
               {codigosPromo.length > 0 ? (
-                <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e0e0e0" }}>
+                <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e0e0e0", borderRadius: 2, overflow: "hidden" }}>
                   <Table>
-                    <TableHead sx={{ background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)" }}>
+                    <TableHead sx={{ backgroundColor: "#000000" }}>
                       <TableRow>
                         <TableCell sx={{ color: "white", fontWeight: 700 }}>Código</TableCell>
                         <TableCell sx={{ color: "white", fontWeight: 700 }}>Departamento</TableCell>
@@ -1289,7 +964,7 @@ const Referidos = () => {
           )}
 
           {/* PESTAÑA DE SORTEOS */}
-          {selectedTab === 4 && (
+          {selectedTab === 3 && (
             <Box>
               <SorteosTab />
             </Box>

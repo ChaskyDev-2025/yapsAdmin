@@ -10,7 +10,15 @@ import ModalDerechoConductor from "./ModalDerechoConductor";
 export default function ModalDetalleConductor({ open, onClose, rowData }) {
   if (!rowData) return null;
 
-  const nombre = rowData.nombre || rowData.perfil?.nombre || rowData.perfil?.name || rowData.name || "-";
+  const capitalizarNombre = (texto) => {
+    if (!texto) return "";
+    return texto
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  const nombre = capitalizarNombre(rowData.nombre || rowData.perfil?.nombre || rowData.perfil?.name || rowData.name || "-");
 
   return (
     <Dialog

@@ -53,6 +53,24 @@ const DocumentosPendientes = () => {
   const [pageDocumentos, setPageDocumentos] = useState(0);
   const ITEMS_PER_PAGE = 10;
 
+  // Función para capitalizar nombres
+  const capitalizarNombre = (nombre) => {
+    if (!nombre) return "";
+    return nombre
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  // Función para obtener la foto del trabajador desde múltiples ubicaciones posibles
+  const obtenerFotoTrabajador = (trabajador) => {
+    return (
+      trabajador.perfil?.foto ||
+      trabajador.perfil?.fotoUrl ||
+      ""
+    );
+  };
+
   // Resetear página al cambiar búsqueda
   useEffect(() => {
     setPageDocumentos(0);
@@ -278,7 +296,7 @@ const DocumentosPendientes = () => {
                 </FormControl>
               </Box>
 
-              <TableContainer>
+              <TableContainer sx={{ borderRadius: 2, overflow: "hidden" }}>
                 <Table>
                   <TableHead sx={{ backgroundColor: "#000000" }}>
                     <TableRow>
@@ -339,7 +357,7 @@ const DocumentosPendientes = () => {
                         >
                           <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                             <Avatar
-                              src={trabajador.perfil?.photoUrl}
+                              src={obtenerFotoTrabajador(trabajador)}
                               alt={trabajador.perfil?.nombre || trabajador.perfil?.name}
                               sx={{ width: 40, height: 40, bgcolor: "#d7171a" }}
                             >
@@ -347,7 +365,7 @@ const DocumentosPendientes = () => {
                             </Avatar>
                           </TableCell>
                           <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                            {trabajador.perfil?.nombre || trabajador.perfil?.name || "Sin nombre"}
+                            {capitalizarNombre(trabajador.perfil?.nombre || trabajador.perfil?.name || "Sin nombre")}
                           </TableCell>
                           <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
                             {trabajador.perfil?.email || "-"}

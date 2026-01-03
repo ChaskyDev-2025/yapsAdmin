@@ -210,7 +210,7 @@ const Ajustes = () => {
           }}
         />
 
-        <TableContainer>
+        <TableContainer sx={{ mt: 3, borderRadius: 2, overflow: "hidden" }}>
           <Table>
             <TableHead sx={{ backgroundColor: "#000000" }}>
               <TableRow>

@@ -176,14 +176,19 @@ const ReasignarConductoresModal = ({
   };
 
   const obtenerNombreConductor = (conductor) => {
-    return (
+    const nombre = 
       conductor.perfil?.nombre ||
       conductor.perfil?.name ||
       conductor.nombre ||
       conductor.displayName ||
       conductor.email ||
-      "Conductor desconocido"
-    );
+      "Conductor desconocido";
+    
+    // Capitalizar: primera letra mayúscula en cada palabra
+    return nombre
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
   };
 
   const obtenerServiciosTexto = (conductor) => {

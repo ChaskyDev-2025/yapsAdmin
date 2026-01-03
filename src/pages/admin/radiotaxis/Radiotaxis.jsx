@@ -39,6 +39,20 @@ import { isSuperAdmin } from "../../../services/userService";
 import { useTrabajadoresPorFlota } from "./hooks/useTrabajadoresPorFlota";
 
 const Radiotaxis = () => {
+  // Función para capitalizar nombres
+  const capitalizarNombre = (nombre) => {
+    if (!nombre) return "";
+    return nombre
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  // Función para obtener la foto del radiotaxi desde múltiples ubicaciones posibles
+  const obtenerFotoRadiotaxis = (radio) => {
+    return radio.fotoUrl || radio.logo || "";
+  };
+
   const [openModal, setOpenModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -55,7 +69,7 @@ const Radiotaxis = () => {
   const [searchRadiotaxis, setSearchRadiotaxis] = useState("");
   const [sortByRadiotaxis, setSortByRadiotaxis] = useState("nombre-asc");
   const [pageRadiotaxis, setPageRadiotaxis] = useState(0);
-  const [periodFilterRadiotaxis, setPeriodFilterRadiotaxis] = useState("todas");
+  const [periodFilterRadiotaxis, setPeriodFilterRadiotaxis] = useState("todos");
   const [visibleColumnsRadiotaxis, setVisibleColumnsRadiotaxis] = useState({
     nombre: true,
     email: true,
@@ -87,7 +101,7 @@ const Radiotaxis = () => {
         const nombreUsuario = trabajador.nombre || trabajador.perfil?.nombre || trabajador.perfil?.name || "Trabajador sin nombre";
         const telefono = trabajador.telefono || trabajador.phoneNumber || "Sin teléfono";
         const email = trabajador.perfil?.email || trabajador.email || "Sin email";
-        const fotoUrl = trabajador.perfil?.fotoUrl || trabajador.perfil?.foto || trabajador.perfil?.photoURL || "";
+        const fotoUrl = trabajador.perfil?.foto || trabajador.perfil?.fotoUrl || trabajador.perfil?.photoURL || trabajador.fotoUrl || trabajador.photoURL || "";
         const createdAt = trabajador.createdAt || null;
 
         return {
@@ -113,6 +127,7 @@ const Radiotaxis = () => {
           flotaId: trabajador.flotaId || "-",
           flotaNombre: trabajador.flotaNombre || "-",
           createdAt: createdAt,
+          perfil: trabajador.perfil || {},
         };
       });
       setAllRadiotaxis(data);
@@ -280,7 +295,7 @@ const Radiotaxis = () => {
     let filtered = displayRows;
     
     // Filtro por período
-    if (periodFilterRadiotaxis !== "todas") {
+    if (periodFilterRadiotaxis !== "todos") {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       
@@ -456,7 +471,7 @@ const Radiotaxis = () => {
                     <TableRow key={radio.firebaseId} hover sx={{ borderBottom: "1px solid #d0d0d0" }}>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif", textAlign: "center" }}>
                         <Avatar
-                          src={radio.perfil?.fotoUrl || radio.fotoUrl || radio.logo}
+                          src={obtenerFotoRadiotaxis(radio)}
                           alt={radio.nombreEmpresa}
                           sx={{
                             width: 50,
@@ -472,7 +487,7 @@ const Radiotaxis = () => {
                         </Avatar>
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                        {radio.nombreEmpresa || "-"}
+                        {capitalizarNombre(radio.nombreEmpresa || "-")}
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                         {radio.email || "-"}

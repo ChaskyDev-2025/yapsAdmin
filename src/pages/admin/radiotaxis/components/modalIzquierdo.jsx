@@ -9,6 +9,14 @@ import { agregarHistorialRecarga } from "./save_nube";
 const getEstadoColor = (e = "") =>
   ({ aprobado: "success", pendiente: "warning", rechazado: "error" }[e.toLowerCase()] || "default");
 
+const capitalizarNombre = (nombre) => {
+  if (!nombre) return "";
+  return nombre
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 export default function ModalIzquierdo({ rowData }) {
   const [openRecarga, setOpenRecarga] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -62,7 +70,7 @@ export default function ModalIzquierdo({ rowData }) {
           {rowData.nombreEmpresa?.[0] || "?"}
         </Avatar>
         <Typography variant="h6" fontWeight={600} mb={1}>
-          {rowData.nombreEmpresa}
+          {capitalizarNombre(rowData.nombreEmpresa)}
         </Typography>
         <Stack spacing={0.5} sx={{ mb: 2, "& b": { color: "text.secondary" } }}>
           <Typography>

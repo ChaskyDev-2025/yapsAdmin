@@ -46,6 +46,15 @@ const DocumentosModal = ({
   const { userRole } = useAuth();
   const isAdminOrSuperAdmin = userRole === "admin" || userRole === "superadmin";
   
+  // Función para capitalizar nombres
+  const capitalizarNombre = (nombre) => {
+    if (!nombre) return "";
+    return nombre
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+  
   const [snackbar, setSnackbar] = React.useState({
     open: false,
     message: "",
@@ -376,7 +385,7 @@ const DocumentosModal = ({
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <PersonIcon fontSize="small" color="action" />
                       <Typography variant="body2">
-                        <strong>Nombre:</strong> {selectedTrabajador?.perfil?.name}
+                        <strong>Nombre:</strong> {capitalizarNombre(selectedTrabajador?.perfil?.name)}
                       </Typography>
                     </Box>
                     {selectedTrabajador?.perfil?.email && (
