@@ -47,6 +47,47 @@ const GenerarOfertaModal = ({ open, onClose, solicitud, onSave }) => {
     return null;
   };
 
+  // Función para formatear timestamps
+  const formatearValor = (v) => {
+    if (v == null) return '';
+    
+    // Si es un objeto con propiedades de timestamp de Firebase
+    if (typeof v === 'object' && (v.seconds || v._seconds || v.toDate)) {
+      try {
+        let fecha;
+        if (typeof v.toDate === 'function') {
+          fecha = v.toDate();
+        } else if (v.seconds) {
+          fecha = new Date(v.seconds * 1000);
+        } else if (v._seconds) {
+          fecha = new Date(v._seconds * 1000);
+        } else {
+          return JSON.stringify(v);
+        }
+        return fecha.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      } catch (e) {
+        return JSON.stringify(v);
+      }
+    }
+    
+    // Si es un string de fecha ISO
+    if (typeof v === 'string' && v.includes('T')) {
+      try {
+        const fecha = new Date(v);
+        return fecha.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      } catch (e) {
+        return v;
+      }
+    }
+    
+    // Si es un objeto, convertir a string
+    if (typeof v === 'object') {
+      return JSON.stringify(v);
+    }
+    
+    return String(v);
+  };
+
   // valor de referencia para mostrar en UI
   const referenciaPrecio = (() => {
     if (!solicitud) return { value: null, source: null };
@@ -254,7 +295,7 @@ const GenerarOfertaModal = ({ open, onClose, solicitud, onSave }) => {
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
         <Button onClick={handleClose}>Cancelar</Button>
-        <Button onClick={() => setShowSolicitudPreview(true)}>Ver Solicitud</Button>
+        <Button onClick={() => setShowSolicitudPreview(true)} sx={{ color: '#000000' }}>Ver Solicitud</Button>
         <Button onClick={handleSave} variant="contained" sx={{ bgcolor: '#d7171a' }}>
           Enviar Oferta
         </Button>
@@ -262,11 +303,11 @@ const GenerarOfertaModal = ({ open, onClose, solicitud, onSave }) => {
       
       {/* Diálogo de vista previa de la solicitud (no cierra el modal de oferta) */}
       <Dialog open={showSolicitudPreview} onClose={() => setShowSolicitudPreview(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Vista previa de la solicitud</DialogTitle>
+        <DialogTitle sx={{ color: '#000000', fontWeight: 'bold' }}>Vista previa de la solicitud</DialogTitle>
         <DialogContent dividers>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField label="Categoría" value={solicitud?.solicitud?.categoria || solicitud?.categoria || ''} disabled fullWidth size="small" />
-            <TextField label="Servicio" value={solicitud?.solicitud?.servicio || solicitud?.servicio || ''} disabled fullWidth size="small" />
+            <TextField label="Categoría" value={solicitud?.solicitud?.categoria || solicitud?.categoria || ''} disabled fullWidth size="small" sx={{ '& .MuiInputBase-input': { color: '#000000' }, '& .MuiInputBase-input.Mui-disabled': { color: '#000000' }, '& .MuiFormLabel-root': { color: '#000000' }, '& .MuiFormLabel-root.Mui-disabled': { color: '#000000' } }} />
+            <TextField label="Servicio" value={solicitud?.solicitud?.servicio || solicitud?.servicio || ''} disabled fullWidth size="small" sx={{ '& .MuiInputBase-input': { color: '#000000' }, '& .MuiInputBase-input.Mui-disabled': { color: '#000000' }, '& .MuiFormLabel-root': { color: '#000000' }, '& .MuiFormLabel-root.Mui-disabled': { color: '#000000' } }} />
             <TextField
               label="Dirección"
               value={solicitud?.solicitud?.ubicacion?.direccion || solicitud?.ubicacion?.direccion || ''}
@@ -275,6 +316,7 @@ const GenerarOfertaModal = ({ open, onClose, solicitud, onSave }) => {
               size="small"
               multiline
               minRows={2}
+              sx={{ '& .MuiInputBase-input': { color: '#000000' }, '& .MuiInputBase-input.Mui-disabled': { color: '#000000' }, '& .MuiFormLabel-root': { color: '#000000' }, '& .MuiFormLabel-root.Mui-disabled': { color: '#000000' } }}
             />
             <TextField
               label="Descripción"
@@ -284,6 +326,7 @@ const GenerarOfertaModal = ({ open, onClose, solicitud, onSave }) => {
               size="small"
               multiline
               minRows={2}
+              sx={{ '& .MuiInputBase-input': { color: '#000000' }, '& .MuiInputBase-input.Mui-disabled': { color: '#000000' }, '& .MuiFormLabel-root': { color: '#000000' }, '& .MuiFormLabel-root.Mui-disabled': { color: '#000000' } }}
             />
             <TextField
               label="Precio estimado (referencia)"
@@ -291,6 +334,7 @@ const GenerarOfertaModal = ({ open, onClose, solicitud, onSave }) => {
               disabled
               fullWidth
               size="small"
+              sx={{ '& .MuiInputBase-input': { color: '#000000' }, '& .MuiInputBase-input.Mui-disabled': { color: '#000000' }, '& .MuiFormLabel-root': { color: '#000000' }, '& .MuiFormLabel-root.Mui-disabled': { color: '#000000' } }}
             />
 
             {/* Datos Específicos: renderizado flexible para objects/arrays/primitivos */}
@@ -302,15 +346,15 @@ const GenerarOfertaModal = ({ open, onClose, solicitud, onSave }) => {
               if (Array.isArray(datos)) {
                 return (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#d7171a' }}>🔎 Datos Específicos</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#000000' }}>🔎 Datos Específicos</Typography>
                     {datos.map((item, idx) => (
                       <Box key={idx} sx={{ p: 1, backgroundColor: '#fafafa', borderRadius: 1 }}>
                         {item && typeof item === 'object' ? (
                           Object.entries(item).map(([k, v]) => (
-                            <TextField key={k} label={k} value={v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v))} disabled fullWidth size="small" sx={{ mb: 1 }} />
+                            <TextField key={k} label={k} value={formatearValor(v)} disabled fullWidth size="small" sx={{ mb: 1, '& .MuiInputBase-input': { color: '#000000' }, '& .MuiInputBase-input.Mui-disabled': { color: '#000000' }, '& .MuiFormLabel-root': { color: '#000000' }, '& .MuiFormLabel-root.Mui-disabled': { color: '#000000' } }} />
                           ))
                         ) : (
-                          <TextField label={`item ${idx + 1}`} value={item == null ? '' : String(item)} disabled fullWidth size="small" />
+                          <TextField label={`item ${idx + 1}`} value={formatearValor(item)} disabled fullWidth size="small" sx={{ '& .MuiInputBase-input': { color: '#000000' }, '& .MuiInputBase-input.Mui-disabled': { color: '#000000' }, '& .MuiFormLabel-root': { color: '#000000' }, '& .MuiFormLabel-root.Mui-disabled': { color: '#000000' } }} />
                         )}
                       </Box>
                     ))}
@@ -322,9 +366,9 @@ const GenerarOfertaModal = ({ open, onClose, solicitud, onSave }) => {
               if (typeof datos === 'object') {
                 return (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#d7171a' }}>🔎 Datos Específicos</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#000000' }}>🔎 Datos Específicos</Typography>
                     {Object.entries(datos).map(([k, v]) => (
-                      <TextField key={k} label={k} value={v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v))} disabled fullWidth size="small" sx={{ mb: 1 }} />
+                      <TextField key={k} label={k} value={formatearValor(v)} disabled fullWidth size="small" sx={{ mb: 1, '& .MuiInputBase-input': { color: '#000000' }, '& .MuiInputBase-input.Mui-disabled': { color: '#000000' }, '& .MuiFormLabel-root': { color: '#000000' }, '& .MuiFormLabel-root.Mui-disabled': { color: '#000000' } }} />
                     ))}
                   </Box>
                 );
@@ -333,8 +377,8 @@ const GenerarOfertaModal = ({ open, onClose, solicitud, onSave }) => {
               // Primitivo
               return (
                 <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#d7171a' }}>🔎 Datos Específicos</Typography>
-                  <TextField value={String(datos)} disabled fullWidth size="small" />
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#000000' }}>🔎 Datos Específicos</Typography>
+                  <TextField value={formatearValor(datos)} disabled fullWidth size="small" sx={{ '& .MuiInputBase-input': { color: '#000000' }, '& .MuiInputBase-input.Mui-disabled': { color: '#000000' }, '& .MuiFormLabel-root': { color: '#000000' }, '& .MuiFormLabel-root.Mui-disabled': { color: '#000000' } }} />
                 </Box>
               );
             })()}

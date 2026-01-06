@@ -10,6 +10,7 @@ import {
   Chip,
   IconButton,
   Typography,
+  Box,
 } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
@@ -59,46 +60,48 @@ const SolicitudesTable = ({
                   />
                 </TableCell>
                 <TableCell align="center">
-                  <IconButton
-                    size="small"
-                    onClick={() => onVerDetalles(solicitud)}
-                    sx={{ bgcolor: "#f0f0f0", color: "#d7171a", "&:hover": { bgcolor: "#e8e8e8" } }}
-                    title="Ver detalles"
-                  >
-                    <VisibilityIcon />
-                  </IconButton>
-                  {solicitud.solicitud?.oferta && (
+                  <Box sx={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: 1 }}>
                     <IconButton
                       size="small"
-                      onClick={() => onVerOferta(solicitud)}
-                      sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffb3b8" } }}
-                      title="Ver oferta"
+                      onClick={() => onVerDetalles(solicitud)}
+                      sx={{ bgcolor: "#f0f0f0", color: "#d7171a", "&:hover": { bgcolor: "#e8e8e8" } }}
+                      title="Ver detalles"
                     >
-                      <AttachMoneyIcon />
+                      <VisibilityIcon />
                     </IconButton>
-                  )}
-                  {solicitud.estado === "solicitado" || solicitud.estado === "pendiente" || solicitud.estado === "rechazada" ? (
-                    <>
+                    {solicitud.solicitud?.oferta && (
                       <IconButton
                         size="small"
-                        onClick={() => onAsignarFlota(solicitud)}
+                        onClick={() => onVerOferta(solicitud)}
                         sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffb3b8" } }}
-                        title="Asignar flota"
+                        title="Ver oferta"
                       >
-                        <CheckCircleIcon />
+                        <AttachMoneyIcon />
                       </IconButton>
-                      {solicitud.estado !== "rechazada" && (
+                    )}
+                    {solicitud.estado === "solicitado" || solicitud.estado === "pendiente" || solicitud.estado === "rechazada" ? (
+                      <>
                         <IconButton
                           size="small"
-                          onClick={() => onRechazar(solicitud.id)}
-                          sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcdd2" } }}
-                          title="Rechazar"
+                          onClick={() => onAsignarFlota(solicitud)}
+                          sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffb3b8" } }}
+                          title="Asignar flota"
                         >
-                          <CancelIcon />
+                          <CheckCircleIcon />
                         </IconButton>
-                      )}
-                    </>
-                  ) : null}
+                        {solicitud.estado !== "rechazada" && (
+                          <IconButton
+                            size="small"
+                            onClick={() => onRechazar(solicitud.id)}
+                            sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcdd2" } }}
+                            title="Rechazar"
+                          >
+                            <CancelIcon />
+                          </IconButton>
+                        )}
+                      </>
+                    ) : null}
+                  </Box>
                 </TableCell>
               </TableRow>
             ))

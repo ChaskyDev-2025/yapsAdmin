@@ -1,6 +1,8 @@
 // src/services/imageUploadService.js
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../data/firebase/firebase";
+import { storage } from "../data/firebase/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 /**
  * Sube una imagen a la API externa y retorna la URL
@@ -94,4 +96,52 @@ export async function saveFlotaQrImageUrl(flotaId, qrImageUrl) {
  */
 export function getFlotaQrImageUrl(flotaData) {
   return flotaData?.qrImage || null;
+}
+
+/**
+ * Sube un comprobante a Firebase Storage y lo registra en Firestore
+ * @param {File} file - Archivo del comprobante
+ * @param {string} flotaId - ID de la flota
+ * @param {string} solicitudId - ID de la solicitud de recarga (opcional)
+ * @returns {Promise<{url: string, id: string}>} URL del comprobante e ID del documento
+ */
+export async function uploadComprobanteFlota(file, flotaId, solicitudId = null) {
+  try {
+    if (!file) {
+      throw new Error("No se proporcionó archivo");
+    }
+
+    // Crear referencia en Storage
+    const timestamp = Date.now();
+    const filename = `${timestamp}_${file.name}`;
+    const storagePath = `comprobantes_flota/${flotaId}/${filename}`;
+    const storageRef = ref(storage, storagePath);
+
+    // Subir archivo
+    await uploadBytes(storageRef, file);
+
+    // Obtener URL de descarga
+    const downloadUrl = await getDownloadURL(storageRef);
+
+    // Registrar en colección comprobantesFlota
+    const comprobantesRef = collection(db, "comprobantesFlota");
+    const docRef = await addDoc(comprobantesRef, {
+      flotaId,
+      solicitudId: solicitudId || null,
+      url: downloadUrl,
+      nombreArchivo: file.name,
+      tamaño: file.size,
+      tipo: file.type,
+      fechaSubida: serverTimestamp(),
+      estado: "activo",
+    });
+
+    return {
+      url: downloadUrl,
+      id: docRef.id,
+    };
+  } catch (error) {
+    console.error("❌ Error en uploadComprobanteFlota:", error);
+    throw error;
+  }
 }

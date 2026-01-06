@@ -41,6 +41,7 @@ import { useAuth } from "../../../auth/AuthContext";
 import {
   uploadImageToApi,
   saveFlotaQrImageUrl,
+  uploadComprobanteFlota,
 } from "../../../services/imageUploadService";
 import {
   obtenerSolicitudesFlota,
@@ -931,10 +932,11 @@ const BilleteraFlota = () => {
       // Subir comprobante si existe
       if (comprobanteImage) {
         try {
-          comprobanteUrl = await uploadImageToApi(
+          const comprobanteData = await uploadComprobanteFlota(
             comprobanteImage,
-            `Comprobantes/${flotaId}`
+            flotaId
           );
+          comprobanteUrl = comprobanteData.url;
         } catch (error) {
           console.error("Error subiendo comprobante:", error);
           mostrarSnackbar(

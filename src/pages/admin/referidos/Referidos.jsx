@@ -87,18 +87,24 @@ const Referidos = () => {
   const [pagePasajeros, setPagePasajeros] = useState(0);
   const [pageDonaciones, setPageDonaciones] = useState(0);
 
-  // Cargar total de cupones del documento sorteo_apertura
+  // Cargar total de cupones del documento sorteo_apertura en tiempo real
   useEffect(() => {
     try {
       const sorteoAperturaRef = doc(db, "sorteos", "sorteo_apertura");
       const unsubscribe = onSnapshot(sorteoAperturaRef, (docSnap) => {
-        if (docSnap.exists()) {
-          setTotalCupones(docSnap.data().ultimoNumero || 0);
+        if (docSnap.exists() && docSnap.data().ultimoNumero != null) {
+          setTotalCupones(docSnap.data().ultimoNumero);
+        } else {
+          setTotalCupones(0);
         }
+      }, (error) => {
+        console.error("Error cargando total de cupones:", error);
+        setTotalCupones(0);
       });
       return () => unsubscribe();
     } catch (error) {
-      console.error("Error cargando total de cupones:", error);
+      console.error("Error en listener de cupones:", error);
+      setTotalCupones(0);
     }
   }, []);
 
@@ -182,7 +188,7 @@ const Referidos = () => {
     setPageDonaciones(0);
   }, [filterDepartamentoDonaciones]);
 
-  // Actualizar stats cuando totalCupones cambia
+  // Actualizar stats cuando totalCupones cambia (sin sobrescribir otros valores)
   useEffect(() => {
     setStats(prevStats => ({
       ...prevStats,
@@ -190,7 +196,7 @@ const Referidos = () => {
     }));
   }, [totalCupones]);
 
-  const fetchReferidosDataRealtime = (pasajerosMap) => {
+  const fetchReferidosDataRealtime = (pasajerosMap, cuponesValue = totalCupones) => {
     try {
       let totalReferidos = 0;
       let totalTickets = 0;
@@ -242,7 +248,7 @@ const Referidos = () => {
         totalReferidos,
         totalTickets,
         totalDonaciones,
-        totalCupones,
+        totalCupones: cuponesValue,
       });
     } catch (error) {
       console.error("Error al procesar datos de referidos en tiempo real:", error);
@@ -295,16 +301,22 @@ const Referidos = () => {
         totalReferidos,
         totalTickets,
         totalDonaciones: stats.totalDonaciones,
-        totalCupones: stats.totalCupones,
+        totalCupones: totalCupones,
       };
     } else if (selectedTab === 1) {
-      // Donaciones - retorna stats completo
-      return stats;
+      // Donaciones - retorna stats con totalCupones actualizado
+      return {
+        ...stats,
+        totalCupones: totalCupones,
+      };
     } else {
-      // Códigos Promo - retorna stats completo
-      return stats;
+      // Códigos Promo - retorna stats con totalCupones actualizado
+      return {
+        ...stats,
+        totalCupones: totalCupones,
+      };
     }
-  }, [selectedTab, referidosData, stats]);
+  }, [selectedTab, referidosData, stats, totalCupones]);
 
   // Filtrar y ordenar pasajeros
   const filteredPasajeros = useMemo(() => {

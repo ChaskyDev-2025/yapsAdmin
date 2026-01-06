@@ -10,6 +10,8 @@ import {
   DialogContent,
   DialogActions,
   Button,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import {
   collection,
@@ -46,6 +48,7 @@ const Solicitudes = () => {
   const [searchSolicitudes, setSearchSolicitudes] = useState("");
   const [filterEstado, setFilterEstado] = useState("todas");
   const [sortBySolicitudes, setSortBySolicitudes] = useState("recientes");
+  const [filterCategoria, setFilterCategoria] = useState("todas");
   const [flotas, setFlotas] = useState([]);
   const [selectedSolicitud, setSelectedSolicitud] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -73,7 +76,7 @@ const Solicitudes = () => {
   // Resetear página al cambiar búsqueda o filtros
   useEffect(() => {
     setPageSolicitudes(0);
-  }, [searchSolicitudes, filterEstado]);
+  }, [searchSolicitudes, filterEstado, filterCategoria]);
 
   // Cargar solicitudes en tiempo real
   useEffect(() => {
@@ -205,15 +208,24 @@ const Solicitudes = () => {
         const cliente = s.solicitud?.cliente || s.nombre_cliente || "";
         const email = s.solicitud?.email || s.email || "";
         const telefono = s.solicitud?.telefono || s.telefono || "";
+        const categoria = s.solicitud?.categoria || "";
+        const servicio = s.solicitud?.servicio || "";
         return cliente.toLowerCase().includes(search) ||
                email.toLowerCase().includes(search) ||
-               telefono.toLowerCase().includes(search);
+               telefono.toLowerCase().includes(search) ||
+               categoria.toLowerCase().includes(search) ||
+               servicio.toLowerCase().includes(search);
       });
     }
 
     // Filtro por estado
     if (filterEstado !== "todas") {
       filtered = filtered.filter(s => s.estado === filterEstado);
+    }
+
+    // Filtro por categoría
+    if (filterCategoria !== "todas") {
+      filtered = filtered.filter(sol => sol.solicitud?.categoria === filterCategoria);
     }
 
     // Filtro por período de fecha
@@ -368,7 +380,7 @@ const Solicitudes = () => {
     }
 
     return sorted;
-  }, [solicitudes, searchSolicitudes, filterEstado, sortBySolicitudes, dateFilterTypeSolicitudes, customStartDateSolicitudes, customEndDateSolicitudes]);
+  }, [solicitudes, searchSolicitudes, filterEstado, sortBySolicitudes, dateFilterTypeSolicitudes, customStartDateSolicitudes, customEndDateSolicitudes, filterCategoria]);
 
   // Datos paginados para Solicitudes
   const solicitudesPaginadas = useMemo(() => {
@@ -655,6 +667,39 @@ const Solicitudes = () => {
             onFilterChange={handleDateFilterChangeSolicitudes}
             currentDateFilter={dateFilterTypeSolicitudes}
           />
+          <Select
+            value={filterCategoria}
+            onChange={(e) => {
+              setFilterCategoria(e.target.value);
+              setPageSolicitudes(0);
+            }}
+            sx={{
+              minWidth: 200,
+              height: 40,
+              fontFamily: "Mulish, sans-serif",
+              "& .MuiOutlinedInput-root": {
+                "&:hover fieldset": {
+                  borderColor: "#d7171a",
+                },
+                "&.Mui-focused fieldset": {
+                  borderColor: "#d7171a",
+                },
+              },
+            }}
+          >
+            <MenuItem value="todas">
+              <Typography sx={{ fontFamily: "Mulish, sans-serif" }}>
+                Todas las Categorías
+              </Typography>
+            </MenuItem>
+            {[...new Set(solicitudes.map(s => s.solicitud?.categoria).filter(Boolean))].sort().map((categoria) => (
+              <MenuItem key={categoria} value={categoria}>
+                <Typography sx={{ fontFamily: "Mulish, sans-serif" }}>
+                  {categoria?.replace(/_/g, " ")}
+                </Typography>
+              </MenuItem>
+            ))}
+          </Select>
         </Box>
 
         {/* Tabla de solicitudes */}

@@ -371,16 +371,29 @@ const DocumentosPendientes = () => {
                             {trabajador.perfil?.email || "-"}
                           </TableCell>
                           <TableCell sx={{ textAlign: "center" }}>
-                            <Chip
-                              label={`${getDocumentosPendientes(trabajador.documentos).length} pendiente${getDocumentosPendientes(trabajador.documentos).length !== 1 ? "s" : ""}`}
-                              sx={{
-                                backgroundColor: "#fff3cd",
-                                color: "#856404",
-                                fontWeight: 600,
-                                fontFamily: "Mulish, sans-serif",
-                              }}
-                              size="small"
-                            />
+                            {getDocumentosPendientes(trabajador.documentos).length > 0 ? (
+                              <Chip
+                                label={`${getDocumentosPendientes(trabajador.documentos).length} pendiente${getDocumentosPendientes(trabajador.documentos).length !== 1 ? "s" : ""}`}
+                                sx={{
+                                  backgroundColor: "#fff3cd",
+                                  color: "#856404",
+                                  fontWeight: 600,
+                                  fontFamily: "Mulish, sans-serif",
+                                }}
+                                size="small"
+                              />
+                            ) : (
+                              <Chip
+                                label="Documentos Aprobados"
+                                sx={{
+                                  backgroundColor: "#d4edda",
+                                  color: "#155724",
+                                  fontWeight: 600,
+                                  fontFamily: "Mulish, sans-serif",
+                                }}
+                                size="small"
+                              />
+                            )}
                           </TableCell>
                           <TableCell sx={{ textAlign: "center" }}>
                             <IconButton

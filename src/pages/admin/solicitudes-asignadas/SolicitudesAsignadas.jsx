@@ -34,6 +34,7 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import DetallesDialog from "../solicitudes/components/DetallesDialog";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
 import DateFilterComponent from "../usuarios/components/DateFilterComponent";
@@ -83,6 +84,7 @@ const SolicitudesAsignadas = () => {
   const [solicitudOferta, setSolicitudOferta] = useState(null);
   const [pageSolicitudes, setPageSolicitudes] = useState(0);
   const [periodFilterSolicitudes, setPeriodFilterSolicitudes] = useState("todos");
+  const [filterCategoria, setFilterCategoria] = useState("todas");
   const [rechazarDialogOpen, setRechazarDialogOpen] = useState(false);
   const [solicitudParaRechazar, setSolicitudParaRechazar] = useState(null);
   const ITEMS_PER_PAGE = 10;
@@ -106,7 +108,7 @@ const SolicitudesAsignadas = () => {
         { label: "Asignada", value: "asignada" },
         { label: "Ofertado", value: "ofertado" },
         { label: "Aceptado", value: "aceptado" },
-        { label: "Conductor Asignado", value: "conductor_asignado" },
+        { label: "Conductor Asignado", value: "conductorAsignado" },
         { label: "En Curso", value: "en_curso" },
         { label: "Finalizado", value: "finalizado" },
         { label: "Rechazado", value: "rechazado" }
@@ -412,12 +414,43 @@ const SolicitudesAsignadas = () => {
     const nombre = 
       conductor?.nombre || 
       conductor?.perfil?.nombre || 
+      conductor?.perfil?.name ||
       conductor?.perfil?.displayName ||
       conductor?.displayName ||
       conductor?.email ||
       conductorId;
     
     return nombre;
+  };
+
+  // Obtener conductores filtrados por categoría y servicio de la solicitud
+  const obtenerConductoresFiltrados = (solicitud) => {
+    if (!solicitud) return conductores;
+    
+    const categoria = solicitud?.solicitud?.categoria || solicitud?.categoria;
+    const servicio = solicitud?.solicitud?.servicio || solicitud?.servicio;
+    
+    return conductores.filter(conductor => {
+      // Filtrar por activo
+      if (!conductor.activo) return false;
+      
+      // Filtrar por categoría
+      if (categoria && !conductor.categorias?.includes(categoria)) return false;
+      
+      // Filtrar por servicio - buscar en servicios map
+      if (servicio && conductor.servicios) {
+        const serviciosConductor = Object.values(conductor.servicios).map(s => 
+          String(s || "").toLowerCase().trim()
+        );
+        const servicioSolicitud = String(servicio || "").toLowerCase().trim();
+        
+        if (!serviciosConductor.some(s => s === servicioSolicitud || s.includes(servicioSolicitud))) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
   };
 
   // Obtener nombre del usuario que solicita
@@ -431,6 +464,31 @@ const SolicitudesAsignadas = () => {
     }
     
     return "Usuario desconocido";
+  };
+
+  // Enviar mensaje por WhatsApp al conductor
+  const sendWhatsApp = (phone, name) => {
+    try {
+      if (!phone) {
+        alert("No hay número de teléfono disponible para este conductor.");
+        return;
+      }
+
+      const cleaned = String(phone).replace(/[^0-9+]/g, "");
+      const digits = cleaned.startsWith("+") ? cleaned.slice(1) : cleaned;
+
+      if (!digits || digits.length < 6) {
+        alert("Número de teléfono inválido para WhatsApp: " + phone);
+        return;
+      }
+
+      const text = `Hola ${name || ""}, te escribo desde la plataforma YAAPS. Tienes una nueva solicitud de servicio asignada.`;
+      const url = `https://wa.me/${encodeURIComponent(digits)}?text=${encodeURIComponent(text)}`;
+      window.open(url, "_blank");
+    } catch (err) {
+      console.error("Error al abrir WhatsApp:", err);
+      alert("No se pudo abrir WhatsApp");
+    }
   };
 
   // Filtrado y ordenamiento
@@ -496,6 +554,7 @@ const SolicitudesAsignadas = () => {
       resultado = resultado.filter(sol =>
         sol.solicitud?.detalles?.descripcion?.toLowerCase().includes(searchLower) ||
         sol.solicitud?.categoria?.toLowerCase().includes(searchLower) ||
+        sol.solicitud?.servicio?.toLowerCase().includes(searchLower) ||
         sol.uidUser?.toLowerCase().includes(searchLower)
       );
     }
@@ -503,6 +562,11 @@ const SolicitudesAsignadas = () => {
     // Filtro por estado
     if (filterEstado !== "todas") {
       resultado = resultado.filter(sol => sol.estado === filterEstado);
+    }
+
+    // Filtro por categoría
+    if (filterCategoria !== "todas") {
+      resultado = resultado.filter(sol => sol.solicitud?.categoria === filterCategoria);
     }
 
     // Ordenamiento
@@ -516,7 +580,7 @@ const SolicitudesAsignadas = () => {
     });
 
     return resultado;
-  }, [solicitudes, searchSolicitudes, filterEstado, sortBySolicitudes, periodFilterSolicitudes]);
+  }, [solicitudes, searchSolicitudes, filterEstado, sortBySolicitudes, periodFilterSolicitudes, filterCategoria]);
 
   // Paginación
   const solicitudesPaginadas = useMemo(() => {
@@ -530,7 +594,7 @@ const SolicitudesAsignadas = () => {
   // Manejadores de diálogos
   const handleOpenDialog = (solicitud) => {
     setSelectedSolicitud(solicitud);
-    setAsignadoConductor(solicitud.conductor_asignado || "");
+    setAsignadoConductor(solicitud.conductorAsignado || "");
     setDialogOpen(true);
   };
 
@@ -576,9 +640,16 @@ const SolicitudesAsignadas = () => {
     if (!solicitudParaOferta) return;
 
     try {
+      // Crear copia limpia del solicitud sin detalles, fechaInicio, fechaProgramada, fechaCreacion
+      const solicitudLimpia = { ...solicitudParaOferta.solicitud };
+      delete solicitudLimpia.detalles;
+      delete solicitudLimpia.fechaInicio;
+      delete solicitudLimpia.fechaProgramada;
+      delete solicitudLimpia.fechaCreacion;
+
       await updateDoc(doc(db, "solicitudes", solicitudParaOferta.id), {
         solicitud: {
-          ...solicitudParaOferta.solicitud,
+          ...solicitudLimpia,
           oferta: {
             costo: ofertaData.costo, // Total a cobrar (costo base + campos)
             costoServicio: ofertaData.costoServicio || 0,
@@ -595,7 +666,7 @@ const SolicitudesAsignadas = () => {
             ? {
                 ...sol,
                 solicitud: {
-                  ...sol.solicitud,
+                  ...solicitudLimpia,
                   oferta: {
                     costo: ofertaData.costo,
                     costoServicio: ofertaData.costoServicio || 0,
@@ -626,14 +697,14 @@ const SolicitudesAsignadas = () => {
 
     try {
       await updateDoc(doc(db, "solicitudes", selectedSolicitud.id), {
-        conductor_asignado: asignadoConductor,
-        estado: "en_proceso"
+        conductorAsignado: asignadoConductor,
+        estado: "conductor_asignado"
       });
 
       setSolicitudes(prevSolicitudes =>
         prevSolicitudes.map(sol =>
           sol.id === selectedSolicitud.id
-            ? { ...sol, conductor_asignado: asignadoConductor, estado: "en_proceso" }
+            ? { ...sol, conductorAsignado: asignadoConductor, estado: "conductor_asignado" }
             : sol
         )
       );
@@ -719,6 +790,39 @@ const SolicitudesAsignadas = () => {
             onFilterChange={setPeriodFilterSolicitudes}
             currentDateFilter={periodFilterSolicitudes}
           />
+          <Select
+            value={filterCategoria}
+            onChange={(e) => {
+              setFilterCategoria(e.target.value);
+              setPageSolicitudes(0);
+            }}
+            sx={{
+              minWidth: 200,
+              height: 40,
+              fontFamily: "Mulish, sans-serif",
+              "& .MuiOutlinedInput-root": {
+                "&:hover fieldset": {
+                  borderColor: "#d7171a",
+                },
+                "&.Mui-focused fieldset": {
+                  borderColor: "#d7171a",
+                },
+              },
+            }}
+          >
+            <MenuItem value="todas">
+              <Typography sx={{ fontFamily: "Mulish, sans-serif" }}>
+                Todas las Categorías
+              </Typography>
+            </MenuItem>
+            {[...new Set(solicitudes.map(s => s.solicitud?.categoria).filter(Boolean))].sort().map((categoria) => (
+              <MenuItem key={categoria} value={categoria}>
+                <Typography sx={{ fontFamily: "Mulish, sans-serif" }}>
+                  {categoria?.replace(/_/g, " ")}
+                </Typography>
+              </MenuItem>
+            ))}
+          </Select>
         </Box>
 
         <TableContainer sx={{ mt: 3, borderRadius: 2, overflow: "hidden" }}>
@@ -789,12 +893,21 @@ const SolicitudesAsignadas = () => {
                     <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>{solicitud.solicitud?.categoria || "-"}</TableCell>
                     <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>{solicitud.solicitud?.servicio || "-"}</TableCell>
                     <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>{formatearFecha(solicitud.solicitud?.fechaCreacion || solicitud.fechaCreacion)}</TableCell>
-                    <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>{obtenerNombreConductor(solicitud.conductor_asignado)}</TableCell>
+                    <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>{obtenerNombreConductor(solicitud.conductorAsignado)}</TableCell>
                     <TableCell>
                       <Chip
                         label={solicitud.estado}
                         sx={{
                           backgroundColor: 
+                            solicitud.estado === "asignada" ? "transparent" :
+                            solicitud.estado === "ofertado" ? "transparent" :
+                            solicitud.estado === "aceptado" ? "transparent" :
+                            solicitud.estado === "conductor_asignado" ? "transparent" :
+                            solicitud.estado === "en_curso" ? "transparent" :
+                            solicitud.estado === "finalizado" ? "transparent" :
+                            solicitud.estado === "rechazado" ? "transparent" :
+                            "transparent",
+                          color: 
                             solicitud.estado === "asignada" ? "#ffc107" :
                             solicitud.estado === "ofertado" ? "#2196f3" :
                             solicitud.estado === "aceptado" ? "#ff9800" :
@@ -803,72 +916,83 @@ const SolicitudesAsignadas = () => {
                             solicitud.estado === "finalizado" ? "#4caf50" :
                             solicitud.estado === "rechazado" ? "#f44336" :
                             "#d7171a",
-                          color: "white",
                           fontWeight: 600,
-                          fontFamily: "Mulish, sans-serif"
+                          fontFamily: "Mulish, sans-serif",
+                          border: "1.5px solid",
+                          borderColor:
+                            solicitud.estado === "asignada" ? "#ffc107" :
+                            solicitud.estado === "ofertado" ? "#2196f3" :
+                            solicitud.estado === "aceptado" ? "#ff9800" :
+                            solicitud.estado === "conductor_asignado" ? "#4caf50" :
+                            solicitud.estado === "en_curso" ? "#2196f3" :
+                            solicitud.estado === "finalizado" ? "#4caf50" :
+                            solicitud.estado === "rechazado" ? "#f44336" :
+                            "#d7171a"
                         }}
                         size="small"
                       />
                     </TableCell>
                     <TableCell sx={{ textAlign: "center" }}>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleOpenDetalles(solicitud)}
-                        title="Ver detalles"
-                        sx={{ color: "#d7171a" }}
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                      {solicitud.solicitud?.oferta && (
+                      <Box sx={{ display: "flex", justifyContent: "flex-start", alignItems: "center" }}>
                         <IconButton
                           size="small"
-                          onClick={() => handleVerOferta(solicitud)}
-                          sx={{ color: "#ff9800" }}
-                          title="Ver oferta"
+                          onClick={() => handleOpenDetalles(solicitud)}
+                          title="Ver detalles"
+                          sx={{ color: "#d7171a" }}
                         >
-                          <AttachMoneyIcon />
+                          <VisibilityIcon />
                         </IconButton>
-                      )}
-                      {solicitud.estado === "asignada" && (
-                        <>
+                        {solicitud.solicitud?.oferta && (
                           <IconButton
                             size="small"
-                            onClick={() => handleOpenOfertaModal(solicitud)}
-                            title="Generar oferta"
+                            onClick={() => handleVerOferta(solicitud)}
                             sx={{ color: "#d7171a" }}
+                            title="Ver oferta"
                           >
-                            <EditIcon />
+                            <AttachMoneyIcon />
                           </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleAbrirRechazarDialog(solicitud)}
-                            title="Rechazar"
-                            sx={{ color: "#f44336" }}
-                          >
-                            <CancelIcon />
-                          </IconButton>
-                        </>
-                      )}
-                      {solicitud.estado === "aceptado" && (
-                        <>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleOpenDialog(solicitud)}
-                            title="Asignar conductor"
-                            sx={{ color: "#4caf50" }}
-                          >
-                            <CheckCircleIcon />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleAbrirRechazarDialog(solicitud)}
-                            title="Rechazar"
-                            color="error"
-                          >
-                            <CancelIcon />
-                          </IconButton>
-                        </>
-                      )}
+                        )}
+                        {solicitud.estado === "asignada" && (
+                          <>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenOfertaModal(solicitud)}
+                              title="Generar oferta"
+                              sx={{ color: "#d7171a" }}
+                            >
+                              <EditIcon />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleAbrirRechazarDialog(solicitud)}
+                              title="Rechazar"
+                              sx={{ color: "#d7171a" }}
+                            >
+                              <CancelIcon />
+                            </IconButton>
+                          </>
+                        )}
+                        {solicitud.estado === "aceptado" && (
+                          <>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenDialog(solicitud)}
+                              title="Asignar conductor"
+                              sx={{ color: "#d7171a" }}
+                            >
+                              <CheckCircleIcon />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleAbrirRechazarDialog(solicitud)}
+                              title="Rechazar"
+                              sx={{ color: "#d7171a" }}
+                            >
+                              <CancelIcon />
+                            </IconButton>
+                          </>
+                        )}
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))
@@ -907,49 +1031,169 @@ const SolicitudesAsignadas = () => {
         )}
         {/* Diálogo para asignar conductor */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Asignar Conductor</DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                label="Categoría"
-                fullWidth
-                value={selectedSolicitud?.solicitud?.categoria || ""}
-                disabled
-                sx={disabledTextFieldStyles}
-              />
-            </Grid>
-            <Grid item xs={12}>
+        <DialogTitle sx={{ backgroundColor: "#4caf50", color: "white", fontWeight: "bold", display: "flex", alignItems: "center", gap: 1 }}>
+          ✅ Asignar Conductor
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {/* Información de la solicitud */}
+            <Box sx={{ backgroundColor: "#f5f5f5", p: 2, borderRadius: 1, border: "1px solid #e0e0e0", mt: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#333" }}>
+                📋 Detalles de la Solicitud
+              </Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: "bold", color: "#666" }}>Categoría:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: "600", color: "#333" }}>
+                    {selectedSolicitud?.solicitud?.categoria || "-"}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: "bold", color: "#666" }}>Servicio:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: "600", color: "#333" }}>
+                    {selectedSolicitud?.solicitud?.servicio || "-"}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: "bold", color: "#666" }}>Ubicación:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: "600", color: "#333" }}>
+                    {selectedSolicitud?.solicitud?.ubicacion?.direccion || "-"}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: "bold", color: "#666" }}>Aceptación:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: "600", color: "#333" }}>
+                    {formatearFecha(selectedSolicitud?.fechaAceptacion) || "-"}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: "bold", color: "#666" }}>Costo:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: "600", color: "#d7171a" }}>
+                    {selectedSolicitud?.solicitud?.oferta?.costo ? `Bs. ${selectedSolicitud.solicitud.oferta.costo.toFixed(2)}` : "-"}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            {/* Seleccionar Conductor */}
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#333" }}>
+                👤 Seleccionar Conductor
+              </Typography>
               <FormControl fullWidth>
-                <InputLabel>Seleccionar Conductor</InputLabel>
+                <InputLabel>Conductor disponible</InputLabel>
                 <Select
                   value={asignadoConductor}
-                  label="Seleccionar Conductor"
+                  label="Conductor disponible"
                   onChange={(e) => setAsignadoConductor(e.target.value)}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      "&:hover fieldset": {
+                        borderColor: "#4caf50",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#4caf50",
+                      },
+                    },
+                  }}
                 >
-                  {conductores.map((conductor) => {
+                  <MenuItem value="">
+                    <em>Seleccionar un conductor...</em>
+                  </MenuItem>
+                  {obtenerConductoresFiltrados(selectedSolicitud).map((conductor) => {
                     const nombre = 
                       conductor?.nombre || 
+                      conductor?.perfil?.nombre ||
                       conductor?.perfil?.name || 
                       conductor?.perfil?.displayName ||
                       conductor?.displayName ||
                       conductor?.email ||
                       conductor.id;
+                    const celular = conductor?.perfil?.celular || conductor?.celular || "";
+                    const servicios = conductor?.servicios ? Object.values(conductor.servicios).join(", ") : "";
+                    
                     return (
                       <MenuItem key={conductor.id} value={conductor.id}>
-                        {nombre}
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                          <Typography variant="body2" sx={{ fontWeight: "600" }}>
+                            {nombre}
+                          </Typography>
+                          {celular && <Typography variant="caption" sx={{ color: "#666" }}>📱 {celular}</Typography>}
+                          {servicios && <Typography variant="caption" sx={{ color: "#666" }}>🚗 {servicios}</Typography>}
+                        </Box>
                       </MenuItem>
                     );
                   })}
                 </Select>
               </FormControl>
-            </Grid>
-          </Grid>
+
+              {/* Información del conductor seleccionado */}
+              {asignadoConductor && (
+                <Box sx={{ mt: 2, p: 2, backgroundColor: "#e8f5e9", borderRadius: 1, border: "1px solid #4caf50" }}>
+                  {(() => {
+                    const conductorSeleccionado = conductores.find(c => c.id === asignadoConductor);
+                    if (!conductorSeleccionado) return null;
+                    
+                    const nombre = 
+                      conductorSeleccionado?.nombre || 
+                      conductorSeleccionado?.perfil?.nombre ||
+                      conductorSeleccionado?.perfil?.name || 
+                      "Desconocido";
+                    const celular = conductorSeleccionado?.perfil?.celular || conductorSeleccionado?.celular || "-";
+                    const departamento = conductorSeleccionado?.departamento || "-";
+                    const categorias = conductorSeleccionado?.categorias?.join(", ") || "-";
+                    const servicios = conductorSeleccionado?.servicios ? Object.values(conductorSeleccionado.servicios).join(", ") : "-";
+                    
+                    return (
+                      <Box>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: "bold", color: "#2e7d32" }}>
+                            ✓ Conductor Seleccionado
+                          </Typography>
+                          <IconButton
+                            size="small"
+                            onClick={() => sendWhatsApp(celular, nombre)}
+                            sx={{ color: "#25D366" }}
+                            title="Contactar por WhatsApp"
+                          >
+                            <WhatsAppIcon />
+                          </IconButton>
+                        </Box>
+                        <Box sx={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 1, fontSize: "0.85rem" }}>
+                          <Typography variant="caption" sx={{ fontWeight: "bold", color: "#333" }}>Nombre:</Typography>
+                          <Typography variant="caption" sx={{ color: "#555" }}>{nombre}</Typography>
+                          
+                          <Typography variant="caption" sx={{ fontWeight: "bold", color: "#333" }}>Celular:</Typography>
+                          <Typography variant="caption" sx={{ color: "#555" }}>{celular}</Typography>
+                          
+                          <Typography variant="caption" sx={{ fontWeight: "bold", color: "#333" }}>Departamento:</Typography>
+                          <Typography variant="caption" sx={{ color: "#555" }}>{departamento}</Typography>
+                          
+                          <Typography variant="caption" sx={{ fontWeight: "bold", color: "#333" }}>Categorías:</Typography>
+                          <Typography variant="caption" sx={{ color: "#555" }}>{categorias}</Typography>
+                          
+                          <Typography variant="caption" sx={{ fontWeight: "bold", color: "#333" }}>Servicios:</Typography>
+                          <Typography variant="caption" sx={{ color: "#555" }}>{servicios}</Typography>
+                        </Box>
+                      </Box>
+                    );
+                  })()}
+                </Box>
+              )}
+            </Box>
+          </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancelar</Button>
-          <Button onClick={handleAsignarConductor} variant="contained" color="success">
-            Asignar
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button onClick={handleCloseDialog} variant="outlined">
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleAsignarConductor} 
+            variant="contained" 
+            sx={{ backgroundColor: "#4caf50", "&:hover": { backgroundColor: "#388e3c" } }}
+            disabled={!asignadoConductor}
+          >
+            Asignar Conductor
           </Button>
         </DialogActions>
       </Dialog>
