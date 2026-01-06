@@ -6,22 +6,27 @@ import {
   CircularProgress,
   Alert,
   Grid,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import {
   useReglasBonosConductores,
   useConductoresFlotaConViajes,
+  useHistorialBonosPorFlota,
 } from "../bonos/hooks/useBonosData";
 import { aplicarBonoConductor } from "../bonos/services/bonosService";
 import { useAuth } from "../../../auth/AuthContext";
 import { DialogoAplicarBono } from "./components/DialogoAplicarBono";
 import { TablaConductoresAplicarBono } from "./components/TablaConductoresAplicarBono";
 import { EstadisticasCard } from "../bonos/components/EstadisticasCard";
+import { TablaHistorialBonos } from "../bonos/components/TablaHistorialBonos";
 
 const BonosAdmin = () => {
-  // Estados para diálogo
+  // Estados para diálogo y tabs
   const [aplicarBonoDialogOpen, setAplicarBonoDialogOpen] = useState(false);
   const [selectedConductor, setSelectedConductor] = useState(null);
   const [selectedRegla, setSelectedRegla] = useState(null);
+  const [tabValue, setTabValue] = useState(0);
 
   // Obtener flota del admin actual
   const { userFlotaId } = useAuth();
@@ -40,6 +45,12 @@ const BonosAdmin = () => {
     error: conductoresError,
     recargar: recargarConductores,
   } = useConductoresFlotaConViajes(userFlotaId);
+
+  const {
+    historial,
+    loading: historialLoading,
+    error: historialError,
+  } = useHistorialBonosPorFlota(userFlotaId);
 
   // Conductores que califican
   const conductoresQueCaificican = useMemo(() => {
@@ -79,7 +90,7 @@ const BonosAdmin = () => {
 
     try {
       const totalViajes = viajesConductores[selectedConductor.id];
-      await aplicarBonoConductor(selectedConductor.id, selectedRegla, totalViajes);
+      await aplicarBonoConductor(selectedConductor.id, selectedRegla, totalViajes, userFlotaId);
       
       alert("Bono aplicado exitosamente");
       handleCerrarAplicarBono();
@@ -93,14 +104,15 @@ const BonosAdmin = () => {
   // Estadísticas para mostrar
   const estadisticas = useMemo(() => {
     return {
+      totalConductoresFlota: conductores.length,
       totalConductoresCalifican: conductoresQueCaificican.length,
-      totalViajesTotales: conductoresQueCaificican.reduce(
+      totalViajesTotales: conductores.reduce(
         (sum, c) => sum + (viajesConductores[c.id] || 0),
         0
       ),
       reglasDisponibles: reglas.length,
     };
-  }, [conductoresQueCaificican, viajesConductores, reglas]);
+  }, [conductores, conductoresQueCaificican, viajesConductores, reglas]);
 
   const isLoading = reglasLoading || conductoresLoading;
 
@@ -146,46 +158,87 @@ const BonosAdmin = () => {
         {conductoresError && (
           <Alert severity="error">Error cargando conductores</Alert>
         )}
+        {historialError && (
+          <Alert severity="error">Error cargando historial</Alert>
+        )}
 
-        {/* Estadísticas */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <EstadisticasCard
-            title="Conductores que Califican"
-            value={estadisticas.totalConductoresCalifican}
-          />
-          <EstadisticasCard
-            title="Total Viajes"
-            value={estadisticas.totalViajesTotales}
-            bgColor="#e8f5e9"
-          />
-          <EstadisticasCard
-            title="Reglas Disponibles"
-            value={estadisticas.reglasDisponibles}
-            bgColor="#fff3e0"
-          />
-        </Grid>
+        {/* Tabs */}
+        <Tabs
+          value={tabValue}
+          onChange={(event, newValue) => setTabValue(newValue)}
+          sx={{ mb: 2, borderBottom: "1px solid #e0e0e0" }}
+        >
+          <Tab label="Aplicar Bonos" />
+          <Tab label="Historial" />
+        </Tabs>
 
-        {/* Tabla de conductores que califican */}
-        <Box sx={{ backgroundColor: "white", borderRadius: 2, p: 2 }}>
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: "bold",
-              marginBottom: 2,
-              color: "#000",
-              fontFamily: "Mulish, sans-serif",
-            }}
-          >
-            Conductores Disponibles
-          </Typography>
+        {/* TAB 0: Aplicar Bonos */}
+        {tabValue === 0 && (
+          <>
+            {/* Estadísticas */}
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              <EstadisticasCard
+                title="Conductores en Flota"
+                value={estadisticas.totalConductoresFlota}
+              />
+              <EstadisticasCard
+                title="Califican para Bono"
+                value={estadisticas.totalConductoresCalifican}
+                bgColor="#e8f5e9"
+              />
+              <EstadisticasCard
+                title="Total Viajes"
+                value={estadisticas.totalViajesTotales}
+                bgColor="#fff3e0"
+              />
+            </Grid>
 
-          <TablaConductoresAplicarBono
-            conductores={conductoresQueCaificican}
-            viajesConductores={viajesConductores}
-            reglas={reglas}
-            onAsignar={handleAbrirAplicarBono}
-          />
-        </Box>
+            {/* Tabla de conductores que califican */}
+            <Box sx={{ backgroundColor: "white", borderRadius: 2, p: 2 }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: "bold",
+                  marginBottom: 2,
+                  color: "#000",
+                  fontFamily: "Mulish, sans-serif",
+                }}
+              >
+                Conductores Disponibles
+              </Typography>
+
+              <TablaConductoresAplicarBono
+                conductores={conductores}
+                viajesConductores={viajesConductores}
+                reglas={reglas}
+                onAsignar={handleAbrirAplicarBono}
+              />
+            </Box>
+          </>
+        )}
+
+        {/* TAB 1: Historial */}
+        {tabValue === 1 && (
+          <Box sx={{ backgroundColor: "white", borderRadius: 2, p: 2 }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: "bold",
+                marginBottom: 2,
+                color: "#000",
+                fontFamily: "Mulish, sans-serif",
+              }}
+            >
+              Historial de Bonos Aplicados
+            </Typography>
+
+            {historialLoading ? (
+              <CircularProgress />
+            ) : (
+              <TablaHistorialBonos historial={historial} />
+            )}
+          </Box>
+        )}
       </Paper>
 
       {/* Diálogo para aplicar bono */}

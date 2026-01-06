@@ -178,15 +178,17 @@ export const DocsManagerModal = ({
   }, []);
 
   // Construir lista dinámica de categorías basadas en los servicios (Tarifas)
-  // Mostrar las categorías: mantener Viajes/Envios/viajes_envios y añadir categorías de tarifas (como etiquetas)
+  // Mostrar las categorías: Viajes/Envios y sus combinaciones mixtas, + categorías de tarifas
   const CATEGORIAS_SERVICIO = useMemo(() => [
     "Viajes",
     "Envios",
     "viajes_envios",
     "Carga Nacional",
     "Carga Internacional",
+    "carga_nacional_internacional",
     "Carga Local",
     "Mudanza",
+    "carga_local_mudanza",
     "Maquinaria Y Gruas",
     "Construccion",
   ], []);
@@ -201,6 +203,8 @@ export const DocsManagerModal = ({
     const denormalizeKeyToLabel = (key) => {
       if (!key) return key;
       if (key === 'viajes_envios') return 'viajes_envios';
+      if (key === 'carga_nacional_internacional') return 'carga_nacional_internacional';
+      if (key === 'carga_local_mudanza') return 'carga_local_mudanza';
       if (String(key).toLowerCase() === 'viajes') return 'Viajes';
       if (String(key).toLowerCase() === 'envios') return 'Envios';
       // Si contiene guion bajo, convertir a palabras con mayúscula inicial
@@ -333,8 +337,10 @@ export const DocsManagerModal = ({
   // Normalizar nombre de categoría para guardado en Firebase
   const normalizeCategoryKey = (categoria) => {
     if (!categoria) return categoria;
-    // Mantener la clave combinada como está
+    // Mantener las claves combinadas como están
     if (String(categoria) === 'viajes_envios') return 'viajes_envios';
+    if (String(categoria) === 'carga_nacional_internacional') return 'carga_nacional_internacional';
+    if (String(categoria) === 'carga_local_mudanza') return 'carga_local_mudanza';
     // Si la categoría ya es 'Viajes' o 'Envios' mantener mayúsculas (compatibilidad),
     // pero si contiene espacios, convertir a slug en minúsculas
     if (String(categoria).includes(' ')) {
@@ -435,9 +441,21 @@ export const DocsManagerModal = ({
                   {CATEGORIAS_SERVICIO.map(categoria => {
                     let docsEnCategoria = {};
                     
-                    // Si es la categoría combinada, combinar ambas sin duplicados
+                    // Si es una categoría combinada, combinar sin duplicados
                     if (categoria === "viajes_envios") {
                       const docsCombinados = combinarDocumentosSinDuplicados(ciudad, ["Viajes", "Envios", "viajes_envios"]);
+                      docsEnCategoria = {};
+                      docsCombinados.forEach(doc => {
+                        docsEnCategoria[doc.slug] = doc;
+                      });
+                    } else if (categoria === "carga_nacional_internacional") {
+                      const docsCombinados = combinarDocumentosSinDuplicados(ciudad, ["Carga Nacional", "Carga Internacional", "carga_nacional_internacional"]);
+                      docsEnCategoria = {};
+                      docsCombinados.forEach(doc => {
+                        docsEnCategoria[doc.slug] = doc;
+                      });
+                    } else if (categoria === "carga_local_mudanza") {
+                      const docsCombinados = combinarDocumentosSinDuplicados(ciudad, ["Carga Local", "Mudanza", "carga_local_mudanza"]);
                       docsEnCategoria = {};
                       docsCombinados.forEach(doc => {
                         docsEnCategoria[doc.slug] = doc;
@@ -495,6 +513,30 @@ export const DocsManagerModal = ({
                                     });
                                     if (Object.keys(updated[ciudad]["viajes_envios"]).length === 0) {
                                       delete updated[ciudad]["viajes_envios"];
+                                    }
+                                  }
+                                  
+                                  // Si existe carga_nacional_internacional y el documento está allí, eliminarlo también
+                                  if (idAEliminar && updated[ciudad]["carga_nacional_internacional"]) {
+                                    Object.entries(updated[ciudad]["carga_nacional_internacional"]).forEach(([slugCNI, docCNI]) => {
+                                      if (docCNI?.id === idAEliminar) {
+                                        delete updated[ciudad]["carga_nacional_internacional"][slugCNI];
+                                      }
+                                    });
+                                    if (Object.keys(updated[ciudad]["carga_nacional_internacional"]).length === 0) {
+                                      delete updated[ciudad]["carga_nacional_internacional"];
+                                    }
+                                  }
+                                  
+                                  // Si existe carga_local_mudanza y el documento está allí, eliminarlo también
+                                  if (idAEliminar && updated[ciudad]["carga_local_mudanza"]) {
+                                    Object.entries(updated[ciudad]["carga_local_mudanza"]).forEach(([slugCLM, docCLM]) => {
+                                      if (docCLM?.id === idAEliminar) {
+                                        delete updated[ciudad]["carga_local_mudanza"][slugCLM];
+                                      }
+                                    });
+                                    if (Object.keys(updated[ciudad]["carga_local_mudanza"]).length === 0) {
+                                      delete updated[ciudad]["carga_local_mudanza"];
                                     }
                                   }
                                   
@@ -689,9 +731,14 @@ export const DocsManagerModal = ({
                             const docsEnCiudad = selectedTemplates[ciudad] || {};
                             
                             // Determinar qué categorías revisar para el estado seleccionado
-                            const categoriasARevisar = categoriaSeleccionada === "viajes_envios" 
-                              ? ["Viajes", "Envios", "viajes_envios"] 
-                              : [categoriaSeleccionada];
+                            let categoriasARevisar = [categoriaSeleccionada];
+                            if (categoriaSeleccionada === "viajes_envios") {
+                              categoriasARevisar = ["Viajes", "Envios", "viajes_envios"];
+                            } else if (categoriaSeleccionada === "carga_nacional_internacional") {
+                              categoriasARevisar = ["Carga Nacional", "Carga Internacional", "carga_nacional_internacional"];
+                            } else if (categoriaSeleccionada === "carga_local_mudanza") {
+                              categoriasARevisar = ["Carga Local", "Mudanza", "carga_local_mudanza"];
+                            }
                             
                             // Buscar en cualquiera de las categorías si el documento está seleccionado (ahora como objetos)
                             const isSelected = categoriasARevisar.some(cat => {
@@ -762,27 +809,24 @@ export const DocsManagerModal = ({
             // selectedTemplates ya está en formato correcto: ciudad -> categoría -> documento (objeto)
             const documentosParaGuardar = JSON.parse(JSON.stringify(selectedTemplates));
             
-            // Crear automáticamente "viajes_envios" si existen ambas categorías
+            // Crear automáticamente categorías mixtas
             Object.keys(documentosParaGuardar).forEach(ciudad => {
+              // ============ viajes_envios ============
               const tieneViajes = documentosParaGuardar[ciudad]["Viajes"] && Object.keys(documentosParaGuardar[ciudad]["Viajes"]).length > 0;
               const tieneEnvios = documentosParaGuardar[ciudad]["Envios"] && Object.keys(documentosParaGuardar[ciudad]["Envios"]).length > 0;
               
               if (tieneViajes && tieneEnvios) {
-                // Combinar TODOS los documentos sin duplicados (por ID)
                 const docsViajes = Object.entries(documentosParaGuardar[ciudad]["Viajes"]);
                 const docsEnvios = Object.entries(documentosParaGuardar[ciudad]["Envios"]);
                 
-                // Map de IDs para evitar duplicados
                 const idsYaAgregados = new Set();
                 const docsCombinados = {};
                 
-                // Primero agregar todos de Viajes
                 docsViajes.forEach(([slug, doc]) => {
                   docsCombinados[slug] = doc;
                   idsYaAgregados.add(doc.id);
                 });
                 
-                // Luego agregar los de Envios que NO estén duplicados
                 docsEnvios.forEach(([slug, doc]) => {
                   if (!idsYaAgregados.has(doc.id)) {
                     docsCombinados[slug] = doc;
@@ -790,9 +834,64 @@ export const DocsManagerModal = ({
                   }
                 });
                 
-                // Crear viajes_envios con todos sin duplicados
                 if (Object.keys(docsCombinados).length > 0) {
                   documentosParaGuardar[ciudad]["viajes_envios"] = docsCombinados;
+                }
+              }
+              
+              // ============ carga_nacional_internacional ============
+              const tieneCargaNacional = documentosParaGuardar[ciudad]["Carga Nacional"] && Object.keys(documentosParaGuardar[ciudad]["Carga Nacional"]).length > 0;
+              const tieneCargaInternacional = documentosParaGuardar[ciudad]["Carga Internacional"] && Object.keys(documentosParaGuardar[ciudad]["Carga Internacional"]).length > 0;
+              
+              if (tieneCargaNacional && tieneCargaInternacional) {
+                const docsCargaNacional = Object.entries(documentosParaGuardar[ciudad]["Carga Nacional"]);
+                const docsCargaInternacional = Object.entries(documentosParaGuardar[ciudad]["Carga Internacional"]);
+                
+                const idsYaAgregados = new Set();
+                const docsCombinados = {};
+                
+                docsCargaNacional.forEach(([slug, doc]) => {
+                  docsCombinados[slug] = doc;
+                  idsYaAgregados.add(doc.id);
+                });
+                
+                docsCargaInternacional.forEach(([slug, doc]) => {
+                  if (!idsYaAgregados.has(doc.id)) {
+                    docsCombinados[slug] = doc;
+                    idsYaAgregados.add(doc.id);
+                  }
+                });
+                
+                if (Object.keys(docsCombinados).length > 0) {
+                  documentosParaGuardar[ciudad]["carga_nacional_internacional"] = docsCombinados;
+                }
+              }
+              
+              // ============ carga_local_mudanza ============
+              const tieneCargaLocal = documentosParaGuardar[ciudad]["Carga Local"] && Object.keys(documentosParaGuardar[ciudad]["Carga Local"]).length > 0;
+              const tieneMudanza = documentosParaGuardar[ciudad]["Mudanza"] && Object.keys(documentosParaGuardar[ciudad]["Mudanza"]).length > 0;
+              
+              if (tieneCargaLocal && tieneMudanza) {
+                const docsCargaLocal = Object.entries(documentosParaGuardar[ciudad]["Carga Local"]);
+                const docsMudanza = Object.entries(documentosParaGuardar[ciudad]["Mudanza"]);
+                
+                const idsYaAgregados = new Set();
+                const docsCombinados = {};
+                
+                docsCargaLocal.forEach(([slug, doc]) => {
+                  docsCombinados[slug] = doc;
+                  idsYaAgregados.add(doc.id);
+                });
+                
+                docsMudanza.forEach(([slug, doc]) => {
+                  if (!idsYaAgregados.has(doc.id)) {
+                    docsCombinados[slug] = doc;
+                    idsYaAgregados.add(doc.id);
+                  }
+                });
+                
+                if (Object.keys(docsCombinados).length > 0) {
+                  documentosParaGuardar[ciudad]["carga_local_mudanza"] = docsCombinados;
                 }
               }
             });

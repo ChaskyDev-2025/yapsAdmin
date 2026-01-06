@@ -71,6 +71,39 @@ export function getQrImageUrl(userData) {
 }
 
 /**
+ * Sube una imagen QR a Firebase Storage y guarda la URL en Firestore
+ * @param {File} file - Archivo de imagen QR a subir
+ * @param {string} flotaId - ID de la flota
+ * @returns {Promise<{url: string}>} URL de descarga de la imagen
+ */
+export async function uploadQrFlotaToStorage(file, flotaId) {
+  try {
+    if (!file) {
+      throw new Error("No se proporcionó archivo");
+    }
+
+    // Crear referencia en Storage
+    const timestamp = Date.now();
+    const filename = `${timestamp}_${file.name}`;
+    const storagePath = `qr/${flotaId}/${filename}`;
+    const storageRef = ref(storage, storagePath);
+
+    // Subir archivo a Firebase Storage
+    await uploadBytes(storageRef, file);
+
+    // Obtener URL de descarga desde Firebase Storage
+    const downloadUrl = await getDownloadURL(storageRef);
+
+    return {
+      url: downloadUrl,
+    };
+  } catch (error) {
+    console.error("❌ Error en uploadQrFlotaToStorage:", error);
+    throw error;
+  }
+}
+
+/**
  * Guarda la URL del QR en el documento de una flota
  * @param {string} flotaId - ID de la flota
  * @param {string} qrImageUrl - URL de la imagen del QR
@@ -96,6 +129,80 @@ export async function saveFlotaQrImageUrl(flotaId, qrImageUrl) {
  */
 export function getFlotaQrImageUrl(flotaData) {
   return flotaData?.qrImage || null;
+}
+
+/**
+ * Sube un QR de SuperAdmin a Firebase Storage
+ * @param {File} file - Archivo de imagen QR a subir
+ * @param {string} userId - UID del superadmin
+ * @returns {Promise<{url: string}>} URL de descarga de la imagen
+ */
+export async function uploadQrSuperAdminToStorage(file, userId) {
+  try {
+    if (!file) {
+      throw new Error("No se proporcionó archivo");
+    }
+
+    if (!userId) {
+      throw new Error("No se proporcionó UID del usuario");
+    }
+
+    // Crear referencia en Storage
+    const timestamp = Date.now();
+    const filename = `${timestamp}_${file.name}`;
+    const storagePath = `qr/superadmin/${userId}/${filename}`;
+    const storageRef = ref(storage, storagePath);
+
+    // Subir archivo a Firebase Storage
+    await uploadBytes(storageRef, file);
+
+    // Obtener URL de descarga desde Firebase Storage
+    const downloadUrl = await getDownloadURL(storageRef);
+
+    return {
+      url: downloadUrl,
+    };
+  } catch (error) {
+    console.error("❌ Error en uploadQrSuperAdminToStorage:", error);
+    throw error;
+  }
+}
+
+/**
+ * Sube una foto de perfil a Firebase Storage
+ * @param {File} file - Archivo de imagen de perfil a subir
+ * @param {string} userId - UID del usuario (superadmin, admin, etc)
+ * @returns {Promise<{url: string}>} URL de descarga de la imagen
+ */
+export async function uploadProfilePhotoToStorage(file, userId) {
+  try {
+    if (!file) {
+      throw new Error("No se proporcionó archivo");
+    }
+
+    if (!userId) {
+      throw new Error("No se proporcionó UID del usuario");
+    }
+
+    // Crear referencia en Storage
+    const timestamp = Date.now();
+    const filename = `${timestamp}_${file.name}`;
+    const storagePath = `perfil/${userId}/${filename}`;
+    const storageRef = ref(storage, storagePath);
+
+    // Subir archivo a Firebase Storage
+    await uploadBytes(storageRef, file);
+
+    // Obtener URL de descarga desde Firebase Storage
+    const downloadUrl = await getDownloadURL(storageRef);
+
+    return {
+      url: downloadUrl,
+    };
+  } catch (error) {
+    console.error("❌ Error en uploadProfilePhotoToStorage:", error);
+    throw error;
+  }
 }
 
 /**

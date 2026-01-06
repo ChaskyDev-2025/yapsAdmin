@@ -89,10 +89,10 @@ const SolicitudesAsignadas = () => {
   const [solicitudParaRechazar, setSolicitudParaRechazar] = useState(null);
   const ITEMS_PER_PAGE = 10;
 
-  // Resetear página al cambiar búsqueda
+  // Resetear página al cambiar búsqueda o filtros
   useEffect(() => {
     setPageSolicitudes(0);
-  }, [searchSolicitudes]);
+  }, [searchSolicitudes, periodFilterSolicitudes, filterEstado, filterCategoria]);
   const sortOptions = [
     { label: "Fecha más reciente", value: "fecha-desc" },
     { label: "Fecha más antigua", value: "fecha-asc" }
@@ -538,16 +538,25 @@ const SolicitudesAsignadas = () => {
         const registroDate = new Date(fechaDate.getFullYear(), fechaDate.getMonth(), fechaDate.getDate());
         
         switch (periodFilterSolicitudes) {
-          case "hoy":
-            return registroDate.getTime() === today.getTime();
+          case "hoy": {
+            return registroDate.toDateString() === today.toDateString();
+          }
           case "esta-semana": {
             const startOfWeek = new Date(today);
-            startOfWeek.setDate(today.getDate() - today.getDay());
-            return registroDate >= startOfWeek && registroDate <= today;
+            const day = startOfWeek.getDay();
+            const diff = startOfWeek.getDate() - day;
+            startOfWeek.setDate(diff);
+            
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(endOfWeek.getDate() + 7);
+            
+            return registroDate >= startOfWeek && registroDate < endOfWeek;
           }
           case "este-mes": {
             const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-            return registroDate >= startOfMonth && registroDate <= today;
+            const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            endOfMonth.setDate(endOfMonth.getDate() + 1);
+            return registroDate >= startOfMonth && registroDate < endOfMonth;
           }
           case "ultimos-7": {
             const hace7Dias = new Date(today);

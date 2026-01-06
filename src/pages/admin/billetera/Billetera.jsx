@@ -58,6 +58,7 @@ import { useAuth } from "../../../auth/AuthContext";
 import {
   uploadImageToApi,
   saveQrImageUrl,
+  uploadQrSuperAdminToStorage,
 } from "../../../services/imageUploadService";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
@@ -315,10 +316,11 @@ const Billetera = () => {
     try {
       setUploadingQr(true);
 
-      // Subir imagen a la API
-      const imageUrl = await uploadImageToApi(qrImage, "Qryaaps");
+      // Subir imagen a Firebase Storage en carpeta qr/superadmin/{userId}
+      const uploadResult = await uploadQrSuperAdminToStorage(qrImage, user.uid);
+      const imageUrl = uploadResult.url;
 
-      // Guardar URL en Firebase
+      // Guardar URL en Firebase (documento del usuario)
       await saveQrImageUrl(user.uid, imageUrl);
 
       // Actualizar estado local

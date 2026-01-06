@@ -20,7 +20,7 @@ import { IconButton, InputAdornment } from "@mui/material";
 import { useAuth } from "../../../auth/AuthContext";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
-import { uploadImageToApi } from "../../../services/imageUploadService";
+import { uploadImageToApi, uploadProfilePhotoToStorage } from "../../../services/imageUploadService";
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 
 const Perfil = () => {
@@ -106,9 +106,10 @@ const Perfil = () => {
     try {
       let nuevoFotoUrl = fotoUrl;
 
-      // Si se seleccionó una nueva foto, subirla
+      // Si se seleccionó una nueva foto, subirla a Firebase Storage
       if (foto) {
-        nuevoFotoUrl = await uploadImageToApi(foto, "perfil");
+        const uploadResult = await uploadProfilePhotoToStorage(foto, user.uid);
+        nuevoFotoUrl = uploadResult.url;
       }
 
       // Actualizar datos en Firestore

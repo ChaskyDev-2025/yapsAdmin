@@ -42,6 +42,7 @@ import {
   uploadImageToApi,
   saveFlotaQrImageUrl,
   uploadComprobanteFlota,
+  uploadQrFlotaToStorage,
 } from "../../../services/imageUploadService";
 import {
   obtenerSolicitudesFlota,
@@ -858,8 +859,9 @@ const BilleteraFlota = () => {
     try {
       setUploadingQr(true);
 
-      // Subir imagen a la API con carpeta específica de la flota
-      const imageUrl = await uploadImageToApi(qrImage, `Qryaaps/${flotaId}`);
+      // Subir imagen a Firebase Storage en carpeta qr/{flotaId}
+      const uploadResult = await uploadQrFlotaToStorage(qrImage, flotaId);
+      const imageUrl = uploadResult.url;
 
       // Guardar URL en Firebase (documento de la flota)
       await saveFlotaQrImageUrl(flotaId, imageUrl);

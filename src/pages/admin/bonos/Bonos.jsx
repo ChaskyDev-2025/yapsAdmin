@@ -15,6 +15,7 @@ import AddIcon from "@mui/icons-material/Add";
 import {
   useReglasBonosConductores,
   useHistorialBonos,
+  useTrabajadoresActivosConViajes,
 } from "./hooks/useBonosData";
 import {
   crearReglaBonosConductores,
@@ -24,6 +25,7 @@ import {
 import { DialogoReglaBonosConductores } from "./components/DialogoReglaBonosConductores";
 import { TablaReglasBonosConductores } from "./components/TablaReglasBonosConductores";
 import { TablaHistorialBonos } from "./components/TablaHistorialBonos";
+import { TablaCarreras } from "./components/TablaCarreras";
 import { EstadisticasCard } from "./components/EstadisticasCard";
 
 const ITEMS_PER_PAGE = 10;
@@ -53,6 +55,12 @@ const Bonos = () => {
     loading: historialLoading,
     error: historialError,
   } = useHistorialBonos();
+
+  const {
+    trabajadores,
+    loading: trabajadoresLoading,
+    error: trabajadoresError,
+  } = useTrabajadoresActivosConViajes();
 
   // ============ MANEJO DE REGLAS ============
 
@@ -155,7 +163,7 @@ const Bonos = () => {
 
   const totalPagesBonos = Math.ceil(historial.length / ITEMS_PER_PAGE);
 
-  const isLoading = reglesLoading || historialLoading;
+  const isLoading = reglesLoading || historialLoading || trabajadoresLoading;
 
   if (isLoading) {
     return (
@@ -192,6 +200,9 @@ const Bonos = () => {
         {historialError && (
           <Alert severity="error">Error cargando historial</Alert>
         )}
+        {trabajadoresError && (
+          <Alert severity="error">Error cargando trabajadores</Alert>
+        )}
 
         {/* Estadísticas */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -216,6 +227,7 @@ const Bonos = () => {
           <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
             <Tab label="📋 Reglas de Bonos" />
             <Tab label="📊 Historial" />
+            <Tab label="🏃 Carreras" />
           </Tabs>
         </Box>
 
@@ -256,6 +268,13 @@ const Bonos = () => {
                 />
               </Box>
             )}
+          </Box>
+        )}
+
+        {/* TAB 3: Carreras */}
+        {tabValue === 2 && (
+          <Box>
+            <TablaCarreras trabajadores={trabajadores} />
           </Box>
         )}
       </Paper>
