@@ -1,5 +1,5 @@
 // src/services/imageUploadService.js
-import { doc, updateDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, collection } from "firebase/firestore";
 import { db } from "../data/firebase/firebase";
 import { storage } from "../data/firebase/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -117,28 +117,14 @@ export async function uploadComprobanteFlota(file, flotaId, solicitudId = null) 
     const storagePath = `comprobantes_flota/${flotaId}/${filename}`;
     const storageRef = ref(storage, storagePath);
 
-    // Subir archivo
+    // Subir archivo a Firebase Storage
     await uploadBytes(storageRef, file);
 
-    // Obtener URL de descarga
+    // Obtener URL de descarga desde Firebase Storage
     const downloadUrl = await getDownloadURL(storageRef);
-
-    // Registrar en colección comprobantesFlota
-    const comprobantesRef = collection(db, "comprobantesFlota");
-    const docRef = await addDoc(comprobantesRef, {
-      flotaId,
-      solicitudId: solicitudId || null,
-      url: downloadUrl,
-      nombreArchivo: file.name,
-      tamaño: file.size,
-      tipo: file.type,
-      fechaSubida: serverTimestamp(),
-      estado: "activo",
-    });
 
     return {
       url: downloadUrl,
-      id: docRef.id,
     };
   } catch (error) {
     console.error("❌ Error en uploadComprobanteFlota:", error);

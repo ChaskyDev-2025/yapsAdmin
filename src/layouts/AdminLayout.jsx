@@ -53,6 +53,7 @@ const AdminLayout = () => {
         { path: "/admin/documentos", label: "Documentos", icon: <ArticleIcon /> },
         { path: "/admin/banners", label: "Banners", icon: <PhotoLibraryIcon /> },
         { path: "/admin/referidos", label: "Referidos", icon: <CardGiftcardIcon /> },
+        { path: "/admin/bonos", label: "Bonos y Recompensas", icon: <CardGiftcardIcon /> },
         { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },
       ];
     }
@@ -64,8 +65,8 @@ const AdminLayout = () => {
       { path: "/admin/billetera-flota", label: "Billetera", icon: <AccountBalanceWalletIcon /> },
       { path: "/admin/solicitudes-asignadas", label: "Solicitudes", icon: <AssignmentIcon /> },
       { path: "/admin/documentos-pendientes", label: "Docs Pendientes", icon: <DescriptionIcon /> },
+      { path: "/admin/aplicar-bonos", label: "Bonos", icon: <CardGiftcardIcon /> },
       { path: "/admin/ajustes", label: "Administradores", icon: <SettingsIcon /> },
-      // { path: "/admin/personalizar", label: "Personalizar", icon: <BuildIcon /> },
       { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },
     ];
   }, [userRole]);

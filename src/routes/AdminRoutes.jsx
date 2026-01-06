@@ -25,6 +25,8 @@ import SolicitudesAsignadas from "../pages/admin/solicitudes-asignadas/Solicitud
 import Billetera from "../pages/admin/billetera/Billetera";
 import BilleteraFlota from "../pages/admin/billetera/BilleteraFlota";
 import GestionarSolicitudes from "../pages/admin/billetera/GestionarSolicitudes";
+import Bonos from "../pages/admin/bonos/Bonos";
+import BonosAdmin from "../pages/admin/bonos-aplicar/BonosAdmin";
 
 const AdminRoutes = () => (
   <Routes>
@@ -48,6 +50,8 @@ const AdminRoutes = () => (
       <Route path="flotas" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><GestionFlotas /></RoleProtectedRoute>} />
       <Route path="referidos" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Referidos /></RoleProtectedRoute>} />
       <Route path="solicitudes" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Solicitudes /></RoleProtectedRoute>} />
+      <Route path="bonos" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Bonos /></RoleProtectedRoute>} />
+      <Route path="aplicar-bonos" element={<RoleProtectedRoute allowedRoles={["admin"]}><BonosAdmin /></RoleProtectedRoute>} />
       
       {/* RUTAS PARA FLOTAS */}
       <Route path="solicitudes-asignadas" element={<FlotaProtectedRoute><SolicitudesAsignadas /></FlotaProtectedRoute>} />

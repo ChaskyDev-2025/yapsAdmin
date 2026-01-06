@@ -423,6 +423,16 @@ const SolicitudesAsignadas = () => {
     return nombre;
   };
 
+  // Función para normalizar strings (sin acentos y en minúsculas)
+  const normalizarString = (str) => {
+    if (!str) return "";
+    return String(str)
+      .toLowerCase()
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, ""); // Remover acentos
+  };
+
   // Obtener conductores filtrados por categoría y servicio de la solicitud
   const obtenerConductoresFiltrados = (solicitud) => {
     if (!solicitud) return conductores;
@@ -430,21 +440,28 @@ const SolicitudesAsignadas = () => {
     const categoria = solicitud?.solicitud?.categoria || solicitud?.categoria;
     const servicio = solicitud?.solicitud?.servicio || solicitud?.servicio;
     
+    const categoriaNormalizada = normalizarString(categoria);
+    const servicioNormalizado = normalizarString(servicio);
+    
     return conductores.filter(conductor => {
       // Filtrar por activo
       if (!conductor.activo) return false;
       
-      // Filtrar por categoría
-      if (categoria && !conductor.categorias?.includes(categoria)) return false;
+      // Filtrar por categoría (comparación normalizada)
+      if (categoria && conductor.categorias) {
+        const categoriaEncontrada = conductor.categorias.some(cat => 
+          normalizarString(cat) === categoriaNormalizada
+        );
+        if (!categoriaEncontrada) return false;
+      }
       
-      // Filtrar por servicio - buscar en servicios map
+      // Filtrar por servicio - buscar en servicios map (comparación normalizada)
       if (servicio && conductor.servicios) {
         const serviciosConductor = Object.values(conductor.servicios).map(s => 
-          String(s || "").toLowerCase().trim()
+          normalizarString(s)
         );
-        const servicioSolicitud = String(servicio || "").toLowerCase().trim();
         
-        if (!serviciosConductor.some(s => s === servicioSolicitud || s.includes(servicioSolicitud))) {
+        if (!serviciosConductor.some(s => s === servicioNormalizado || s.includes(servicioNormalizado))) {
           return false;
         }
       }
@@ -697,14 +714,13 @@ const SolicitudesAsignadas = () => {
 
     try {
       await updateDoc(doc(db, "solicitudes", selectedSolicitud.id), {
-        conductorAsignado: asignadoConductor,
-        estado: "conductor_asignado"
+        conductorAsignado: asignadoConductor
       });
 
       setSolicitudes(prevSolicitudes =>
         prevSolicitudes.map(sol =>
           sol.id === selectedSolicitud.id
-            ? { ...sol, conductorAsignado: asignadoConductor, estado: "conductor_asignado" }
+            ? { ...sol, conductorAsignado: asignadoConductor }
             : sol
         )
       );

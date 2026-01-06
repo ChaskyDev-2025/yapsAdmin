@@ -25,6 +25,7 @@ const SolicitudesTable = ({
   onRechazar,
   formatearFecha,
   getEstadoColor,
+  getEstadoStyles,
 }) => {
   return (
     <TableContainer component={Paper} sx={{ mt: 2 }}>
@@ -54,8 +55,7 @@ const SolicitudesTable = ({
                 <TableCell>
                   <Chip
                     label={solicitud.estado}
-                    color={getEstadoColor(solicitud.estado)}
-                    variant="outlined"
+                    sx={getEstadoStyles(solicitud.estado)}
                     size="small"
                   />
                 </TableCell>

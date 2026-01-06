@@ -578,6 +578,33 @@ const Solicitudes = () => {
     }
   };
 
+  // Estilos del chip según estado (mismo que en solicitudes asignadas)
+  const getEstadoStyles = (estado) => {
+    const colorMap = {
+      asignada: "#ffc107",
+      ofertado: "#2196f3",
+      aceptado: "#ff9800",
+      conductor_asignado: "#4caf50",
+      en_curso: "#2196f3",
+      finalizado: "#4caf50",
+      rechazada: "#f44336",
+      solicitado: "#ffc107",
+      pendiente: "#ffc107",
+      completada: "#4caf50",
+    };
+
+    const color = colorMap[estado] || "#d7171a";
+    
+    return {
+      backgroundColor: "transparent",
+      color: color,
+      fontWeight: 600,
+      fontFamily: "Mulish, sans-serif",
+      border: "1.5px solid",
+      borderColor: color
+    };
+  };
+
   // Cache local para nombres de usuarios (pasajeros)
   const nombresPasajerosCacheRef = useRef({});
   const [, setForceRender] = useState(0);
@@ -711,6 +738,7 @@ const Solicitudes = () => {
           onRechazar={handleAbrirRechazarDialog}
           formatearFecha={formatearFecha}
           getEstadoColor={getEstadoColor}
+          getEstadoStyles={getEstadoStyles}
         />
 
         {/* Controles de paginación */}
