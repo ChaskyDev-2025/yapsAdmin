@@ -38,6 +38,7 @@ import { doc, updateDoc, setDoc, deleteField, onSnapshot } from 'firebase/firest
 import { db } from '../../../data/firebase/firebase';
 import { CATEGORIAS_ESPECIALES } from './config/categoriasEspeciales';
 import { FormularioEspecial } from './components/FormularioEspecial';
+import { SeleccionarImagenModal } from './components/SeleccionarImagenModal';
 import { TableToolbar } from '../usuarios/components/TableToolbar';
 
 const DEPARTAMENTOS = [
@@ -71,9 +72,12 @@ const CAMPOS_POR_CATEGORIA = {
 const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }) => {
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState('');
-  const [selectedZona, setSelectedZona] = useState('La Paz');
+  const [selectedZona, setSelectedZona] = useState(null);
   const [serviceName, setServiceName] = useState('');
   const [camposDinamicos, setCamposDinamicos] = useState([]);
+  const [imagenSeleccionada, setImagenSeleccionada] = useState(null);
+  const [modalImagenesOpen, setModalImagenesOpen] = useState(false);
+  const [originalServiceId, setOriginalServiceId] = useState(null);
   const [formData, setFormData] = useState({
     activo: true,
     tarifa_general: {
@@ -91,16 +95,31 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
     unidad_precio: 'Bs',
     reglas_tarifa: {},
     tarifasAeropuerto: [],
-    horasPico: []
+    horasPico: [],
+    comisiones: {},
+    imagenUrl: null,
+    imagenNombre: null
   });
 
   const isEspecialCategory = Object.keys(CATEGORIAS_ESPECIALES).includes(category);
+
+  // Resetear zona cuando cambia el departamento
+  useEffect(() => {
+    if (department === 'La Paz') {
+      setSelectedZona('La Paz');
+    } else {
+      setSelectedZona(null);
+    }
+  }, [department, open]);
 
   useEffect(() => {
     if (!open) {
       setCategory('');
       setServiceName('');
       setCamposDinamicos([]);
+      setImagenSeleccionada(null);
+      setOriginalServiceId(null);
+      setSelectedZona(null);
       setFormData({
         activo: true,
         tarifa_general: {
@@ -113,7 +132,9 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
           comision: 0
         },
         tarifasAeropuerto: [{ desdeKm: "10", precio: "40.00" }, { desdeKm: "20", precio: "60.00" }],
-        horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }]
+        horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }],
+        imagenUrl: null,
+        imagenNombre: null
       });
       return;
     }
@@ -122,6 +143,8 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
     if (!service) {
       setCategory('');
       setServiceName('');
+      setImagenSeleccionada(null);
+      setOriginalServiceId(null);
       if (modoPrueba) {
         setCamposDinamicos([]);
         setFormData({
@@ -132,24 +155,49 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
           unidad_precio: 'Bs',
           reglas_tarifa: {},
           tarifasAeropuerto: [{ desdeKm: "10", precio: "40.00" }, { desdeKm: "20", precio: "60.00" }],
-          horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }]
+          horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }],
+          comisiones: {},
+          imagenUrl: null,
+          imagenNombre: null
         });
       } else {
         setFormData({
           activo: true,
           tarifa_general: { tarifaBase: '', distanciaBase: '', porKm: '', porMin: '', horaPicoExtra: '', nocturno: '', comision: '' },
-          tipo_calculo: 'tarifa_fija',
+          tipo_calculo: 'distancia_tiempo',
           unidad_precio: 'Bs',
           tarifasAeropuerto: [{ desdeKm: "10", precio: "40.00" }, { desdeKm: "20", precio: "60.00" }],
-          horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }]
+          horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }],
+          comisiones: {},
+          imagenUrl: null,
+          imagenNombre: null
         });
       }
       return;
     }
 
-    // Si hay service, cargar sus datos
+    // Si hay service, cargar sus datos y guardar el ID original
+    setOriginalServiceId(service.id);
     setCategory(service.categoria || '');
     setServiceName(service.servicio || service.nombre_visible || service.id || '');
+    
+    // Cargar zona si existe (para La Paz)
+    if (service.zona) {
+      setSelectedZona(service.zona);
+    } else {
+      setSelectedZona(null);
+    }
+    
+    // Cargar imagen si existe
+    if (service.imagenUrl && service.imagenNombre) {
+      setImagenSeleccionada({
+        url: service.imagenUrl,
+        nombre: service.imagenNombre,
+        path: service.imagenNombre
+      });
+    } else {
+      setImagenSeleccionada(null);
+    }
     
     const isEspecial = Object.keys(CATEGORIAS_ESPECIALES).includes(service.categoria);
     
@@ -190,6 +238,14 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
         horasPico: service.Horas_pico?.franjas || []
       });
     } else {
+      // Determinar tipo_calculo basado en la categoría
+      let tipoCalculoFinal = 'distancia_tiempo';
+      if (service.categoria === 'Viajes' || service.categoria === 'Envios') {
+        tipoCalculoFinal = 'distancia_tiempo';
+      } else {
+        tipoCalculoFinal = service.tipo_calculo || 'distancia_tiempo';
+      }
+      
       setFormData({
         activo: service.activo !== undefined ? service.activo : true,
         tarifa_general: {
@@ -201,9 +257,10 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
           nocturno: String(service.reglas_tarifa?.nocturno ?? service.reglas_tarifa?.recargo_nocturno ?? service.tarifa_general?.nocturno ?? ''),
           comision: String(service.reglas_tarifa?.comision ?? service.tarifa_general?.comision ?? '')
         },
-        tipo_calculo: service.tipo_calculo || 'tarifa_fija',
+        tipo_calculo: tipoCalculoFinal,
         tarifasAeropuerto: service.Tarifas_Aeropuerto?.tramos || [],
-        horasPico: service.Horas_pico?.franjas || []
+        horasPico: service.Horas_pico?.franjas || [],
+        comisiones: (typeof service.comisiones === 'object' && !Array.isArray(service.comisiones)) ? service.comisiones : {}
       });
     }
   }, [open, service, modoPrueba]);
@@ -245,6 +302,57 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
     const newArr = [...formData.horasPico];
     newArr[index][field] = value;
     setFormData(prev => ({ ...prev, horasPico: newArr }));
+  };
+
+  // Comisiones handlers (como objeto con propiedades dinámicas)
+  const [nuevoNombreComision, setNuevoNombreComision] = useState('');
+  const [nuevoValorComision, setNuevoValorComision] = useState('');
+
+  const addComision = () => {
+    if (!nuevoNombreComision.trim()) {
+      alert('Ingresa un nombre para la comisión');
+      return;
+    }
+    if (!nuevoValorComision || isNaN(nuevoValorComision)) {
+      alert('Ingresa un valor válido');
+      return;
+    }
+    setFormData(prev => ({
+      ...prev,
+      comisiones: {
+        ...prev.comisiones,
+        [nuevoNombreComision.toLowerCase()]: parseFloat(nuevoValorComision)
+      }
+    }));
+    setNuevoNombreComision('');
+    setNuevoValorComision('');
+  };
+
+  const removeComision = (key) => {
+    setFormData(prev => {
+      const newComisiones = { ...prev.comisiones };
+      delete newComisiones[key];
+      return { ...prev, comisiones: newComisiones };
+    });
+  };
+
+  const updateComision = (key, value) => {
+    setFormData(prev => ({
+      ...prev,
+      comisiones: {
+        ...prev.comisiones,
+        [key]: parseFloat(value) || 0
+      }
+    }));
+  };
+
+  const calcularTotalComisiones = () => {
+    return Object.entries(formData.comisiones || {})
+      .filter(([key]) => key !== 'totalComisiones') // Excluir totalComisiones de la suma
+      .reduce((total, [, valor]) => {
+        const num = parseFloat(valor) || 0;
+        return total + num;
+      }, 0).toFixed(2);
   };
 
   
@@ -327,11 +435,41 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
           tipo_calculo: formData.tipo_calculo,
           reglas_tarifa: tarifa_general_numerica
         };
-        // No incluir tarifas por zona (revertido a comportamiento original)
-        key = `${category}_${serviceName}`.replace(/[^a-zA-Z0-9]/g, '_');
+        
+        // Generar key base
+        let keyBase = `${category}_${serviceName}`.replace(/[^a-zA-Z0-9]/g, '_');
+        
+        // Si es La Paz, SIEMPRE incluir la zona en la clave
+        if (department === 'La Paz' && selectedZona) {
+          keyBase = `${keyBase}_${String(selectedZona).replace(/\s+/g, '_')}`;
+        }
+        
+        key = keyBase;
       }
 
-      await onSave(key, dataToSave, selectedZona);
+      // Agregar imagen si está seleccionada
+      if (imagenSeleccionada) {
+        dataToSave.imagenUrl = imagenSeleccionada.url;
+        dataToSave.imagenNombre = imagenSeleccionada.nombre;
+      }
+
+      // Agregar comisiones si existen (como objeto)
+      if (formData.comisiones && Object.keys(formData.comisiones).length > 0) {
+        dataToSave.comisiones = {
+          ...formData.comisiones,
+          totalComisiones: parseFloat(calcularTotalComisiones())
+        };
+      } else {
+        dataToSave.comisiones = {};
+      }
+
+      // Si es una edición, usar el ID original
+      const finalKey = originalServiceId || key;
+
+      // Pasar zona solo si está en La Paz y una zona está seleccionada
+      const zonaAGuardar = department === 'La Paz' ? (selectedZona || 'La Paz') : null;
+
+      await onSave(finalKey, dataToSave, zonaAGuardar);
       onClose();
     } catch (error) {
       console.error("Error saving service:", error);
@@ -354,8 +492,14 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
                 value={category}
                 label="Categoría"
                 onChange={(e) => {
-                  setCategory(e.target.value);
+                  const newCategory = e.target.value;
+                  setCategory(newCategory);
                   setServiceName(''); // Reset service when category changes
+                  
+                  // Actualizar tipo_calculo según la categoría
+                  if (newCategory === 'Viajes' || newCategory === 'Envios') {
+                    setFormData(prev => ({ ...prev, tipo_calculo: 'distancia_tiempo' }));
+                  }
                 }}
               >
                 {Object.keys(SERVICE_CATALOG).map((cat) => (
@@ -402,7 +546,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
               <FormControl sx={{ minWidth: 160 }}>
                 <InputLabel>Zona</InputLabel>
                 <Select
-                  value={selectedZona}
+                  value={selectedZona || 'La Paz'}
                   label="Zona"
                   onChange={(e) => setSelectedZona(e.target.value)}
                 >
@@ -547,6 +691,163 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
               </Box>
             </Box>
           </Grid>
+
+          {/* Comisiones - Solo para Viajes y Envios */}
+          {(category === 'Viajes' || category === 'Envios') && (
+          <Grid item xs={12}>
+            <Box sx={{ p: 2, border: '1px solid #ddd', borderRadius: 1, bgcolor: '#f9f9f9' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Comisiones</Typography>
+              
+              {/* Formulario para agregar nueva comisión */}
+              <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'flex-end' }}>
+                <TextField 
+                  label="Nombre (ej: app, flota, seguro)" 
+                  size="small"
+                  value={nuevoNombreComision}
+                  onChange={(e) => setNuevoNombreComision(e.target.value)}
+                  sx={{ flex: 2 }}
+                />
+                <TextField 
+                  label="Porcentaje (%)" 
+                  size="small" 
+                  type="number"
+                  inputProps={{ step: "0.1", min: "0" }}
+                  value={nuevoValorComision}
+                  onChange={(e) => setNuevoValorComision(e.target.value)}
+                  sx={{ flex: 1 }}
+                />
+                <Button onClick={addComision} variant="contained" color="primary" size="small">Agregar</Button>
+              </Box>
+
+              {/* Lista de comisiones existentes */}
+              <Box sx={{ maxHeight: '250px', overflowY: 'auto', mb: 2 }}>
+                {formData.comisiones && Object.keys(formData.comisiones).length > 0 ? (
+                  Object.entries(formData.comisiones).map(([key, valor]) => (
+                    <Box key={key} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center', p: 1, bgcolor: '#fff', borderRadius: 1 }}>
+                      <Typography sx={{ flex: 2, fontWeight: 500 }}>
+                        {key}:
+                      </Typography>
+                      <TextField 
+                        size="small" 
+                        type="number"
+                        inputProps={{ step: "0.1", min: "0" }}
+                        value={valor} 
+                        onChange={(e) => updateComision(key, e.target.value)}
+                        sx={{ flex: 1 }}
+                      />
+                      <Typography sx={{ minWidth: '30px', textAlign: 'center' }}>%</Typography>
+                      <IconButton onClick={() => removeComision(key)} color="error" size="small"><RemoveCircleOutlineIcon /></IconButton>
+                    </Box>
+                  ))
+                ) : (
+                  <Typography variant="body2" sx={{ color: '#999', fontStyle: 'italic', p: 1 }}>
+                    No hay comisiones. Agrega una arriba.
+                  </Typography>
+                )}
+              </Box>
+
+              {formData.comisiones && Object.keys(formData.comisiones).length > 0 && (
+                <Box sx={{ 
+                  p: 1.5, 
+                  bgcolor: '#fff', 
+                  borderTop: '2px solid #ddd',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: 2,
+                  alignItems: 'center'
+                }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    Total Comisiones:
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#d7171a', minWidth: '80px' }}>
+                    {calcularTotalComisiones()}%
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          </Grid>
+          )}
+
+          {/* Sección Imagen del Vehículo */}
+          <Grid item xs={12}>
+            <Box sx={{ p: 2, border: '1px solid #ddd', borderRadius: 1, bgcolor: '#f9f9f9' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>Imagen del Vehículo</Typography>
+                  <Typography variant="caption" sx={{ color: '#999' }}>Selecciona una imagen representativa del vehículo</Typography>
+                </Box>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => setModalImagenesOpen(true)}
+                  color="primary"
+                  sx={{ ml: 2 }}
+                >
+                  Seleccionar Imagen
+                </Button>
+              </Box>
+
+              {imagenSeleccionada ? (
+                <Box sx={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'auto 1fr',
+                  gap: 2,
+                  alignItems: 'center',
+                  p: 2,
+                  bgcolor: '#ffffff',
+                  borderRadius: 1,
+                  border: '1px solid #e0e0e0'
+                }}>
+                  {/* Imagen */}
+                  <Box
+                    component="img"
+                    src={imagenSeleccionada.url}
+                    alt={imagenSeleccionada.nombre}
+                    sx={{
+                      width: 140,
+                      height: 140,
+                      objectFit: 'cover',
+                      borderRadius: 1,
+                      border: '2px solid #d7171a'
+                    }}
+                  />
+                  
+                  {/* Info y botones */}
+                  <Box>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="caption" sx={{ color: '#999' }}>Archivo seleccionado:</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#000', wordBreak: 'break-word' }}>
+                        {imagenSeleccionada.nombre}
+                      </Typography>
+                    </Box>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      onClick={() => setImagenSeleccionada(null)}
+                    >
+                      Cambiar Imagen
+                    </Button>
+                  </Box>
+                </Box>
+              ) : (
+                <Box sx={{ 
+                  p: 3,
+                  bgcolor: '#ffffff',
+                  borderRadius: 1,
+                  border: '2px dashed #ddd',
+                  textAlign: 'center'
+                }}>
+                  <Typography variant="body2" sx={{ color: '#999' }}>
+                    📷 No hay imagen seleccionada
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#bbb', display: 'block', mt: 1 }}>
+                    Haz clic en "Seleccionar Imagen" para elegir una
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          </Grid>
         </Grid>
       </DialogContent>
       <DialogActions>
@@ -555,6 +856,11 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
           {loading ? 'Guardando...' : 'Guardar'}
         </Button>
       </DialogActions>
+      <SeleccionarImagenModal
+        open={modalImagenesOpen}
+        onClose={() => setModalImagenesOpen(false)}
+        onSelect={(imagen) => setImagenSeleccionada(imagen)}
+      />
     </Dialog>
   );
 };
@@ -721,20 +1027,20 @@ const GestionServicios = () => {
 
   const handleSaveService = async (serviceName, serviceData, zona) => {
     if (!selectedDept) return;
-    // Attach zona as a simple field on the service object (no subcollections)
-    const payload = zona ? { ...serviceData, zona } : serviceData;
+    // Solo guardar zona si es La Paz
+    const payload = selectedDept === 'La Paz' 
+      ? { ...serviceData, zona: zona || null }
+      : { ...serviceData };
+    
     try {
-      // If zona provided, save under a composite key: <serviceName>_<Zona_con_underscores>
-      const saveKey = zona ? `${serviceName}_${String(zona).replace(/\s+/g, '_')}` : serviceName;
       await updateDoc(doc(db, 'Tarifas', selectedDept), {
-        [saveKey]: payload
+        [serviceName]: payload
       });
     } catch (err) {
       // If doc doesn't exist, create it with the service field
       try {
-        const saveKey = zona ? `${serviceName}_${String(zona).replace(/\s+/g, '_')}` : serviceName;
         await setDoc(doc(db, 'Tarifas', selectedDept), {
-          [saveKey]: payload,
+          [serviceName]: payload,
           enabled: deptStatus[selectedDept] || false
         }, { merge: true });
       } catch (setDocErr) {

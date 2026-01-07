@@ -27,10 +27,10 @@ export default function ModalIzquierdo({ rowData }) {
   const flotaNombre = rowData.flotaNombre || "-";
   const departamento = rowData.departamento || "-";
 
-  // Escucha el saldo actualizado en Firestore
+  // Escucha el saldo actualizado en Firestore desde billetera/data
   useEffect(() => {
     if (!rowData?.firebaseId) return;
-    const ref = doc(db, "trabajadores", rowData.firebaseId);
+    const ref = doc(db, "trabajadores", rowData.firebaseId, "billetera", "data");
     const unsubscribe = onSnapshot(ref, (snap) => {
       const data = snap.data();
       if (data && typeof data.saldo !== "undefined") {

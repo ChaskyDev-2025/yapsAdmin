@@ -668,10 +668,13 @@ const Solicitudes = () => {
                   defaultValue: "todas",
                   options: [
                     { label: "Todas", value: "todas" },
-                    { label: "Solicitado", value: "solicitado" },
                     { label: "Asignada", value: "asignada" },
-                    { label: "Rechazada", value: "rechazada" },
-                    { label: "Completada", value: "completada" },
+                    { label: "Ofertado", value: "ofertado" },
+                    { label: "Aceptado", value: "aceptado" },
+                    { label: "Conductor Asignado", value: "conductor_asignado" },
+                    { label: "En Curso", value: "en_curso" },
+                    { label: "Finalizado", value: "finalizado" },
+                    { label: "Rechazado", value: "rechazado" },
                   ],
                 },
               ]}

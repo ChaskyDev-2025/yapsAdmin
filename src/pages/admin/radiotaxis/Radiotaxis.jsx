@@ -53,6 +53,22 @@ const Radiotaxis = () => {
     return radio.fotoUrl || radio.logo || "";
   };
 
+  // Función para obtener el saldo de la billetera del conductor
+  const obtenerSaldoTrabajador = async (uid) => {
+    try {
+      const billeteraRef = doc(db, "trabajadores", uid, "billetera", "data");
+      const billeteraSnap = await getDoc(billeteraRef);
+      if (billeteraSnap.exists()) {
+        const saldo = billeteraSnap.data().saldo || 0;
+        return `Bs. ${parseFloat(saldo).toFixed(2)}`;
+      }
+      return "Bs. 0.00";
+    } catch (error) {
+      console.error("Error al obtener saldo:", error);
+      return "Bs. 0.00";
+    }
+  };
+
   const [openModal, setOpenModal] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -81,6 +97,7 @@ const Radiotaxis = () => {
   const { user, userRole } = useAuth();
   const isSuperAdminUser = isSuperAdmin(userRole);
   const [allRadiotaxis, setAllRadiotaxis] = useState([]);
+  const [saldosPorTrabajador, setSaldosPorTrabajador] = useState({});
   const ITEMS_PER_PAGE = 10;
   
   // Estados para diálogo de eliminación de conductor
@@ -135,6 +152,21 @@ const Radiotaxis = () => {
 
     return () => unsubscribe();
   }, [isSuperAdminUser]);
+
+  // Cargar saldos de billeteras para cada trabajador
+  useEffect(() => {
+    if (allRadiotaxis.length === 0) return;
+
+    const cargarSaldos = async () => {
+      const saldos = {};
+      for (const trabajador of allRadiotaxis) {
+        saldos[trabajador.firebaseId] = await obtenerSaldoTrabajador(trabajador.firebaseId);
+      }
+      setSaldosPorTrabajador(saldos);
+    };
+
+    cargarSaldos();
+  }, [allRadiotaxis]);
 
   // Seleccionar filas correctas según el rol
   const { rows: rowsFlota, cargando, error, refetch } = useTrabajadoresPorFlota(flotaId);
@@ -451,6 +483,9 @@ const Radiotaxis = () => {
                   </TableCell>
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
                     Estado
+                  </TableCell>
+                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                    Saldo
                   </TableCell>
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
                     Acciones

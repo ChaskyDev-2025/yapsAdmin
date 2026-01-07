@@ -2,7 +2,7 @@
 import { doc, updateDoc, collection } from "firebase/firestore";
 import { db } from "../data/firebase/firebase";
 import { storage } from "../data/firebase/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, listAll } from "firebase/storage";
 
 /**
  * Sube una imagen a la API externa y retorna la URL
@@ -235,6 +235,33 @@ export async function uploadComprobanteFlota(file, flotaId, solicitudId = null) 
     };
   } catch (error) {
     console.error("❌ Error en uploadComprobanteFlota:", error);
+    throw error;
+  }
+}
+
+/**
+ * Lista todas las imágenes de la carpeta vehiculosImagenes en Firebase Storage
+ * @returns {Promise<Array>} Array de objetos con {nombre, url}
+ */
+export async function listVehiculosImagenes() {
+  try {
+    const folderRef = ref(storage, "vehiculosImagenes");
+    const result = await listAll(folderRef);
+    
+    const imagenes = await Promise.all(
+      result.items.map(async (itemRef) => {
+        const url = await getDownloadURL(itemRef);
+        return {
+          nombre: itemRef.name,
+          url: url,
+          path: itemRef.fullPath
+        };
+      })
+    );
+    
+    return imagenes.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  } catch (error) {
+    console.error("❌ Error listando imágenes de vehiculosImagenes:", error);
     throw error;
   }
 }

@@ -666,6 +666,17 @@ const SolicitudesAsignadas = () => {
     if (!solicitudParaOferta) return;
 
     try {
+      // Obtener el QR de la flota asignada
+      let qrFlota = null;
+      try {
+        const flotaDoc = await getDoc(doc(db, "flotas", userFlotaId));
+        if (flotaDoc.exists()) {
+          qrFlota = flotaDoc.data().qrImage || null;
+        }
+      } catch (err) {
+        console.warn("No se pudo obtener el QR de la flota:", err);
+      }
+
       // Crear copia limpia del solicitud sin detalles, fechaInicio, fechaProgramada, fechaCreacion
       const solicitudLimpia = { ...solicitudParaOferta.solicitud };
       delete solicitudLimpia.detalles;
@@ -680,6 +691,7 @@ const SolicitudesAsignadas = () => {
             costo: ofertaData.costo, // Total a cobrar (costo base + campos)
             costoServicio: ofertaData.costoServicio || 0,
             campos: ofertaData.campos,
+            qrFlota: qrFlota, // Agregar QR de la flota
             fechaOferta: new Date()
           }
         },
@@ -697,6 +709,7 @@ const SolicitudesAsignadas = () => {
                     costo: ofertaData.costo,
                     costoServicio: ofertaData.costoServicio || 0,
                     campos: ofertaData.campos,
+                    qrFlota: qrFlota, // Agregar QR de la flota
                     fechaOferta: new Date()
                   }
                 },

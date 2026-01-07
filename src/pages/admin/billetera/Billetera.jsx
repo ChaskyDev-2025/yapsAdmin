@@ -684,16 +684,6 @@ const Billetera = () => {
             >
               Mi QR
             </Button>
-
-            <Tooltip title="Recargar datos">
-              <IconButton
-                onClick={cargarDatos}
-                disabled={loading}
-                sx={{ bgcolor: "#f5f5f5" }}
-              >
-                <RefreshIcon />
-              </IconButton>
-            </Tooltip>
           </Box>
         </Box>
 
