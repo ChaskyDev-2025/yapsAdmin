@@ -31,6 +31,55 @@ const DEPARTAMENTOS = [
   "Pando"
 ];
 
+// Función para parsear fechas en español o ISO format
+const parseFecha = (fechaStr) => {
+  if (!fechaStr) return null;
+
+  // Si es una cadena, intentar parsearla
+  if (typeof fechaStr === "string") {
+    // Primero intentar formato ISO
+    const isoDate = new Date(fechaStr);
+    if (!isNaN(isoDate.getTime())) {
+      return isoDate;
+    }
+
+    // Si no es ISO, intentar parsear formato español
+    // Ej: "30 de noviembre de 2026 a las 11:59:59 p.m. UTC-4"
+    const mesesEspanol = {
+      enero: 0, febrero: 1, marzo: 2, abril: 3, mayo: 4, junio: 5,
+      julio: 6, agosto: 7, septiembre: 8, octubre: 9, noviembre: 10, diciembre: 11
+    };
+
+    // Regex para parsear "30 de noviembre de 2026 a las 11:59:59 p.m."
+    const regex = /(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})\s+a\s+las\s+(\d{1,2}):(\d{2}):(\d{2})/i;
+    const match = fechaStr.match(regex);
+
+    if (match) {
+      const [, dia, mesStr, año, hora, minuto, segundo] = match;
+      const mes = mesesEspanol[mesStr.toLowerCase()];
+
+      if (mes !== undefined) {
+        // Ajustar hora si es p.m. y no es 12
+        let horaNum = parseInt(hora);
+        if (fechaStr.includes("p.m.") && horaNum !== 12) {
+          horaNum += 12;
+        } else if (fechaStr.includes("a.m.") && horaNum === 12) {
+          horaNum = 0;
+        }
+
+        return new Date(año, mes, dia, horaNum, minuto, segundo);
+      }
+    }
+  }
+
+  // Si es un objeto Timestamp de Firebase
+  if (fechaStr && typeof fechaStr === "object" && fechaStr.toDate) {
+    return fechaStr.toDate();
+  }
+
+  return null;
+};
+
 const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => {
   const [formData, setFormData] = useState({
     codigo: "",
@@ -42,6 +91,7 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
     usosActuales: 0,
     activo: true,
     tipoCategoria: "viajes",
+    fechaExpiracion: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -49,7 +99,19 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
 
   useEffect(() => {
     if (codigoData) {
-      setFormData(codigoData);
+      // Convertir fechaExpiracion a datetime-local si existe
+      let fechaExpiracion = "";
+      if (codigoData.fechaExpiracion) {
+        const fecha = parseFecha(codigoData.fechaExpiracion);
+        if (fecha && !isNaN(fecha.getTime())) {
+          // Convertir a formato datetime-local (YYYY-MM-DDTHH:mm)
+          fechaExpiracion = fecha.toISOString().slice(0, 16);
+        }
+      }
+      setFormData({
+        ...codigoData,
+        fechaExpiracion: fechaExpiracion
+      });
     } else {
       setFormData({
         codigo: "",
@@ -61,6 +123,7 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
         usosActuales: 0,
         activo: true,
         tipoCategoria: "viajes",
+        fechaExpiracion: "",
       });
     }
     setError("");
@@ -255,6 +318,41 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
             </Grid>
           </Grid>
 
+          {/* Sección 1b: Información de Fechas (solo en edición) */}
+          {codigoData && (
+            <>
+              <Divider sx={{ my: 3 }} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)", backgroundClip: "text", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", mb: 2.5, fontSize: "0.95rem" }}>
+                📅 Información de Fechas
+              </Typography>
+
+              <Grid container spacing={2.5} sx={{ mb: 3.5 }}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Fecha de Creación"
+                    value={formData.fechaCreacion ? new Date(formData.fechaCreacion).toLocaleString("es-ES", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit"
+                    }) : ""}
+                    disabled
+                    variant="outlined"
+                    size="small"
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 1.5,
+                      }
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            </>
+          )}
+
           {/* Divisor */}
           <Divider sx={{ my: 3 }} />
 
@@ -331,6 +429,35 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
               />
             </Grid>
 
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Fecha de Expiración"
+                name="fechaExpiracion"
+                type="datetime-local"
+                value={formData.fechaExpiracion}
+                onChange={handleChange}
+                variant="outlined"
+                size="small"
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 1.5,
+                  }
+                }}
+              />
+            </Grid>
+          </Grid>
+
+          {/* Divisor */}
+          <Divider sx={{ my: 3 }} />
+
+          {/* Sección 4: Categoría */}
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)", backgroundClip: "text", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", mb: 2.5, fontSize: "0.95rem" }}>
+            📁 Categoría
+          </Typography>
+
+          <Grid container spacing={2.5} sx={{ mb: 3.5 }}>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth

@@ -29,15 +29,7 @@ const StatsGrid = ({ stats, loading }) => {
           color="#4caf50"
         />
       </Grid>
-      <Grid item xs={12} sm={6} md={2}>
-        <StatCard
-          title="Tickets Generados"
-          value={loading ? "..." : stats.totalTickets}
-          subtitle="Para sorteos"
-          icon={CardGiftcardIcon}
-          color="#ff9800"
-        />
-      </Grid>
+     
       <Grid item xs={12} sm={6} md={2}>
         <StatCard
           title="Total Donaciones"
@@ -47,30 +39,8 @@ const StatsGrid = ({ stats, loading }) => {
           color="#2196f3"
         />
       </Grid>
-      <Grid item xs={12} sm={6} md={2}>
-        <StatCard
-          title="Promedio"
-          value={
-            loading
-              ? "..."
-              : stats.total > 0
-              ? (stats.totalReferidos / stats.total).toFixed(1)
-              : "0"
-          }
-          subtitle="Referidos por usuario"
-          icon={EmojiEventsIcon}
-          color="#f44336"
-        />
-      </Grid>
-      <Grid item xs={12} sm={6} md={2}>
-        <StatCard
-          title="Total Cupones"
-          value={loading ? "..." : stats.totalCupones || 0}
-          subtitle="Rifas generadas"
-          icon={CardBoardIcon}
-          color="#d7171a"
-        />
-      </Grid>
+      
+      
     </Grid>
   );
 };

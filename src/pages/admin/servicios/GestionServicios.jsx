@@ -97,6 +97,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
     tarifasAeropuerto: [],
     horasPico: [],
     comisiones: {},
+    precio_ayudante: 0,
     imagenUrl: null,
     imagenNombre: null
   });
@@ -260,7 +261,8 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
         tipo_calculo: tipoCalculoFinal,
         tarifasAeropuerto: service.Tarifas_Aeropuerto?.tramos || [],
         horasPico: service.Horas_pico?.franjas || [],
-        comisiones: (typeof service.comisiones === 'object' && !Array.isArray(service.comisiones)) ? service.comisiones : {}
+        comisiones: (typeof service.comisiones === 'object' && !Array.isArray(service.comisiones)) ? service.comisiones : {},
+        precio_ayudante: service.precio_ayudante || 0
       });
     }
   }, [open, service, modoPrueba]);
@@ -303,7 +305,6 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
     newArr[index][field] = value;
     setFormData(prev => ({ ...prev, horasPico: newArr }));
   };
-
   // Comisiones handlers (como objeto con propiedades dinámicas)
   const [nuevoNombreComision, setNuevoNombreComision] = useState('');
   const [nuevoValorComision, setNuevoValorComision] = useState('');
@@ -764,6 +765,28 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
                   </Typography>
                 </Box>
               )}
+            </Box>
+          </Grid>
+          )}
+
+          {/* Sección Precio de Ayudante (solo para Envios) */}
+          {category === 'Envios' && (
+          <Grid item xs={12}>
+            <Box sx={{ p: 2, border: '1px solid #ddd', borderRadius: 1, bgcolor: '#f9f9f9' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  💰 Precio Ayudante
+                </Typography>
+              </Box>
+              <TextField 
+                label="Precio Ayudante (Bs)" 
+                fullWidth
+                size="small" 
+                type="number"
+                inputProps={{ step: "1", min: "0" }}
+                value={formData.precio_ayudante || 0}
+                onChange={(e) => setFormData(prev => ({ ...prev, precio_ayudante: parseFloat(e.target.value) || 0 }))}
+              />
             </Box>
           </Grid>
           )}

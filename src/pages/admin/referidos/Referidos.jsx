@@ -285,6 +285,55 @@ const Referidos = () => {
     alert(`Código ${codigo} copiado al portapapeles`);
   };
 
+  // Función para parsear fechas en español o ISO format
+  const parseFecha = (fechaStr) => {
+    if (!fechaStr) return null;
+
+    // Si es una cadena, intentar parsearla
+    if (typeof fechaStr === "string") {
+      // Primero intentar formato ISO
+      const isoDate = new Date(fechaStr);
+      if (!isNaN(isoDate.getTime())) {
+        return isoDate;
+      }
+
+      // Si no es ISO, intentar parsear formato español
+      // Ej: "30 de noviembre de 2026 a las 11:59:59 p.m. UTC-4"
+      const mesesEspanol = {
+        enero: 0, febrero: 1, marzo: 2, abril: 3, mayo: 4, junio: 5,
+        julio: 6, agosto: 7, septiembre: 8, octubre: 9, noviembre: 10, diciembre: 11
+      };
+
+      // Regex para parsear "30 de noviembre de 2026 a las 11:59:59 p.m."
+      const regex = /(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})\s+a\s+las\s+(\d{1,2}):(\d{2}):(\d{2})/i;
+      const match = fechaStr.match(regex);
+
+      if (match) {
+        const [, dia, mesStr, año, hora, minuto, segundo] = match;
+        const mes = mesesEspanol[mesStr.toLowerCase()];
+
+        if (mes !== undefined) {
+          // Ajustar hora si es p.m. y no es 12
+          let horaNum = parseInt(hora);
+          if (fechaStr.includes("p.m.") && horaNum !== 12) {
+            horaNum += 12;
+          } else if (fechaStr.includes("a.m.") && horaNum === 12) {
+            horaNum = 0;
+          }
+
+          return new Date(año, mes, dia, horaNum, minuto, segundo);
+        }
+      }
+    }
+
+    // Si es un objeto Timestamp de Firebase
+    if (fechaStr && typeof fechaStr === "object" && fechaStr.toDate) {
+      return fechaStr.toDate();
+    }
+
+    return null;
+  };
+
   // Calcular estadísticas por pestaña
   const getTabStats = useMemo(() => {
     if (selectedTab === 0) {
@@ -424,7 +473,7 @@ const Referidos = () => {
           <Tab label="👤 Pasajeros" icon={undefined} />
           <Tab label="💝 Donaciones" icon={undefined} />
           <Tab label="🎟️ Códigos Promocionales" icon={undefined} />
-          <Tab label="🎰 Sorteos" icon={undefined} />
+          <Tab label="🎲 Sorteos" icon={undefined} />
         </Tabs>
       </Box>
 
@@ -877,10 +926,16 @@ const Referidos = () => {
                         <TableCell sx={{ color: "white", fontWeight: 700 }}>Departamento</TableCell>
                         <TableCell sx={{ color: "white", fontWeight: 700 }}>Descripción</TableCell>
                         <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
+                          Creación
+                        </TableCell>
+                        <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
                           Descuento
                         </TableCell>
                         <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
                           Usos
+                        </TableCell>
+                        <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
+                          Vencimiento
                         </TableCell>
                         <TableCell sx={{ color: "white", fontWeight: 700 }} align="center">
                           Activo
@@ -915,6 +970,30 @@ const Referidos = () => {
                             </Typography>
                           </TableCell>
                           <TableCell align="center">
+                            {codigo.fechaCreacion ? (() => {
+                              const fecha = parseFecha(codigo.fechaCreacion);
+                              return fecha && !isNaN(fecha.getTime()) ? (
+                                <Typography variant="body2" sx={{ fontSize: "0.85rem" }}>
+                                  {fecha.toLocaleDateString("es-ES", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit"
+                                  })}
+                                </Typography>
+                              ) : (
+                                <Typography variant="body2" sx={{ color: "#999" }}>
+                                  -
+                                </Typography>
+                              );
+                            })() : (
+                              <Typography variant="body2" sx={{ color: "#999" }}>
+                                -
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell align="center">
                             <Chip
                               label={`${codigo.descuentoPorcentaje}%`}
                               sx={{
@@ -928,6 +1007,30 @@ const Referidos = () => {
                             <Typography variant="body2">
                               {codigo.usosActuales || 0}/{codigo.usosMaximos || "∞"}
                             </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            {codigo.fechaExpiracion ? (() => {
+                              const fecha = parseFecha(codigo.fechaExpiracion);
+                              return fecha && !isNaN(fecha.getTime()) ? (
+                                <Typography variant="body2" sx={{ fontSize: "0.85rem" }}>
+                                  {fecha.toLocaleDateString("es-ES", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit"
+                                  })}
+                                </Typography>
+                              ) : (
+                                <Typography variant="body2" sx={{ color: "#999" }}>
+                                  Sin vencimiento
+                                </Typography>
+                              );
+                            })() : (
+                              <Typography variant="body2" sx={{ color: "#999" }}>
+                                Sin vencimiento
+                              </Typography>
+                            )}
                           </TableCell>
                           <TableCell align="center">
                             <Chip
@@ -977,9 +1080,7 @@ const Referidos = () => {
 
           {/* PESTAÑA DE SORTEOS */}
           {selectedTab === 3 && (
-            <Box>
-              <SorteosTab />
-            </Box>
+            <SorteosTab />
           )}
         </Box>
       )}

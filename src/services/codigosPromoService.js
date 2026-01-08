@@ -4,6 +4,30 @@ import { db } from "../data/firebase/firebase";
 const PROMO_PATH = "promociones/CODIGOS_PROMOCIONALES/codigos_promocionales";
 
 /**
+ * Convertir una fecha a formato español con zona horaria
+ * Ej: "30 de noviembre de 2026 a las 11:59:59 p.m. UTC-4"
+ */
+const formatearFechaEspanol = (fecha) => {
+  const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", 
+                 "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  
+  const dia = fecha.getDate();
+  const mes = meses[fecha.getMonth()];
+  const año = fecha.getFullYear();
+  let horas = fecha.getHours();
+  const minutos = String(fecha.getMinutes()).padStart(2, "0");
+  const segundos = String(fecha.getSeconds()).padStart(2, "0");
+  
+  const ampm = horas >= 12 ? "p.m." : "a.m.";
+  if (horas > 12) horas -= 12;
+  if (horas === 0) horas = 12;
+  
+  const horasFormato = String(horas).padStart(2, "0");
+  
+  return `${dia} de ${mes} de ${año} a las ${horasFormato}:${minutos}:${segundos} ${ampm} UTC-4`;
+};
+
+/**
  * Crear o actualizar un código promocional
  * @param {Object} codigo - Datos del código
  * @param {string} id - ID del documento (opcional, se genera si no existe)
@@ -12,7 +36,26 @@ const PROMO_PATH = "promociones/CODIGOS_PROMOCIONALES/codigos_promocionales";
 export const guardarCodigoPromo = async (codigo, id = null) => {
   try {
     const docId = id || codigo.codigo.toUpperCase();
-    const now = new Date().toISOString();
+    const now = new Date();
+
+    // Convertir fechaExpiracion al formato español
+    let fechaExpiracion = null;
+    if (codigo.fechaExpiracion) {
+      const fecha = new Date(codigo.fechaExpiracion);
+      if (!isNaN(fecha.getTime())) {
+        fechaExpiracion = formatearFechaEspanol(fecha);
+      }
+    }
+
+    // Convertir fechaCreacion al formato español si no existe
+    let fechaCreacion = null;
+    if (id) {
+      // Si es actualización, mantener la fechaCreacion original
+      fechaCreacion = codigo.fechaCreacion;
+    } else {
+      // Si es creación, generar fechaCreacion en formato español
+      fechaCreacion = formatearFechaEspanol(now);
+    }
 
     const data = {
       codigo: codigo.codigo.toUpperCase(),
@@ -24,9 +67,8 @@ export const guardarCodigoPromo = async (codigo, id = null) => {
       usosMaximos: parseInt(codigo.usosMaximos) || 0,
       activo: codigo.activo ?? true,
       tipoCategoria: codigo.tipoCategoria || "viajes",
-      fechaExpiracion: codigo.fechaExpiracion || null,
-      updatedAt: now,
-      ...(id ? {} : { fechaCreacion: now })
+      fechaExpiracion: fechaExpiracion,
+      fechaCreacion: fechaCreacion,
     };
 
     const codigoRef = doc(db, PROMO_PATH, docId);

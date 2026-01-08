@@ -518,10 +518,12 @@ const SolicitudesAsignadas = () => {
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       
       resultado = resultado.filter((sol) => {
-        if (!sol.solicitud?.fechaCreacion) return false;
+        // Intentar obtener la fecha de ambas ubicaciones
+        const fechaCreacionData = sol.solicitud?.fechaCreacion || sol.fechaCreacion;
+        if (!fechaCreacionData) return false;
         
         let fechaDate;
-        const fecha = sol.solicitud.fechaCreacion;
+        const fecha = fechaCreacionData;
         if (fecha?.toDate && typeof fecha.toDate === 'function') {
           fechaDate = fecha.toDate();
         } else if (typeof fecha === 'string') {
