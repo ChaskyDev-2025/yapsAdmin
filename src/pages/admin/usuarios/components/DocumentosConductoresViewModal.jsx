@@ -280,16 +280,28 @@ const DocumentosConductoresViewModal = ({
                         if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
                         return a[0].localeCompare(b[0]);
                       })
-                      .map(([key, value]) => (
-                        <Box key={key} sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
-                          <Typography variant="caption" sx={{ fontWeight: 600, color: "#666" }}>
-                            {value.label || key}:
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: "#333" }}>
-                            {value.valor || value}
-                          </Typography>
-                        </Box>
-                      ))}
+                      .map(([key, value]) => {
+                        let valorTexto = "";
+                        
+                        if (typeof value === 'object' && value !== null && value.valor) {
+                          valorTexto = value.valor;
+                        } else if (typeof value === 'string') {
+                          valorTexto = value;
+                        } else if (value) {
+                          valorTexto = String(value);
+                        }
+                        
+                        return (
+                          <Box key={key} sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: "#666" }}>
+                              {(typeof value === 'object' && value?.label) || key}:
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: "#333" }}>
+                              {valorTexto}
+                            </Typography>
+                          </Box>
+                        );
+                      })}
                   </Stack>
                 </Card>
               )}

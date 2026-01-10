@@ -33,69 +33,50 @@ export const useTrendenciaTrabajadores = () => {
 
     // Escuchar cambios en tiempo real
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const trabajadores = snapshot.docs.map(doc => ({
-        id: doc.id,
-        createdAt: doc.data().perfil?.createdAt || new Date(),
-      }));
+      const trabajadores = snapshot.docs.map(doc => doc.data());
 
-      // Calcular tendencia de los últimos 7 días
-      const trend = {};
+      // Calcular últimos 7 días
       const today = new Date();
+      const trendMap = {};
 
-      // Inicializar últimos 7 días
       for (let i = 6; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
-        const dateStr = date.toLocaleDateString("es-ES", { 
-          month: "short", 
-          day: "numeric" 
-        });
-        trend[dateStr] = 0;
+        const dateStr = `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
+        trendMap[dateStr] = 0;
       }
 
-      // Contar trabajadores por día
+      // Contar trabajadores por día (según createdAt en la raíz)
       trabajadores.forEach(trabajador => {
-        let createdDate = trabajador.createdAt;
-        if (createdDate?.toDate) {
-          createdDate = createdDate.toDate();
-        } else if (createdDate?.seconds) {
-          createdDate = new Date(createdDate.seconds * 1000);
-        } else if (typeof createdDate === "string") {
-          createdDate = new Date(createdDate);
-        }
-
-        if (createdDate instanceof Date && !isNaN(createdDate)) {
-          // Normalizar fecha
-          createdDate.setHours(0, 0, 0, 0);
-          const dateStr = createdDate.toLocaleDateString("es-ES", { 
-            month: "short", 
-            day: "numeric" 
-          });
-
-          // Verificar si la fecha está dentro de los últimos 7 días
-          const daysAgo = Math.floor((today - createdDate) / (1000 * 60 * 60 * 24));
-          if (daysAgo <= 6) {
-            trend[dateStr] = (trend[dateStr] || 0) + 1;
+        if (trabajador.createdAt) {
+          let createdDate;
+          
+          // Convertir la fecha correctamente
+          if (trabajador.createdAt?.seconds) {
+            createdDate = new Date(trabajador.createdAt.seconds * 1000);
+          } else if (typeof trabajador.createdAt === "string") {
+            createdDate = new Date(trabajador.createdAt);
+          } else if (trabajador.createdAt?.toDate) {
+            createdDate = trabajador.createdAt.toDate();
+          } else if (trabajador.createdAt instanceof Date) {
+            createdDate = trabajador.createdAt;
+          }
+          
+          if (createdDate && !isNaN(createdDate.getTime())) {
+            const dateStr = `${String(createdDate.getMonth() + 1).padStart(2, "0")}/${String(createdDate.getDate()).padStart(2, "0")}`;
+            if (trendMap.hasOwnProperty(dateStr)) {
+              trendMap[dateStr]++;
+            }
           }
         }
       });
 
-      // Convertir a array ordenado
-      const trendArray = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toLocaleDateString("es-ES", { 
-          month: "short", 
-          day: "numeric" 
-        });
-        trendArray.push({
-          name: dateStr,
-          trabajadores: trend[dateStr] || 0,
-        });
-      }
+      const newTrendData = Object.keys(trendMap).map(date => ({
+        name: date,
+        trabajadores: trendMap[date],
+      }));
 
-      setTrendData(trendArray);
+      setTrendData(newTrendData);
       setLoading(false);
     }, (error) => {
       console.error("Error obteniendo tendencia:", error);

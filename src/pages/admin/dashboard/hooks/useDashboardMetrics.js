@@ -60,15 +60,46 @@ export const useDashboardMetrics = () => {
     const inicioSemana = new Date(hoy);
     inicioSemana.setDate(hoy.getDate() - 7);
 
-    const nuevosHoy = pasajerosData.filter(doc => {
-      const fecha = doc.createdAt?.toDate?.();
+    // Función auxiliar para convertir timestamps a Date
+    const convertirADate = (fecha) => {
+      if (!fecha) return null;
+      if (typeof fecha === 'object' && fecha.toDate && typeof fecha.toDate === 'function') {
+        return fecha.toDate();
+      } else if (typeof fecha === 'object' && fecha.seconds) {
+        return new Date(fecha.seconds * 1000);
+      } else if (typeof fecha === 'string') {
+        return new Date(fecha);
+      } else if (fecha instanceof Date) {
+        return fecha;
+      }
+      return null;
+    };
+
+    // Contar nuevos pasajeros hoy y esta semana
+    const nuevosHoyPasajeros = pasajerosData.filter(doc => {
+      const fecha = convertirADate(doc.createdAt);
       return fecha && fecha >= hoy;
     }).length;
 
-    const nuevosEstaSemana = pasajerosData.filter(doc => {
-      const fecha = doc.createdAt?.toDate?.();
+    const nuevosEstaSemanaPasajeros = pasajerosData.filter(doc => {
+      const fecha = convertirADate(doc.createdAt);
       return fecha && fecha >= inicioSemana;
     }).length;
+
+    // Contar nuevos trabajadores hoy y esta semana
+    const nuevosHoyTrabajadores = trabajadoresData.filter(doc => {
+      const fecha = convertirADate(doc.createdAt);
+      return fecha && fecha >= hoy;
+    }).length;
+
+    const nuevosEstaSemanaTrabajadores = trabajadoresData.filter(doc => {
+      const fecha = convertirADate(doc.createdAt);
+      return fecha && fecha >= inicioSemana;
+    }).length;
+
+    // Sumar pasajeros y trabajadores
+    const nuevosHoy = nuevosHoyPasajeros + nuevosHoyTrabajadores;
+    const nuevosEstaSemana = nuevosEstaSemanaPasajeros + nuevosEstaSemanaTrabajadores;
 
     // Procesar órdenes
     const completadasOrdenes = ordenesData.filter(

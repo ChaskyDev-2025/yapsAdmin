@@ -42,7 +42,7 @@ export default function ModalIzquierdo({ rowData }) {
 
   if (!rowData) return null;
   return (
-    <Box sx={{ width: 350, display: "flex", justifyContent: "center", alignItems: "flex-start", pt: 3, overflow: "auto" }}>
+    <Box sx={{ width: 350, display: "flex", justifyContent: "flex-start", alignItems: "flex-start", pt: 3, overflow: "auto", pl: 2 }}>
       <Box
         sx={{
           width: 280,
@@ -51,30 +51,31 @@ export default function ModalIzquierdo({ rowData }) {
           bgcolor: "#fff",
           border: "1px solid #00000033",
           boxShadow: "0 4px 12px rgba(0, 0, 0, 0.33)",
-          textAlign: "center",
+          textAlign: "left",
         }}
       >
-        <Avatar
-          src={rowData.perfil?.fotoUrl || rowData.fotoUrl || rowData.logo}
-          alt={rowData.nombreEmpresa}
-          sx={{
-            width: 110,
-            height: 110,
-            mx: "auto",
-            mb: 2,
-            border: "3px solid",
-            borderColor: "primary.main",
-            boxShadow: 2,
-          }}
-        >
-          {rowData.nombreEmpresa?.[0] || "?"}
-        </Avatar>
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 2 }}>
+          <Avatar
+            src={rowData.perfil?.fotoUrl || rowData.fotoUrl || rowData.logo}
+            alt={rowData.nombreEmpresa}
+            sx={{
+              width: 110,
+              height: 110,
+              mb: 2,
+              border: "3px solid",
+              borderColor: "primary.main",
+              boxShadow: 2,
+            }}
+          >
+            {rowData.nombreEmpresa?.[0] || "?"}
+          </Avatar>
+        </Box>
         <Typography variant="h6" fontWeight={600} mb={1}>
           {capitalizarNombre(rowData.nombreEmpresa)}
         </Typography>
         <Stack spacing={0.5} sx={{ mb: 2, "& b": { color: "text.secondary" } }}>
           <Typography>
-            <b>Dueño:</b> {rowData.representante || "No proporcionado"}
+            <b>Email:</b> {rowData.representante || "No proporcionado"}
           </Typography>
           <Typography>
             <b>Teléfono:</b> {rowData.telefono || "No proporcionado"}
@@ -94,13 +95,55 @@ export default function ModalIzquierdo({ rowData }) {
                     .toLowerCase()
                     .normalize('NFD')
                     .replace(/[\u0300-\u036f]/g, '');
-                  const servicio = servicios[catNormalizada] || servicios[cat.toLowerCase()] || "Sin servicio";
+                  const servicioRaw = servicios[catNormalizada] || servicios[cat.toLowerCase()] || null;
                   
-                  return (
-                    <Typography key={cat} sx={{ fontSize: "0.9rem" }}>
-                      • {cat}: <strong>{servicio}</strong>
-                    </Typography>
-                  );
+                  // Extraer los valores del servicio si es un objeto o array
+                  let serviciosArray = [];
+                  if (Array.isArray(servicioRaw)) {
+                    serviciosArray = servicioRaw.map(s => {
+                      if (typeof s === 'object' && s?.valor) {
+                        return s.valor;
+                      }
+                      return s;
+                    });
+                  } else if (typeof servicioRaw === 'object' && servicioRaw?.valor) {
+                    serviciosArray = [servicioRaw.valor];
+                  } else if (servicioRaw && typeof servicioRaw === 'string') {
+                    serviciosArray = [servicioRaw];
+                  }
+                  
+                  return serviciosArray.length > 0 ? (
+                    <Box key={cat}>
+                      <Typography sx={{ fontSize: "0.9rem", fontWeight: 600, mb: 0.5 }}>
+                        {cat}:
+                      </Typography>
+                      {serviciosArray.map((s, idx) => {
+                        // Quitar el prefijo de la categoría del servicio
+                        let servicioLimpio = s;
+                        
+                        // Crear variantes del prefijo para comparación
+                        const prefijoGuion = cat.toLowerCase().replace(/\s+/g, '_') + '_';
+                        const prefijoEspacio = cat.toLowerCase() + ' ';
+                        
+                        // Quitar el prefijo si existe (con guion bajo o espacio)
+                        const servicioMinuscula = servicioLimpio.toLowerCase();
+                        if (servicioMinuscula.startsWith(prefijoGuion)) {
+                          servicioLimpio = servicioLimpio.substring(prefijoGuion.length);
+                        } else if (servicioMinuscula.startsWith(prefijoEspacio)) {
+                          servicioLimpio = servicioLimpio.substring(prefijoEspacio.length);
+                        }
+                        
+                        // Reemplazar guiones bajos con espacios
+                        servicioLimpio = servicioLimpio.replace(/_/g, ' ');
+                        
+                        return (
+                          <Typography key={idx} sx={{ fontSize: "0.85rem", ml: 1 }}>
+                            • {servicioLimpio}
+                          </Typography>
+                        );
+                      })}
+                    </Box>
+                  ) : null;
                 })}
               </Box>
             </Box>

@@ -7,7 +7,7 @@ export const useTendenciaOrdenes = () => {
   const [trendData, setTrendData] = useState([]);
   const [loading, setLoading] = useState(true);
   const { userRole, userFlotaId: adminFlotaId } = useAuth();
-  const isSuperAdmin = userRole === "superAdmin";
+  const isSuperAdmin = userRole === "superadmin";
 
   useEffect(() => {
     setLoading(true);
@@ -15,22 +15,23 @@ export const useTendenciaOrdenes = () => {
     try {
       let unsubscribers = [];
       let trabajadoresData = [];
-      let ordenesData = [];
+      let solicitudesData = [];
 
       // Definir función para calcular tendencia
       const calcularTendencia = () => {
-        // Filtrar órdenes según rol
-        let ordenesFiltered = ordenesData;
+        // Filtrar solicitudes según rol
+        let solicitudesFiltered = solicitudesData;
         
         if (!isSuperAdmin && trabajadoresData.length > 0) {
           const trabajadorIds = trabajadoresData.map(t => t.id);
-          ordenesFiltered = ordenesData.filter(orden => 
-            trabajadorIds.includes(orden.uidTaxista)
+          solicitudesFiltered = solicitudesData.filter(solicitud => 
+            trabajadorIds.includes(solicitud.conductor_asignado) || 
+            trabajadorIds.includes(solicitud.uidTaxista)
           );
         }
 
-        // Filtrar solo órdenes completadas
-        ordenesFiltered = ordenesFiltered.filter(orden => orden.estado === "completado");
+        // Filtrar solo solicitudes completadas
+        solicitudesFiltered = solicitudesFiltered.filter(solicitud => solicitud.estado === "completado");
 
         // Calcular últimos 7 días
         const today = new Date();
@@ -43,11 +44,31 @@ export const useTendenciaOrdenes = () => {
           trendMap[dateStr] = 0;
         }
 
-        // Contar órdenes completadas por día (según updatedAt)
-        ordenesFiltered.forEach(orden => {
-          if (orden.updatedAt) {
-            const updatedDate = new Date(orden.updatedAt.seconds * 1000);
-            const dateStr = `${String(updatedDate.getMonth() + 1).padStart(2, "0")}/${String(updatedDate.getDate()).padStart(2, "0")}`;
+        // Contar solicitudes completadas por día (según fechaCreacion)
+        solicitudesFiltered.forEach(solicitud => {
+          let fechaRef = solicitud.fechaCreacion || solicitud.solicitud?.fechaCreacion || solicitud.createdAt;
+          
+          if (fechaRef) {
+            let date;
+            
+            // Manejar diferentes formatos de fecha
+            if (typeof fechaRef.seconds === 'number') {
+              // Firebase Timestamp
+              date = new Date(fechaRef.seconds * 1000);
+            } else if (fechaRef.toDate && typeof fechaRef.toDate === 'function') {
+              // Timestamp object
+              date = fechaRef.toDate();
+            } else if (fechaRef instanceof Date) {
+              date = fechaRef;
+            } else if (typeof fechaRef === 'string') {
+              date = new Date(fechaRef);
+            } else if (typeof fechaRef === 'number') {
+              date = new Date(fechaRef);
+            } else {
+              return;
+            }
+
+            const dateStr = `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
             if (trendMap.hasOwnProperty(dateStr)) {
               trendMap[dateStr]++;
             }
@@ -76,19 +97,21 @@ export const useTendenciaOrdenes = () => {
         calcularTendencia();
       }, (error) => {
         console.error("❌ Error en listener de trabajadores:", error);
+        setLoading(false);
       });
       unsubscribers.push(unsubTrabajadores);
 
-      // Listener para órdenes
-      const ordenesQuery = collection(db, "ordenes");
+      // Listener para solicitudes (no órdenes)
+      const solicitudesQuery = collection(db, "solicitudes");
 
-      const unsubOrdenes = onSnapshot(ordenesQuery, (snapshot) => {
-        ordenesData = snapshot.docs.map(doc => doc.data());
+      const unsubSolicitudes = onSnapshot(solicitudesQuery, (snapshot) => {
+        solicitudesData = snapshot.docs.map(doc => doc.data());
         calcularTendencia();
       }, (error) => {
-        console.error("❌ Error en listener de órdenes:", error);
+        console.error("❌ Error en listener de solicitudes:", error);
+        setLoading(false);
       });
-      unsubscribers.push(unsubOrdenes);
+      unsubscribers.push(unsubSolicitudes);
 
       // Cleanup
       return () => {

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   FormControl,
   InputLabel,
@@ -17,6 +17,15 @@ export default function DateFilterComponent({
   const [dateFilter, setDateFilter] = React.useState(currentDateFilter || "todos");
   const [customStartDate, setCustomStartDate] = React.useState("");
   const [customEndDate, setCustomEndDate] = React.useState("");
+
+  // Sincronizar el estado local cuando cambia el prop
+  useEffect(() => {
+    setDateFilter(currentDateFilter || "todos");
+    if (currentDateFilter !== "custom") {
+      setCustomStartDate("");
+      setCustomEndDate("");
+    }
+  }, [currentDateFilter]);
 
   const handleDateFilterChange = (event) => {
     const value = event.target.value;

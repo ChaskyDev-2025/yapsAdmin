@@ -33,7 +33,6 @@ import { obtenerTodosLosCodeigos } from "../../../services/codigosPromoService";
 
 // Componentes modulares
 import ReferidosHeader from "./components/ReferidosHeader";
-import StatsGrid from "./components/StatsGrid";
 import HistorialModal from "./components/HistorialModal";
 import ModalCodigoPromo from "./components/ModalCodigoPromo";
 import SorteosTab from "./components/SorteosTab";
@@ -334,39 +333,6 @@ const Referidos = () => {
     return null;
   };
 
-  // Calcular estadísticas por pestaña
-  const getTabStats = useMemo(() => {
-    if (selectedTab === 0) {
-      // Pasajeros
-      const pasajeros = referidosData.filter(r => r.modo === "pasajero");
-      let totalReferidos = 0;
-      let totalTickets = 0;
-      pasajeros.forEach(p => {
-        totalReferidos += p.referidos;
-        totalTickets += p.tickets;
-      });
-      return {
-        total: pasajeros.length,
-        totalReferidos,
-        totalTickets,
-        totalDonaciones: stats.totalDonaciones,
-        totalCupones: totalCupones,
-      };
-    } else if (selectedTab === 1) {
-      // Donaciones - retorna stats con totalCupones actualizado
-      return {
-        ...stats,
-        totalCupones: totalCupones,
-      };
-    } else {
-      // Códigos Promo - retorna stats con totalCupones actualizado
-      return {
-        ...stats,
-        totalCupones: totalCupones,
-      };
-    }
-  }, [selectedTab, referidosData, stats, totalCupones]);
-
   // Filtrar y ordenar pasajeros
   const filteredPasajeros = useMemo(() => {
     let result = referidosData.filter(r => r.modo === "pasajero");
@@ -445,9 +411,6 @@ const Referidos = () => {
             <ReferidosHeader />
           </div>
         </Box>
-
-      {/* Estadísticas generales */}
-      <StatsGrid stats={getTabStats} loading={loading} />
 
       {/* Pestañas */}
       <Box sx={{ borderBottom: 2, borderColor: "divider", mt: 4, mb: 2 }}>

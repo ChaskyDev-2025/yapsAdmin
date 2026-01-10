@@ -519,6 +519,9 @@ const Solicitudes = () => {
   };
 
   const handleClearAllSolicitudes = () => {
+    setSearchSolicitudes("");
+    setFilterEstado("todas");
+    setFilterCategoria("todas");
     setDateFilterTypeSolicitudes("todos");
     setCustomStartDateSolicitudes("");
     setCustomEndDateSolicitudes("");
@@ -668,6 +671,7 @@ const Solicitudes = () => {
                   defaultValue: "todas",
                   options: [
                     { label: "Todas", value: "todas" },
+                    { label: "Solicitado", value: "solicitado" },
                     { label: "Asignada", value: "asignada" },
                     { label: "Ofertado", value: "ofertado" },
                     { label: "Aceptado", value: "aceptado" },

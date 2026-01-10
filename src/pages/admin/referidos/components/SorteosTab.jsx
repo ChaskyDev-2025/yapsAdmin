@@ -104,10 +104,11 @@ const SorteosTab = () => {
       // Si no hay sorteo seleccionado, seleccionar el primero o sorteo_apertura
       if (!sorteoSeleccionado && sorteosData.length > 0) {
         const sorteoApertura = sorteosData.find(s => s.id === "sorteo_apertura");
-        if (sorteoApertura) {
-          setSorteoSeleccionado(sorteoApertura);
-        } else {
-          setSorteoSeleccionado(sorteosData[0]);
+        const sorteoACargar = sorteoApertura || sorteosData[0];
+        setSorteoSeleccionado(sorteoACargar);
+        // Cargar información adicional del sorteo inicial
+        if (sorteoACargar?.id) {
+          setTimeout(() => cargarInfoSorteoSeleccionado(sorteoACargar.id), 100);
         }
       }
     } catch (error) {
@@ -191,70 +192,83 @@ const SorteosTab = () => {
   // Cargar información adicional de subcolecciones dentro de cada sorteo
   const cargarInformacionAdicionalSorteos = async (sorteosArray) => {
     try {
-      const sorteosConInfo = await Promise.all(
-        sorteosArray.map(async (sorteo) => {
-          try {
-            // Lista de subcollections a intentar cargar
-            const subcoleccionesIntento = [
-              "participantes",
-              "cupones",
-              "ganadores",
-              "registros",
-              "sorteo",
-              "datos",
-              "usuarios",
-              "viajes"
-            ];
-
-            let infoAdicional = {};
-            let subcoleccionesEncontradas = [];
-
-            // Intentar cargar cada subcollection
-            for (const nombreSubcoleccion of subcoleccionesIntento) {
-              try {
-                const subRef = collection(db, "sorteos", sorteo.id, nombreSubcoleccion);
-                const subSnap = await getDocs(subRef);
-                
-                if (subSnap.docs.length > 0) {
-                  infoAdicional[nombreSubcoleccion] = subSnap.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                  }));
-                  subcoleccionesEncontradas.push(nombreSubcoleccion);
-                  console.log(`✓ ${nombreSubcoleccion} cargados para ${sorteo.id}:`, infoAdicional[nombreSubcoleccion].length);
-                }
-              } catch (e) {
-                // Subcollection no existe, continuar
-              }
-            }
-
-            console.log(`📊 ${sorteo.id} tiene subcollections:`, subcoleccionesEncontradas);
-
-            return {
-              ...sorteo,
-              infoAdicional,
-              subcoleccionesDisponibles: subcoleccionesEncontradas
-            };
-          } catch (error) {
-            console.error("Error cargando info adicional para sorteo", sorteo.id, error);
-            return {
-              ...sorteo,
-              infoAdicional: {},
-              subcoleccionesDisponibles: []
-            };
-          }
-        })
-      );
+      // NO cargar todas las subcolecciones para todos los sorteos
+      // Solo devolver los sorteos con referencias a subcolecciones vacías
+      // Esto permite que la página cargue rápido
+      const sorteosConInfo = sorteosArray.map((sorteo) => ({
+        ...sorteo,
+        infoAdicional: {}, // Vacío al inicio
+        subcoleccionesDisponibles: []
+      }));
 
       return sorteosConInfo;
     } catch (error) {
       console.error("Error en cargarInformacionAdicionalSorteos:", error);
-      return sorteosArray;
+      return sorteosArray.map((sorteo) => ({
+        ...sorteo,
+        infoAdicional: {},
+        subcoleccionesDisponibles: []
+      }));
     }
   };
 
-  // Cargar información adicional del sorteo seleccionado
-  // (esta función se llama automáticamente cuando se selecciona un sorteo);
+  // Cargar información adicional del sorteo seleccionado (lazy loading)
+  const cargarInfoSorteoSeleccionado = async (sorteoId) => {
+    try {
+      const subcoleccionesIntento = [
+        "participantes",
+        "cupones",
+        "ganadores",
+        "registros",
+        "sorteo",
+        "datos",
+        "usuarios",
+        "viajes"
+      ];
+
+      let infoAdicional = {};
+      let subcoleccionesEncontradas = [];
+
+      // Intentar cargar cada subcollection solo del sorteo seleccionado
+      for (const nombreSubcoleccion of subcoleccionesIntento) {
+        try {
+          const subRef = collection(db, "sorteos", sorteoId, nombreSubcoleccion);
+          const subSnap = await getDocs(subRef);
+          
+          if (subSnap.docs.length > 0) {
+            infoAdicional[nombreSubcoleccion] = subSnap.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            subcoleccionesEncontradas.push(nombreSubcoleccion);
+            console.log(`✓ ${nombreSubcoleccion} cargados para ${sorteoId}:`, infoAdicional[nombreSubcoleccion].length);
+          }
+        } catch (e) {
+          // Subcollection no existe, continuar
+        }
+      }
+
+      console.log(`📊 ${sorteoId} tiene subcollections:`, subcoleccionesEncontradas);
+
+      // Actualizar el sorteo seleccionado con la información adicional
+      setSorteoSeleccionado(prev => prev && prev.id === sorteoId ? {
+        ...prev,
+        infoAdicional,
+        subcoleccionesDisponibles: subcoleccionesEncontradas
+      } : prev);
+
+      // También actualizar en la lista de sorteos
+      setSorteos(prev => prev.map(s => 
+        s.id === sorteoId ? {
+          ...s,
+          infoAdicional,
+          subcoleccionesDisponibles: subcoleccionesEncontradas
+        } : s
+      ));
+    } catch (error) {
+      console.error("Error cargando info adicional para sorteo", sorteoId, error);
+    }
+  };
 
   const handleCrearSorteo = async () => {
     if (!nuevoSorteo.id.trim()) {
@@ -531,6 +545,10 @@ const SorteosTab = () => {
                   onChange={(e) => {
                     const selected = sorteos.find(s => s.id === e.target.value);
                     setSorteoSeleccionado(selected);
+                    // Cargar información adicional del sorteo seleccionado (lazy loading)
+                    if (selected?.id) {
+                      cargarInfoSorteoSeleccionado(selected.id);
+                    }
                   }}
                 >
                   {sorteos.map((sorteo) => {

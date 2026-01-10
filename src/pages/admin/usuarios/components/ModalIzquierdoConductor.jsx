@@ -22,7 +22,7 @@ export default function ModalIzquierdoConductor({ rowData }) {
   const flotaNombre = rowData.flotaNombre || "-";
 
   return (
-    <Box sx={{ width: 350, display: "flex", justifyContent: "center", alignItems: "flex-start", pt: 3, overflow: "auto", flexShrink: 0 }}>
+    <Box sx={{ width: 350, display: "flex", justifyContent: "flex-start", alignItems: "flex-start", pt: 3, overflow: "auto", pl: 2 }}>
       <Box
         sx={{
           width: 280,
@@ -31,66 +31,107 @@ export default function ModalIzquierdoConductor({ rowData }) {
           bgcolor: "#fff",
           border: "1px solid #00000033",
           boxShadow: "0 4px 12px rgba(0, 0, 0, 0.33)",
-          textAlign: "center",
+          textAlign: "left",
         }}
       >
         {/* Avatar */}
-        <Avatar
-          src={fotoUrl}
-          alt={nombre}
-          sx={{
-            width: 110,
-            height: 110,
-            mx: "auto",
-            mb: 2,
-            border: "3px solid #d7171a",
-            boxShadow: 2,
-            bgcolor: "#d7171a"
-          }}
-        >
-          {nombre?.[0] || "?"}
-        </Avatar>
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 2 }}>
+          <Avatar
+            src={fotoUrl}
+            alt={nombre}
+            sx={{
+              width: 110,
+              height: 110,
+              mb: 2,
+              border: "3px solid",
+              borderColor: "primary.main",
+              boxShadow: 2,
+            }}
+          >
+            {nombre?.[0] || "?"}
+          </Avatar>
+        </Box>
 
         {/* Nombre */}
-        <Typography variant="h6" fontWeight={700} mb={0.5} sx={{ color: "#000000" }}>
+        <Typography variant="h6" fontWeight={600} mb={1}>
           {nombre}
         </Typography>
 
-        {/* Email */}
-        <Typography variant="body2" sx={{ color: "#d7171a", mb: 2, wordBreak: "break-all", fontWeight: 600 }}>
-          {email}
-        </Typography>
-
         {/* Información Personal */}
-        <Stack spacing={0.8} sx={{ mb: 2, "& b": { color: "#484848" } }}>
-          <Typography variant="body2">
+        <Stack spacing={0.5} sx={{ mb: 2, "& b": { color: "text.secondary" } }}>
+          <Typography>
+            <b>Email:</b> {email}
+          </Typography>
+          <Typography>
             <b>Teléfono:</b> {telefono}
           </Typography>
-          <Typography variant="body2">
+          <Typography>
             <b>Departamento:</b> {departamento}
           </Typography>
-          <Typography variant="body2">
+          <Typography>
             <b>Flota:</b> {flotaNombre}
           </Typography>
           {categorias.length > 0 && (
             <Box sx={{ mt: 1 }}>
-              <Typography component="b" sx={{ color: "#484848", display: "block", mb: 0.5 }}>
+              <Typography component="b" sx={{ color: "text.secondary" }}>
                 Categorías y Servicios:
               </Typography>
-              <Box sx={{ pl: 1 }}>
+              <Box sx={{ mt: 0.5, pl: 1 }}>
                 {categorias.map((cat) => {
-                  // Normalizar la categoría: quitar tilde, pasar a minúscula para lookup en servicios
+                  // Normalizar la categoría: quitar tilde, pasar a minúscula
                   const catNormalizada = cat
                     .toLowerCase()
                     .normalize('NFD')
                     .replace(/[\u0300-\u036f]/g, '');
-                  const servicio = servicios[catNormalizada] || servicios[cat.toLowerCase()] || "Sin servicio";
+                  const servicioRaw = servicios[catNormalizada] || servicios[cat.toLowerCase()] || null;
                   
-                  return (
-                    <Typography key={cat} sx={{ fontSize: "0.9rem" }}>
-                      • {cat}: <strong>{servicio}</strong>
-                    </Typography>
-                  );
+                  // Extraer los valores del servicio si es un objeto o array
+                  let serviciosArray = [];
+                  if (Array.isArray(servicioRaw)) {
+                    serviciosArray = servicioRaw.map(s => {
+                      if (typeof s === 'object' && s?.valor) {
+                        return s.valor;
+                      }
+                      return s;
+                    });
+                  } else if (typeof servicioRaw === 'object' && servicioRaw?.valor) {
+                    serviciosArray = [servicioRaw.valor];
+                  } else if (servicioRaw && typeof servicioRaw === 'string') {
+                    serviciosArray = [servicioRaw];
+                  }
+                  
+                  return serviciosArray.length > 0 ? (
+                    <Box key={cat}>
+                      <Typography sx={{ fontSize: "0.9rem", fontWeight: 600, mb: 0.5 }}>
+                        {cat}:
+                      </Typography>
+                      {serviciosArray.map((s, idx) => {
+                        // Quitar el prefijo de la categoría del servicio
+                        let servicioLimpio = s;
+                        
+                        // Crear variantes del prefijo para comparación
+                        const prefijoGuion = cat.toLowerCase().replace(/\s+/g, '_') + '_';
+                        const prefijoEspacio = cat.toLowerCase() + ' ';
+                        
+                        // Quitar el prefijo si existe (con guion bajo o espacio)
+                        const servicioMinuscula = servicioLimpio.toLowerCase();
+                        if (servicioMinuscula.startsWith(prefijoGuion)) {
+                          servicioLimpio = servicioLimpio.substring(prefijoGuion.length);
+                        } else if (servicioMinuscula.startsWith(prefijoEspacio)) {
+                          servicioLimpio = servicioLimpio.substring(prefijoEspacio.length);
+                        }
+                        
+                        // Reemplazar guiones bajos con espacios
+                        servicioLimpio = servicioLimpio.replace(/_/g, ' ');
+                        
+                        return (
+                          <Typography key={idx} sx={{ fontSize: "0.85rem", ml: 1 }}>
+                            • {servicioLimpio}
+                          </Typography>
+                        );
+                      })}
+                    </Box>
+                  ) : null;
                 })}
               </Box>
             </Box>

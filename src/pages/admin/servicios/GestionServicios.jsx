@@ -1270,7 +1270,7 @@ const GestionServicios = () => {
                   showClearButton={true}
                 />
 
-                <TableContainer component={Paper} variant="outlined">
+                <TableContainer component={Paper} variant="outlined" sx={{ mt: 3 }}>
                   <Table>
                     <TableHead sx={{ backgroundColor: '#000000' }}>
                       <TableRow>

@@ -1,5 +1,5 @@
-import React from "react";
-import { Dialog, DialogTitle, DialogContent, Box, Typography, Grid, TextField, IconButton } from "@mui/material";
+import React, { useState } from "react";
+import { Dialog, DialogTitle, DialogContent, Box, Typography, Grid, TextField, IconButton, Modal } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
 const DetallesDialog = ({
@@ -11,6 +11,8 @@ const DetallesDialog = ({
   obtenerNombreUsuario,
   obtenerNombreConductor,
 }) => {
+  const [imagenExpandida, setImagenExpandida] = useState(null);
+
   if (!solicitudSeleccionada) return null;
 
   const formatMaybeTimestamp = (val) => {
@@ -425,6 +427,42 @@ const DetallesDialog = ({
                 </Grid>
               )}
 
+              {/* Comprobante de Pago (si estado es aceptado, conductor_asignado, en_curso o finalizado) */}
+              {(solicitudSeleccionada.estado === "aceptado" || solicitudSeleccionada.estado === "conductor_asignado" || solicitudSeleccionada.estado === "en_curso" || solicitudSeleccionada.estado === "finalizado") && (
+                <Grid item xs={12}>
+                  {(solicitudSeleccionada.solicitud?.oferta?.comprobantePagoUrl) ? (
+                    <Box sx={{ backgroundColor: "#f0f7ff", p: 2, borderRadius: 1, border: "1px solid #2196f3" }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: "#1976d2" }}>
+                        📄 Comprobante de Pago
+                      </Typography>
+                      <Box
+                        component="img"
+                        src={solicitudSeleccionada.solicitud?.oferta?.comprobantePagoUrl}
+                        alt="Comprobante de pago"
+                        sx={{
+                          width: "100%",
+                          maxHeight: 300,
+                          objectFit: "contain",
+                          borderRadius: 1,
+                          border: "1px solid #e0e0e0",
+                          cursor: "pointer",
+                          transition: "transform 0.2s",
+                          "&:hover": { transform: "scale(1.02)" }
+                        }}
+                        onClick={() => setImagenExpandida(solicitudSeleccionada.solicitud?.oferta?.comprobantePagoUrl)}
+                        title="Haz clic para ampliar"
+                      />
+                    </Box>
+                  ) : (
+                    <Box sx={{ backgroundColor: "#fff3e0", p: 2, borderRadius: 1, border: "1px solid #ff9800" }}>
+                      <Typography variant="body2" sx={{ color: "#e65100" }}>
+                        ⚠️ Comprobante pendiente de pago
+                      </Typography>
+                    </Box>
+                  )}
+                </Grid>
+              )}
+
               {(solicitudSeleccionada.solicitud?.fechaInicio || solicitudSeleccionada.solicitud?.horaInicio) && (
                 <>
                   {solicitudSeleccionada.solicitud?.fechaInicio && (
@@ -474,6 +512,58 @@ const DetallesDialog = ({
           </Box>
         </Box>
       </DialogContent>
+
+      {/* Modal para imagen expandida del comprobante */}
+      <Modal
+        open={Boolean(imagenExpandida)}
+        onClose={() => setImagenExpandida(null)}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1400,
+        }}
+      >
+        <Box
+          onClick={() => setImagenExpandida(null)}
+          sx={{
+            position: "relative",
+            backgroundColor: "rgba(0, 0, 0, 0.9)",
+            padding: 2,
+            borderRadius: 2,
+            maxWidth: "90vw",
+            maxHeight: "90vh",
+            overflow: "auto",
+            cursor: "pointer",
+          }}
+        >
+          <IconButton
+            onClick={() => setImagenExpandida(null)}
+            sx={{
+              position: "absolute",
+              top: 10,
+              right: 10,
+              color: "white",
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.8)" },
+              zIndex: 1,
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+          <Box
+            component="img"
+            src={imagenExpandida}
+            alt="Comprobante expandido"
+            sx={{
+              width: "100%",
+              height: "auto",
+              maxHeight: "85vh",
+              objectFit: "contain",
+            }}
+          />
+        </Box>
+      </Modal>
     </Dialog>
   );
 };

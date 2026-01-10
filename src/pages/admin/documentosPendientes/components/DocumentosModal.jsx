@@ -377,17 +377,39 @@ const DocumentosModal = ({
             >
               {/* Información del trabajador */}
               <Card sx={{ mb: 3, boxShadow: 1 }}>
-                <CardContent>
+                <CardContent sx={{ textAlign: "center" }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
                     Información del Trabajador
                   </Typography>
-                  <Stack spacing={1.5}>
+                  
+                  {/* Foto */}
+                  {selectedTrabajador?.perfil?.foto || selectedTrabajador?.perfil?.fotoUrl || selectedTrabajador?.perfil?.photoURL ? (
+                    <Box sx={{ mb: 2, display: "flex", justifyContent: "center" }}>
+                      <Box
+                        component="img"
+                        src={selectedTrabajador.perfil?.foto || selectedTrabajador.perfil?.fotoUrl || selectedTrabajador.perfil?.photoURL}
+                        alt={selectedTrabajador.perfil?.name}
+                        sx={{
+                          width: 100,
+                          height: 100,
+                          borderRadius: "50%",
+                          border: "3px solid #d7171a",
+                          objectFit: "cover",
+                        }}
+                      />
+                    </Box>
+                  ) : null}
+
+                  <Stack spacing={1.5} sx={{ textAlign: "left" }}>
+                    {/* Nombre */}
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <PersonIcon fontSize="small" color="action" />
                       <Typography variant="body2">
                         <strong>Nombre:</strong> {capitalizarNombre(selectedTrabajador?.perfil?.name)}
                       </Typography>
                     </Box>
+
+                    {/* Email */}
                     {selectedTrabajador?.perfil?.email && (
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <EmailIcon fontSize="small" color="action" />
@@ -396,13 +418,110 @@ const DocumentosModal = ({
                         </Typography>
                       </Box>
                     )}
-                    {selectedTrabajador?.perfil?.phone && (
+
+                    {/* Teléfono */}
+                    {selectedTrabajador?.perfil?.phoneNumber && (
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <PhoneIcon fontSize="small" color="action" />
                         <Typography variant="body2">
-                          <strong>Teléfono:</strong> {selectedTrabajador.perfil.phone}
+                          <strong>Teléfono:</strong> {selectedTrabajador.perfil.phoneNumber}
                         </Typography>
                       </Box>
+                    )}
+
+                    {/* Departamento */}
+                    {selectedTrabajador?.departamentoActual && (
+                      <Typography variant="body2" sx={{ pt: 1 }}>
+                        <strong>Departamento:</strong> {selectedTrabajador.departamentoActual}
+                      </Typography>
+                    )}
+
+                    {/* Servicios */}
+                    {selectedTrabajador?.servicios && Object.keys(selectedTrabajador.servicios).length > 0 && (
+                      <Box sx={{ pt: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                          <strong>Categorías y Servicios:</strong>
+                        </Typography>
+                        {Object.entries(selectedTrabajador.servicios).map(([categoria, servicios]) => {
+                          let serviciosArray = [];
+                          
+                          if (Array.isArray(servicios)) {
+                            serviciosArray = servicios.map(s => {
+                              if (typeof s === 'object' && s?.valor) {
+                                return s.valor;
+                              }
+                              return s;
+                            });
+                          } else if (typeof servicios === 'object' && servicios?.valor) {
+                            serviciosArray = [servicios.valor];
+                          } else if (typeof servicios === 'string') {
+                            serviciosArray = [servicios];
+                          }
+                          
+                          return serviciosArray.length > 0 ? (
+                            <Box key={categoria} sx={{ mb: 1 }}>
+                              <Typography sx={{ fontSize: "0.85rem", fontWeight: 600 }}>
+                                {categoria}:
+                              </Typography>
+                              {serviciosArray.map((s, idx) => {
+                                // Quitar el prefijo de la categoría del servicio
+                                let servicioLimpio = s;
+                                
+                                // Crear variantes del prefijo para comparación
+                                const prefijoGuion = categoria.toLowerCase().replace(/\s+/g, '_') + '_';
+                                const prefijoEspacio = categoria.toLowerCase() + ' ';
+                                
+                                // Quitar el prefijo si existe (con guion bajo o espacio)
+                                const servicioMinuscula = servicioLimpio.toLowerCase();
+                                if (servicioMinuscula.startsWith(prefijoGuion)) {
+                                  servicioLimpio = servicioLimpio.substring(prefijoGuion.length);
+                                } else if (servicioMinuscula.startsWith(prefijoEspacio)) {
+                                  servicioLimpio = servicioLimpio.substring(prefijoEspacio.length);
+                                }
+                                
+                                // Reemplazar guiones bajos con espacios
+                                servicioLimpio = servicioLimpio.replace(/_/g, ' ');
+                                
+                                return (
+                                  <Typography key={idx} sx={{ fontSize: "0.8rem", ml: 1, color: "#666" }}>
+                                    • {servicioLimpio}
+                                  </Typography>
+                                );
+                              })}
+                            </Box>
+                          ) : null;
+                        })}
+                      </Box>
+                    )}
+
+                    {/* Flota */}
+                    {selectedTrabajador?.flota && (
+                      <Typography variant="body2" sx={{ pt: 1 }}>
+                        <strong>Flota:</strong> {selectedTrabajador.flota}
+                      </Typography>
+                    )}
+
+                    {/* Estado */}
+                    <Box sx={{ pt: 1 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                        <strong>Estado:</strong>
+                      </Typography>
+                      <Chip
+                        label={selectedTrabajador?.activo ? "Activo" : "Inactivo"}
+                        color={selectedTrabajador?.activo ? "success" : "default"}
+                        size="small"
+                      />
+                    </Box>
+
+                    {/* Fecha de registro */}
+                    {selectedTrabajador?.createdAt && (
+                      <Typography variant="body2" sx={{ pt: 1, color: "#666" }}>
+                        <strong>Fecha registro:</strong> {new Date(
+                          selectedTrabajador.createdAt?.seconds
+                            ? selectedTrabajador.createdAt.seconds * 1000
+                            : selectedTrabajador.createdAt
+                        ).toLocaleDateString("es-ES")}
+                      </Typography>
                     )}
                   </Stack>
                 </CardContent>
