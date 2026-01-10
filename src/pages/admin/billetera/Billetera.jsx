@@ -66,6 +66,7 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 
 const Billetera = () => {
   const [tabValue, setTabValue] = useState(0);
+  const [subtabHistorialValue, setSubtabHistorialValue] = useState(0); // 0 = Conductores, 1 = Flotas
   const [flotas, setFlotas] = useState([]);
   const [solicitudes, setSolicitudes] = useState([]);
   const [historialSolicitudes, setHistorialSolicitudes] = useState([]);
@@ -426,6 +427,13 @@ const Billetera = () => {
   const filteredHistorial = useMemo(() => {
     let result = [...historialSolicitudes];
 
+    // Filtrar por tipo de recarga (conductores vs flotas)
+    if (tabValue === 2) {
+      result = subtabHistorialValue === 0 
+        ? result.filter(t => t.concepto && t.concepto.toLowerCase().includes("conductor"))
+        : result.filter(t => !t.concepto || !t.concepto.toLowerCase().includes("conductor"));
+    }
+
     // Filtrar por período
     if (periodFilterHistorial !== "todos") {
       const now = new Date();
@@ -491,7 +499,7 @@ const Billetera = () => {
     }
 
     return result;
-  }, [historialSolicitudes, searchHistorial, sortByHistorial, periodFilterHistorial]);
+  }, [historialSolicitudes, searchHistorial, sortByHistorial, periodFilterHistorial, tabValue, subtabHistorialValue]);
 
   // Datos paginados para Historial
   const historialPaginado = useMemo(() => {
@@ -503,6 +511,17 @@ const Billetera = () => {
   const totalPagesHistorial = Math.ceil(
     filteredHistorial.length / ITEMS_PER_PAGE
   );
+
+  // Filtrar historial por tipo de recarga (conductores vs flotas)
+  const historialConductores = historialSolicitudes.filter(
+    transaccion => transaccion.concepto && transaccion.concepto.toLowerCase().includes("conductor")
+  );
+
+  const historialFlotas = historialSolicitudes.filter(
+    transaccion => !transaccion.concepto || !transaccion.concepto.toLowerCase().includes("conductor")
+  );
+
+  const historialPorSubtab = subtabHistorialValue === 0 ? historialConductores : historialFlotas;
 
   const handleAbrirModal = (flota, tipo) => {
     setSelectedFlota(flota);
@@ -1174,6 +1193,31 @@ const Billetera = () => {
         {/* Contenido de Historial de Solicitudes */}
         {tabValue === 2 && (
           <>
+            {/* Subtabs para separar Conductores y Flotas */}
+            <Box sx={{ borderBottom: 2, borderColor: "divider", mb: 3 }}>
+              <Tabs
+                value={subtabHistorialValue}
+                onChange={(e, newValue) => setSubtabHistorialValue(newValue)}
+                sx={{
+                  "& .MuiTab-root": {
+                    fontWeight: 600,
+                    fontSize: "0.95rem",
+                    textTransform: "none",
+                    color: "#484848",
+                    "&.Mui-selected": {
+                      color: "#d7171a",
+                    },
+                  },
+                  "& .MuiTabs-indicator": {
+                    backgroundColor: "#d7171a",
+                  },
+                }}
+              >
+                <Tab label={`Recargas a Conductores (${historialConductores.length})`} />
+                <Tab label={`Recargas a Flotas (${historialFlotas.length})`} />
+              </Tabs>
+            </Box>
+
             <Box
               sx={{
                 display: "flex",
@@ -1211,7 +1255,7 @@ const Billetera = () => {
               elevation={3}
               sx={{ borderRadius: 2, overflow: "hidden", mb: 4 }}
             >
-              {historialSolicitudes.length > 0 ? (
+              {historialPorSubtab.length > 0 ? (
                 <TableContainer sx={{ maxHeight: "calc(100vh - 400px)" }}>
                   <Table stickyHeader>
                     <TableHead sx={{ backgroundColor: "#000000" }}>

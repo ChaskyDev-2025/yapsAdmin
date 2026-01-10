@@ -79,6 +79,7 @@ const BilleteraFlota = () => {
   const prevDocumentosRef = useRef([]);
   
   const [tabValue, setTabValue] = useState(0);
+  const [subtabHistorialValue, setSubtabHistorialValue] = useState(0); // 0 = Flota, 1 = Conductores
   const [loading, setLoading] = useState(true);
   const [datosIniciales, setDatosIniciales] = useState(false); // Flag para primera carga
   const [solicitudes, setSolicitudes] = useState([]);
@@ -1106,6 +1107,19 @@ const BilleteraFlota = () => {
   const historialFiltrado = useMemo(() => {
     let filtered = historial;
 
+    // Filtro por subtab (flota vs conductores)
+    if (subtabHistorialValue === 0) {
+      // Recargas a Flota - excluir recargas a conductores
+      filtered = filtered.filter(
+        (h) => !h.concepto || !h.concepto.toLowerCase().includes("conductor")
+      );
+    } else if (subtabHistorialValue === 1) {
+      // Recargas a Conductores
+      filtered = filtered.filter(
+        (h) => h.concepto && h.concepto.toLowerCase().includes("conductor")
+      );
+    }
+
     // Filtro por período
     if (periodFilterHistorial !== "todos") {
       const now = new Date();
@@ -1204,7 +1218,7 @@ const BilleteraFlota = () => {
     }
 
     return sorted;
-  }, [historial, searchHistorial, sortByHistorial, periodFilterHistorial]);
+  }, [historial, searchHistorial, sortByHistorial, periodFilterHistorial, subtabHistorialValue]);
 
   // Paginación para historial
   const historialPaginado = useMemo(() => {
@@ -1989,6 +2003,38 @@ const BilleteraFlota = () => {
         {/* TAB 3: HISTORIAL */}
         {tabValue === 2 && (
           <>
+            {/* Subtabs para Historial */}
+            <Box sx={{ borderBottom: 2, borderColor: "divider", mb: 3 }}>
+              <Tabs 
+                value={subtabHistorialValue} 
+                onChange={(e, newValue) => {
+                  setSubtabHistorialValue(newValue);
+                  setPageHistorial(0); // Reset pagination al cambiar subtab
+                }}
+                sx={{
+                  "& .MuiTab-root": {
+                    fontFamily: "Mulish, sans-serif",
+                    fontWeight: 600,
+                  },
+                  "& .Mui-selected": {
+                    color: "#d7171a !important",
+                  },
+                  "& .MuiTabs-indicator": {
+                    backgroundColor: "#d7171a",
+                  },
+                }}
+              >
+                <Tab 
+                  label={`Recargas a Flota (${historialFiltrado.filter(h => !h.concepto || !h.concepto.toLowerCase().includes("conductor")).length})`}
+                  sx={{ fontFamily: "Mulish, sans-serif" }}
+                />
+                <Tab 
+                  label={`Recargas a Conductores (${historialFiltrado.filter(h => h.concepto && h.concepto.toLowerCase().includes("conductor")).length})`}
+                  sx={{ fontFamily: "Mulish, sans-serif" }}
+                />
+              </Tabs>
+            </Box>
+
             <Box
               sx={{
                 display: "flex",

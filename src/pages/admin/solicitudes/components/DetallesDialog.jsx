@@ -46,7 +46,7 @@ const DetallesDialog = ({
           {/* Información General */}
           <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
             <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-              📋 Información General
+              Información General
             </Typography>
             <Grid container spacing={2}>
               {s.categoria && (
@@ -172,7 +172,7 @@ const DetallesDialog = ({
           {solicitudSeleccionada.solicitud?.origen && (
             <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
               <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                📍 Origen
+                Origen
               </Typography>
               <TextField
                 label="Dirección"
@@ -191,7 +191,7 @@ const DetallesDialog = ({
           {(solicitudSeleccionada.solicitud?.descripcion || (solicitudSeleccionada.solicitud?.datosEspecificos && Object.keys(solicitudSeleccionada.solicitud.datosEspecificos).length > 0)) && (
             <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
               <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                📝 Detalles
+                Detalles
               </Typography>
               {solicitudSeleccionada.solicitud?.descripcion && (
                 <TextField
@@ -239,7 +239,7 @@ const DetallesDialog = ({
           {solicitudSeleccionada.solicitud?.destino && (
             <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
               <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                📍 Destino
+                Destino
               </Typography>
               <TextField
                 label="Dirección"
@@ -258,7 +258,7 @@ const DetallesDialog = ({
           {solicitudSeleccionada.solicitud?.ubicacion && (
             <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
               <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                📍 Ubicación
+                Ubicación
               </Typography>
               <TextField
                 label="Dirección"
@@ -277,7 +277,7 @@ const DetallesDialog = ({
           {(solicitudSeleccionada.solicitud?.fechaProgramada || solicitudSeleccionada.solicitud?.horaProgramada || solicitudSeleccionada.solicitud?.precioEstimado !== undefined) && (
             <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
               <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                ⏰ Programación / Precio
+                Programación / Precio
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={6}>
@@ -332,7 +332,7 @@ const DetallesDialog = ({
           {(solicitudSeleccionada.solicitud?.destinatario || solicitudSeleccionada.solicitud?.remitente || solicitudSeleccionada.solicitud?.paquete) && (
             <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
               <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-                👥 Participantes / Paquete
+                Participantes / Paquete
               </Typography>
               <Grid container spacing={2}>
                 {solicitudSeleccionada.solicitud?.remitente && (
@@ -398,7 +398,7 @@ const DetallesDialog = ({
           {/* Opciones y metadatos */}
           <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1, border: "1px solid #e0e0e0" }}>
             <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, color: "#d7171a" }}>
-              ⚙️ Opciones / Metadatos
+              Opciones / Metadatos
             </Typography>
             <Grid container spacing={2}>
               {solicitudSeleccionada.solicitud?.numeroReferencia && (
@@ -433,7 +433,7 @@ const DetallesDialog = ({
                   {(solicitudSeleccionada.solicitud?.oferta?.comprobantePagoUrl) ? (
                     <Box sx={{ backgroundColor: "#f0f7ff", p: 2, borderRadius: 1, border: "1px solid #2196f3" }}>
                       <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: "#1976d2" }}>
-                        📄 Comprobante de Pago
+                        Comprobante de Pago
                       </Typography>
                       <Box
                         component="img"
@@ -456,7 +456,7 @@ const DetallesDialog = ({
                   ) : (
                     <Box sx={{ backgroundColor: "#fff3e0", p: 2, borderRadius: 1, border: "1px solid #ff9800" }}>
                       <Typography variant="body2" sx={{ color: "#e65100" }}>
-                        ⚠️ Comprobante pendiente de pago
+                        Comprobante pendiente de pago
                       </Typography>
                     </Box>
                   )}

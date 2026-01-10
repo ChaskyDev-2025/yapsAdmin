@@ -23,6 +23,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import { collection, getDocs, doc, getDoc, setDoc, updateDoc, query, where } from "firebase/firestore";
@@ -70,11 +72,29 @@ const SorteosTab = () => {
   const [tipoTabla, setTipoTabla] = useState("cupones"); // Nombre de la subcollection a mostrar
   const [subcoleccionesDisponibles, setSubcoleccionesDisponibles] = useState([]); // Subcollections que existen
   const [paginaSubcoleccion, setPaginaSubcoleccion] = useState(0); // Paginación por subcollection
+  const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState(0); // Index del tab de departamento seleccionado
 
   useEffect(() => {
     cargarSorteos();
     cargarCategorias();
   }, []);
+
+  // Enriquecer participantes de trabajador cuando se selecciona
+  useEffect(() => {
+    if (
+      sorteoSeleccionado && 
+      sorteoSeleccionado.modo === "trabajador" && 
+      sorteoSeleccionado.infoAdicional?.participantes &&
+      sorteoSeleccionado.infoAdicional.participantes.length > 0
+    ) {
+      // Verificar si ya tienen código
+      const necesitaEnriquecimiento = sorteoSeleccionado.infoAdicional.participantes.some(p => !p.codigoReferido);
+      
+      if (necesitaEnriquecimiento) {
+        enriquecerParticipantesConCodigos(sorteoSeleccionado.id, sorteoSeleccionado.infoAdicional.participantes);
+      }
+    }
+  }, [sorteoSeleccionado?.id, tipoTabla]);
 
 
   // Cargar lista de todos los sorteos (incluyendo sorteo_apertura)
@@ -215,22 +235,17 @@ const SorteosTab = () => {
   // Cargar información adicional del sorteo seleccionado (lazy loading)
   const cargarInfoSorteoSeleccionado = async (sorteoId) => {
     try {
-      const subcoleccionesIntento = [
+      // Solo cargar las subcollections principales (más rápido)
+      const subcoleccionesPrincipales = [
         "participantes",
-        "cupones",
-        "ganadores",
-        "registros",
-        "sorteo",
-        "datos",
-        "usuarios",
-        "viajes"
+        "cupones"
       ];
 
       let infoAdicional = {};
       let subcoleccionesEncontradas = [];
 
-      // Intentar cargar cada subcollection solo del sorteo seleccionado
-      for (const nombreSubcoleccion of subcoleccionesIntento) {
+      // Cargar rápidamente solo las subcollections principales
+      for (const nombreSubcoleccion of subcoleccionesPrincipales) {
         try {
           const subRef = collection(db, "sorteos", sorteoId, nombreSubcoleccion);
           const subSnap = await getDocs(subRef);
@@ -265,8 +280,126 @@ const SorteosTab = () => {
           subcoleccionesDisponibles: subcoleccionesEncontradas
         } : s
       ));
+
+      // Cargar subcollections adicionales en background (sin bloquear UI)
+      setTimeout(() => cargarSubcoleccionesAdicionales(sorteoId), 500);
     } catch (error) {
       console.error("Error cargando info adicional para sorteo", sorteoId, error);
+    }
+  };
+
+  // Enriquecer participantes con códigos de referido de forma optimizada
+  const enriquecerParticipantesConCodigos = async (sorteoId, participantes) => {
+    if (!participantes || participantes.length === 0) return participantes;
+
+    try {
+      // Solo enriquecer si hay participantes sin código
+      const participantesParaEnriquecer = participantes.filter(p => !p.codigoReferido);
+      if (participantesParaEnriquecer.length === 0) return participantes;
+
+      const workerIds = participantesParaEnriquecer.map(p => p.uid).filter(Boolean);
+      if (workerIds.length === 0) return participantes;
+
+      // Consultar cupones que pertenezcan a estos workers específicamente
+      const cuponesRef = collection(db, "cupones");
+      const cuponesSnap = await getDocs(cuponesRef);
+      
+      const cuponesPorWorkerId = {};
+      cuponesSnap.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.workerId && workerIds.includes(data.workerId)) {
+          if (!cuponesPorWorkerId[data.workerId]) {
+            cuponesPorWorkerId[data.workerId] = [];
+          }
+          cuponesPorWorkerId[data.workerId].push({
+            codigo: doc.id,
+            ...data
+          });
+        }
+      });
+
+      // Enriquecer participantes
+      const participantesEnriquecidos = participantes.map(participante => ({
+        ...participante,
+        codigoReferido: participante.codigoReferido || (cuponesPorWorkerId[participante.uid]?.[0]?.codigo || "N/A")
+      }));
+
+      console.log("✓ Participantes enriquecidos con códigos de referido");
+      
+      // Actualizar el estado
+      setSorteoSeleccionado(prev => {
+        if (prev && prev.id === sorteoId && prev.infoAdicional.participantes) {
+          return {
+            ...prev,
+            infoAdicional: {
+              ...prev.infoAdicional,
+              participantes: participantesEnriquecidos
+            }
+          };
+        }
+        return prev;
+      });
+
+      return participantesEnriquecidos;
+    } catch (error) {
+      console.error("Error enriqueciendo participantes con códigos:", error);
+      return participantes;
+    }
+  };
+
+  // Cargar subcollections adicionales sin bloquear la UI
+  const cargarSubcoleccionesAdicionales = async (sorteoId) => {
+    try {
+      const subcoleccionesAdicionales = [
+        "ganadores",
+        "registros",
+        "sorteo",
+        "datos",
+        "usuarios",
+        "viajes",
+        "trabajador",
+        "trabajadores"
+      ];
+
+      let infoAdicional = {};
+      let subcoleccionesEncontradas = [];
+
+      for (const nombreSubcoleccion of subcoleccionesAdicionales) {
+        try {
+          const subRef = collection(db, "sorteos", sorteoId, nombreSubcoleccion);
+          const subSnap = await getDocs(subRef);
+          
+          if (subSnap.docs.length > 0) {
+            infoAdicional[nombreSubcoleccion] = subSnap.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            subcoleccionesEncontradas.push(nombreSubcoleccion);
+          }
+        } catch (e) {
+          // Continuar
+        }
+      }
+
+      // Actualizar si aún es el mismo sorteo seleccionado
+      setSorteoSeleccionado(prev => {
+        if (prev && prev.id === sorteoId) {
+          return {
+            ...prev,
+            infoAdicional: {
+              ...prev.infoAdicional,
+              ...infoAdicional
+            },
+            subcoleccionesDisponibles: [
+              ...prev.subcoleccionesDisponibles,
+              ...subcoleccionesEncontradas
+            ]
+          };
+        }
+        return prev;
+      });
+    } catch (error) {
+      console.error("Error cargando subcollections adicionales para", sorteoId, error);
     }
   };
 
@@ -744,51 +877,263 @@ const SorteosTab = () => {
           </Box>
         ) : (
           (() => {
-            // Obtener campos únicos en orden consistente
-            const datos = sorteoSeleccionado.infoAdicional[tipoTabla];
-            const campos = datos.length > 0 
-              ? Object.keys(datos[0])
-                  .filter(key => key !== "id" && key !== "foto")
-                  .sort()
-              : [];
+            // Obtener y procesar datos
+            let datos = [...sorteoSeleccionado.infoAdicional[tipoTabla]];
             
-            return (
-              <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
-                <Table>
+            // Detectar si es tabla de trabajador: cuando modo es "trabajador" y tipoTabla es "participantes"
+            const esTablaTrabajador = sorteoSeleccionado.modo === "trabajador" && tipoTabla === "participantes";
+            
+            // Si es tabla de trabajador, ordenar por CantidadViajes descendente
+            if (esTablaTrabajador) {
+              datos.sort((a, b) => {
+                // Buscar el valor en ambas variaciones de mayúsculas/minúsculas
+                const cantidadA = a.CantidadViajes || a.cantidadViajes || 0;
+                const cantidadB = b.CantidadViajes || b.cantidadViajes || 0;
+                // Convertir a número por si acaso son strings
+                return Number(cantidadB) - Number(cantidadA);
+              });
+            }
+            
+            // Definir campos a mostrar según el tipo de tabla
+            let campos = [];
+            if (esTablaTrabajador) {
+              // Para tabla de trabajador: mostrar específicamente estos campos
+              campos = ["CantidadViajes", "Departamento", "Servicio", "UpdatedAt"];
+            } else {
+              // Para otras tablas: mostrar todos excepto id, foto y Nombre
+              campos = datos.length > 0 
+                ? Object.keys(datos[0])
+                    .filter(key => key !== "id" && key !== "foto" && key !== "Nombre")
+                    .sort()
+                : [];
+            }
+            
+            // Formatear datos si es tabla de trabajador
+            const datosFormateados = esTablaTrabajador 
+              ? datos.map(row => ({
+                  ...row,
+                  // Mapear los campos reales de Firebase a los nombres esperados
+                  Nombre: row.Nombre || row.nombre || row.name || "N/A",
+                  CantidadViajes: row.CantidadViajes || row.cantidadViajes || 0,
+                  Departamento: row.Departamento || row.departamento || "N/A",
+                  Servicio: row.Servicio || row.servicio || "N/A",
+                  UpdatedAt: row.UpdatedAt || row.updatedAt ? new Date((row.UpdatedAt || row.updatedAt).seconds ? (row.UpdatedAt || row.updatedAt).seconds * 1000 : (row.UpdatedAt || row.updatedAt)).toLocaleDateString('es-ES') : "N/A"
+                }))
+              : datos;
+            
+            // Lógica para renderizar Tabs por departamento (solo para tabla de trabajador)
+            const renderizarTabla = (datosParaTabla) => {
+              return (
+              <TableContainer component={Paper} sx={{ borderRadius: 2, overflowX: "auto" }}>
+                <Table sx={{ tableLayout: "auto" }}>
                   <TableHead>
                     <TableRow sx={{ backgroundColor: "#1a1a1a" }}>
-                      {campos.map(key => (
-                        <TableCell key={key} sx={{ color: "#fff", fontWeight: 600 }}>
-                          {key.charAt(0).toUpperCase() + key.slice(1)}
-                        </TableCell>
-                      ))}
+                      {esTablaTrabajador ? (
+                        <>
+                          <TableCell sx={{ color: "#fff", fontWeight: 700, fontSize: "0.95rem" }}>Ranking</TableCell>
+                          <TableCell sx={{ color: "#fff", fontWeight: 700, fontSize: "0.95rem" }}>Nombre</TableCell>
+                          <TableCell sx={{ color: "#fff", fontWeight: 700, fontSize: "0.95rem", textAlign: "center" }}>Viajes</TableCell>
+                          <TableCell sx={{ color: "#fff", fontWeight: 700, fontSize: "0.95rem" }}>Departamento</TableCell>
+                          <TableCell sx={{ color: "#fff", fontWeight: 700, fontSize: "0.95rem" }}>Código Referido</TableCell>
+                          <TableCell sx={{ color: "#fff", fontWeight: 700, fontSize: "0.95rem" }}>Actualizado</TableCell>
+                        </>
+                      ) : (
+                        campos.map(key => (
+                          <TableCell key={key} sx={{ color: "#fff", fontWeight: 600 }}>
+                            {key.charAt(0).toUpperCase() + key.slice(1)}
+                          </TableCell>
+                        ))
+                      )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {datos
+                    {datosParaTabla
                       .slice(paginaSubcoleccion * ITEMS_PER_PAGE, (paginaSubcoleccion + 1) * ITEMS_PER_PAGE)
-                      .map((fila) => (
-                        <TableRow
-                          key={fila.id}
-                          sx={{
-                            "&:nth-of-type(odd)": { backgroundColor: "#f9f9f9" },
-                            "&:hover": { backgroundColor: "#f0f0f0" },
-                            transition: "background-color 0.2s",
-                          }}
-                        >
-                          {campos.map(key => (
-                            <TableCell key={key} sx={{ fontSize: "0.85rem" }}>
-                              {typeof fila[key] === "object" 
-                                ? JSON.stringify(fila[key]) 
-                                : String(fila[key])}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
+                      .map((fila, index) => {
+                        // Colores para los primeros 3 lugares
+                        let bgColor = "#fafafa";
+                        let badgeColor = "#999";
+                        let badgeBg = "#f0f0f0";
+                        let viajesBadgeColor = "#fff";
+                        let viajesBadgeBg = "#1a1a1a";
+                        
+                        if (index === 0) {
+                          bgColor = "#fff8f0";
+                          badgeColor = "#fff";
+                          badgeBg = "#d7171a";
+                          viajesBadgeColor = "#fff";
+                          viajesBadgeBg = "#d7171a";
+                        } else if (index === 1) {
+                          bgColor = "#f5f5f5";
+                          badgeColor = "#fff";
+                          badgeBg = "#ff9800";
+                          viajesBadgeColor = "#fff";
+                          viajesBadgeBg = "#ff9800";
+                        } else if (index === 2) {
+                          bgColor = "#fafafa";
+                          badgeColor = "#fff";
+                          badgeBg = "#2196f3";
+                          viajesBadgeColor = "#fff";
+                          viajesBadgeBg = "#2196f3";
+                        }
+
+                        return (
+                          <TableRow
+                            key={fila.id}
+                            sx={{
+                              backgroundColor: bgColor,
+                              "&:hover": { 
+                                backgroundColor: index < 3 ? bgColor : "#f0f0f0",
+                                transform: "scale(1.01)",
+                                transition: "all 0.2s ease"
+                              },
+                              transition: "background-color 0.2s, transform 0.2s",
+                              borderLeft: index < 3 ? `5px solid ${badgeBg}` : "5px solid transparent",
+                            }}
+                          >
+                            {esTablaTrabajador ? (
+                              <>
+                                <TableCell sx={{ fontSize: "1.1rem", fontWeight: 800, textAlign: "center", py: 2 }}>
+                                  <Box
+                                    sx={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      width: 40,
+                                      height: 40,
+                                      borderRadius: "50%",
+                                      backgroundColor: badgeBg,
+                                      color: badgeColor,
+                                      fontWeight: 800,
+                                      fontSize: "1rem",
+                                      boxShadow: `0 2px 8px ${badgeBg}40`
+                                    }}
+                                  >
+                                    {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`}
+                                  </Box>
+                                </TableCell>
+                                <TableCell sx={{ fontSize: "0.95rem", fontWeight: 600, color: "#333" }}>
+                                  {fila.Nombre || "N/A"}
+                                </TableCell>
+                                <TableCell sx={{ fontSize: "1.15rem", fontWeight: 800, color: viajesBadgeColor, textAlign: "center", py: 2 }}>
+                                  <Box
+                                    sx={{
+                                      display: "inline-block",
+                                      backgroundColor: viajesBadgeBg,
+                                      color: viajesBadgeColor,
+                                      padding: "8px 16px",
+                                      borderRadius: "8px",
+                                      border: `2px solid ${viajesBadgeColor}`,
+                                      minWidth: "60px",
+                                      fontWeight: 800
+                                    }}
+                                  >
+                                    {fila.CantidadViajes || 0}
+                                  </Box>
+                                </TableCell>
+                                <TableCell sx={{ fontSize: "0.9rem", color: "#666" }}>
+                                  {fila.Departamento || "N/A"}
+                                </TableCell>
+                                <TableCell sx={{ fontSize: "0.85rem", fontWeight: 600, color: "#1976d2" }}>
+                                  <Box
+                                    sx={{
+                                      display: "inline-block",
+                                      backgroundColor: "#e3f2fd",
+                                      color: "#1976d2",
+                                      px: 1.5,
+                                      py: 0.5,
+                                      borderRadius: "6px",
+                                      fontSize: "0.75rem",
+                                      fontFamily: "monospace",
+                                      border: "1px solid #90caf9"
+                                    }}
+                                  >
+                                    {fila.codigoReferido || "N/A"}
+                                  </Box>
+                                </TableCell>
+                                <TableCell sx={{ fontSize: "0.85rem", color: "#999" }}>
+                                  {fila.UpdatedAt}
+                                </TableCell>
+                              </>
+                            ) : (
+                              campos.map(key => (
+                                <TableCell key={key} sx={{ fontSize: "0.85rem" }}>
+                                  {typeof fila[key] === "object" 
+                                    ? JSON.stringify(fila[key]) 
+                                    : String(fila[key])}
+                                </TableCell>
+                              ))
+                            )}
+                          </TableRow>
+                        );
+                      })}
                   </TableBody>
                 </Table>
               </TableContainer>
-            );
+              );
+            };
+            if (esTablaTrabajador) {
+              // Extraer departamentos únicos de los datos
+              const departamentosUnicos = [...new Set(datosFormateados.map(p => p.Departamento || p.departamento).filter(Boolean))];
+              
+              // Filtrar datos por departamento seleccionado
+              const datosDelDepartamento = datosFormateados.filter(
+                p => (p.Departamento || p.departamento) === departamentosUnicos[departamentoSeleccionado]
+              );
+              
+              return (
+                <Box sx={{ width: "100%" }}>
+                  {/* Tabs para departamentos */}
+                  <Tabs
+                    value={departamentoSeleccionado}
+                    onChange={(e, newValue) => {
+                      setDepartamentoSeleccionado(newValue);
+                      setPaginaSubcoleccion(0); // Resetear paginación al cambiar departamento
+                    }}
+                    sx={{
+                      borderBottom: 2,
+                      borderColor: "divider",
+                      backgroundColor: "#fafafa",
+                      "& .MuiTabs-indicator": {
+                        backgroundColor: "#d7171a",
+                        height: "4px"
+                      }
+                    }}
+                  >
+                    {departamentosUnicos.map((dept, idx) => {
+                      const countDept = datosFormateados.filter(
+                        p => (p.Departamento || p.departamento) === dept
+                      ).length;
+                      return (
+                        <Tab
+                          key={idx}
+                          label={`${dept} (${countDept})`}
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: "0.95rem",
+                            color: departamentoSeleccionado === idx ? "#d7171a" : "#666",
+                            textTransform: "none",
+                            transition: "all 0.2s ease",
+                            "&:hover": {
+                              color: "#d7171a",
+                              backgroundColor: "rgba(215, 23, 26, 0.05)"
+                            }
+                          }}
+                        />
+                      );
+                    })}
+                  </Tabs>
+                  
+                  {/* Tabla del departamento seleccionado */}
+                  <Box sx={{ mt: 2 }}>
+                    {renderizarTabla(datosDelDepartamento)}
+                  </Box>
+                </Box>
+              );
+            }
+            
+            // Para otras tablas, renderizar sin Tabs
+            return renderizarTabla(datosFormateados);
           })()
         )
       )}
@@ -797,10 +1142,42 @@ const SorteosTab = () => {
       {tipoTabla && sorteoSeleccionado?.infoAdicional?.[tipoTabla]?.length > 0 && (
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
           <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
-            Mostrando {paginaSubcoleccion * ITEMS_PER_PAGE + 1} - {Math.min((paginaSubcoleccion + 1) * ITEMS_PER_PAGE, sorteoSeleccionado.infoAdicional[tipoTabla].length)} de {sorteoSeleccionado.infoAdicional[tipoTabla].length}
+            {sorteoSeleccionado.modo === "trabajador" && tipoTabla === "participantes" ? (
+              // Para tabla de trabajador, mostrar datos del departamento seleccionado
+              (() => {
+                const datos = [...sorteoSeleccionado.infoAdicional[tipoTabla]];
+                const departamentosUnicos = [...new Set(datos.map(p => p.Departamento || p.departamento).filter(Boolean))];
+                const datosDelDeptSeleccionado = datos.filter(
+                  p => (p.Departamento || p.departamento) === departamentosUnicos[departamentoSeleccionado]
+                );
+                return (
+                  <>
+                    Mostrando {paginaSubcoleccion * ITEMS_PER_PAGE + 1} - {Math.min((paginaSubcoleccion + 1) * ITEMS_PER_PAGE, datosDelDeptSeleccionado.length)} de {datosDelDeptSeleccionado.length}
+                  </>
+                );
+              })()
+            ) : (
+              // Para otras tablas, mostrar todos los datos
+              <>
+                Mostrando {paginaSubcoleccion * ITEMS_PER_PAGE + 1} - {Math.min((paginaSubcoleccion + 1) * ITEMS_PER_PAGE, sorteoSeleccionado.infoAdicional[tipoTabla].length)} de {sorteoSeleccionado.infoAdicional[tipoTabla].length}
+              </>
+            )}
           </Typography>
           <Pagination 
-            count={Math.ceil(sorteoSeleccionado.infoAdicional[tipoTabla].length / ITEMS_PER_PAGE)}
+            count={
+              sorteoSeleccionado.modo === "trabajador" && tipoTabla === "participantes" ? (
+                (() => {
+                  const datos = [...sorteoSeleccionado.infoAdicional[tipoTabla]];
+                  const departamentosUnicos = [...new Set(datos.map(p => p.Departamento || p.departamento).filter(Boolean))];
+                  const datosDelDeptSeleccionado = datos.filter(
+                    p => (p.Departamento || p.departamento) === departamentosUnicos[departamentoSeleccionado]
+                  );
+                  return Math.ceil(datosDelDeptSeleccionado.length / ITEMS_PER_PAGE);
+                })()
+              ) : (
+                Math.ceil(sorteoSeleccionado.infoAdicional[tipoTabla].length / ITEMS_PER_PAGE)
+              )
+            }
             page={paginaSubcoleccion + 1}
             onChange={(e, page) => setPaginaSubcoleccion(page - 1)}
             sx={{

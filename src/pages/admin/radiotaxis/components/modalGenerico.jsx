@@ -65,7 +65,7 @@ export default function DetalleModal({ open, onClose, rowData }) {
         <Divider />
 
         {/* Contenido a dos columnas */}
-        <DialogContent dividers sx={{ p: 0, overflow: "hidden" }}>
+        <DialogContent dividers sx={{ p: 0, overflow: "auto", maxHeight: "70vh" }}>
           <Box sx={{ display: "flex", height: "100%", gap: 0 }}>
             <ModalIzquierdo rowData={rowData} />
             <Divider orientation="vertical" flexItem />

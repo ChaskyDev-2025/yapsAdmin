@@ -23,11 +23,14 @@ import {
   Alert,
   Button,
   Avatar,
+  Chip,
 } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
+import WifiIcon from "@mui/icons-material/Wifi";
+import WifiOffIcon from "@mui/icons-material/WifiOff";
 import DetalleModal from "./components/modalGenerico";
 import TableToolbar from "../usuarios/components/TableToolbar";
 import DateFilterComponent from "../usuarios/components/DateFilterComponent";
@@ -92,6 +95,7 @@ const Radiotaxis = () => {
     telefono: true,
     documentos: true,
     estado: true,
+    online: true,
     acciones: true,
   });
   const { user, userRole } = useAuth();
@@ -135,6 +139,7 @@ const Radiotaxis = () => {
           saldo: "Bs. 0.00",
           estado: "Trabajador",
           activo: trabajador.activo !== false,
+          online: trabajador.online === true,
           documentos: trabajador.documentos || {},
           documentos_aprobados: trabajador.documentos_aprobados || false,
           deletedByFlotaId: trabajador.deletedByFlotaId || null,
@@ -479,13 +484,13 @@ const Radiotaxis = () => {
                     Fecha Registro
                   </TableCell>
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                    Documentos Aprobados
+                    Documentos
                   </TableCell>
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
                     Estado
                   </TableCell>
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                    Saldo
+                    Conectado
                   </TableCell>
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
                     Acciones
@@ -598,6 +603,19 @@ const Radiotaxis = () => {
                             '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
                               backgroundColor: '#d7171a',
                             },
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        <Chip
+                          icon={radio.online === true ? <WifiIcon /> : <WifiOffIcon />}
+                          label={radio.online === true ? "En línea" : "Desconectado"}
+                          size="small"
+                          sx={{
+                            color: radio.online === true ? "#2e7d32" : "#616161",
+                            backgroundColor: radio.online === true ? "#e8f5e9" : "#f5f5f5",
+                            fontWeight: 600,
+                            fontFamily: "Mulish, sans-serif",
                           }}
                         />
                       </TableCell>

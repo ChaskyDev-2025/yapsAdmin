@@ -7,6 +7,7 @@ export default function ModalIzquierdoPasajero({ rowData }) {
   const email = rowData.perfil?.email || rowData.email || "-";
   const fotoUrl = rowData.perfil?.photoUrl || rowData.photoURL || "";
   const departamento = rowData.departamentoActual || "-";
+  const phone = rowData.phone || rowData.perfil?.phone || "-";
 
   return (
     <Box sx={{ width: 350, display: "flex", justifyContent: "center", alignItems: "flex-start", pt: 3, overflow: "auto", flexShrink: 0 }}>
@@ -50,6 +51,9 @@ export default function ModalIzquierdoPasajero({ rowData }) {
 
         {/* Información Personal */}
         <Stack spacing={0.8} sx={{ mb: 2, "& b": { color: "#484848" } }}>
+          <Typography variant="body2">
+            <b>Teléfono:</b> {phone}
+          </Typography>
           <Typography variant="body2">
             <b>Departamento:</b> {departamento}
           </Typography>

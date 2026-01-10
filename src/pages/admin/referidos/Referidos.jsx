@@ -433,8 +433,7 @@ const Referidos = () => {
             },
           }}
         >
-          <Tab label="👤 Pasajeros" icon={undefined} />
-          <Tab label="💝 Donaciones" icon={undefined} />
+          <Tab label=" Donaciones" icon={undefined} />
           <Tab label="🎟️ Códigos Promocionales" icon={undefined} />
           <Tab label="🎲 Sorteos" icon={undefined} />
         </Tabs>
@@ -443,212 +442,8 @@ const Referidos = () => {
       {/* Contenido de las pestañas */}
       {!loading && (
         <Box>
-          {/* TABLA DE PASAJEROS */}
-          {selectedTab === 0 && (
-            <Box>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2 }}>
-                <Box sx={{ flex: 1 }}>
-                  <TableToolbar
-                    searchValue={searchPasajeros}
-                    onSearchChange={setSearchPasajeros}
-                    sortValue={sortByPasajeros}
-                    onSortChange={setSortByPasajeros}
-                    sortOptions={[
-                      { label: "↑ Sort by Tickets (ASC)", value: "tickets-asc" },
-                      { label: "↓ Sort by Tickets (DESC)", value: "tickets-desc" },
-                    ]}
-                    visibleColumns={visibleColumnsPasajeros}
-                    onColumnChange={(col, visible) => setVisibleColumnsPasajeros(prev => ({ ...prev, [col]: visible }))}
-                    showClearButton={searchPasajeros !== ""}
-                    onClear={() => {
-                      setSearchPasajeros("");
-                      setSortByPasajeros("tickets-desc");
-                    }}
-                  />
-                </Box>
-              </Box>
-              {filteredPasajeros.length > 0 ? (
-                <Paper sx={{ boxShadow: 0 }}>
-                  <TableContainer sx={{ borderRadius: 2, overflow: "hidden" }}>
-                    <Table>
-                    <TableHead sx={{ backgroundColor: "#000000" }}>
-                      <TableRow>
-                        {visibleColumnsPasajeros.ranking && (
-                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Ranking</TableCell>
-                        )}
-                        {visibleColumnsPasajeros.usuario && (
-                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Usuario</TableCell>
-                        )}
-                        {visibleColumnsPasajeros.codigo && (
-                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Código</TableCell>
-                        )}
-                        {visibleColumnsPasajeros.referidos && (
-                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
-                            Referidos
-                          </TableCell>
-                        )}
-                        {visibleColumnsPasajeros.tickets && (
-                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
-                            Tickets
-                          </TableCell>
-                        )}
-                        {visibleColumnsPasajeros.acciones && (
-                          <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }} align="center">
-                            Acciones
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {pasajerosPaginados.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={getColSpanPasajeros} align="center">
-                            <Typography sx={{ py: 2, color: "#484848" }}>No hay datos para mostrar</Typography>
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        pasajerosPaginados.map((referido, index) => (
-                          <TableRow key={referido.id} hover>
-                            {visibleColumnsPasajeros.ranking && (
-                              <TableCell>
-                                <Chip
-                                  icon={index < 3 && referido.referidos > 0 ? <EmojiEventsIcon /> : undefined}
-                                  label={`#${index + 1}`}
-                                  size="small"
-                                  sx={{
-                                    fontWeight: 700,
-                                    bgcolor:
-                                      index === 0 && referido.referidos > 0
-                                        ? "#ffd700"
-                                        : index === 1 && referido.referidos > 0
-                                        ? "#c0c0c0"
-                                        : index === 2 && referido.referidos > 0
-                                        ? "#cd7f32"
-                                        : "#e0e0e0",
-                                    color: index < 3 && referido.referidos > 0 ? "white" : "#484848",
-                                  }}
-                                />
-                              </TableCell>
-                            )}
-                            {visibleColumnsPasajeros.usuario && (
-                              <TableCell>
-                                <Box display="flex" alignItems="center" gap={2}>
-                                  <Avatar
-                                    src={referido.photoUrl}
-                                    sx={{
-                                      background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
-                                      width: 40,
-                                      height: 40,
-                                    }}
-                                  >
-                                    {referido.nombre.charAt(0).toUpperCase()}
-                                  </Avatar>
-                                  <Box>
-                                    <Typography variant="body1" fontWeight={600}>
-                                      {referido.nombre}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                      {referido.email}
-                                    </Typography>
-                                  </Box>
-                                </Box>
-                              </TableCell>
-                            )}
-                            {visibleColumnsPasajeros.codigo && (
-                              <TableCell>
-                                <Chip
-                                  label={referido.codigo}
-                                  sx={{
-                                    fontFamily: "monospace",
-                                    fontWeight: 700,
-                                    bgcolor: referido.tieneCodigoReferido ? "#ffe0e0" : "#f5f5f5",
-                                    color: referido.tieneCodigoReferido ? "#b01217" : "#757575",
-                                  }}
-                                />
-                              </TableCell>
-                            )}
-                            {visibleColumnsPasajeros.referidos && (
-                              <TableCell align="center">
-                                <Typography
-                                  variant="h6"
-                                  fontWeight="bold"
-                                  color={referido.referidos > 0 ? "#d7171a" : "#bdbdbd"}
-                                >
-                                  {referido.referidos}
-                                </Typography>
-                              </TableCell>
-                            )}
-                            {visibleColumnsPasajeros.tickets && (
-                              <TableCell align="center">
-                                <Typography
-                                  variant="h6"
-                                  fontWeight="bold"
-                                  color={referido.tickets > 0 ? "#ff9800" : "#bdbdbd"}
-                                >
-                                  {referido.tickets}
-                                </Typography>
-                              </TableCell>
-                            )}
-                            {visibleColumnsPasajeros.acciones && (
-                              <TableCell align="center">
-                                {referido.tieneCodigoReferido && (
-                                  <Tooltip title="Copiar código">
-                                    <IconButton
-                                      onClick={() => copyToClipboard(referido.codigo)}
-                                      size="small"
-                                      sx={{ color: "#d7171a", mr: 1 }}
-                                    >
-                                      <ContentCopyIcon />
-                                    </IconButton>
-                                  </Tooltip>
-                                )}
-                                {referido.referidos > 0 && (
-                                  <Tooltip title="Ver historial de referidos">
-                                    <IconButton
-                                      onClick={() => handleOpenHistorial(referido)}
-                                      size="small"
-                                      sx={{ color: "#d7171a" }}
-                                    >
-                                      <HistoryIcon />
-                                    </IconButton>
-                                  </Tooltip>
-                                )}
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                  </TableContainer>
-                  {filteredPasajeros.length > 0 && (
-                    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mt: 2, gap: 2 }}>
-                      <Typography variant="body2" sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        Mostrando {pasajerosPaginados.length > 0 ? (pagePasajeros * ITEMS_PER_PAGE + 1) : 0} - {Math.min((pagePasajeros + 1) * ITEMS_PER_PAGE, filteredPasajeros.length)} de {filteredPasajeros.length}
-                      </Typography>
-                      <Pagination 
-                        count={totalPagesPasajeros}
-                        page={pagePasajeros + 1}
-                        onChange={(e, page) => setPagePasajeros(page - 1)}
-                        sx={{
-                          "& .MuiPaginationItem-root": {
-                            fontFamily: "Mulish, sans-serif",
-                          }
-                        }}
-                      />
-                    </Box>
-                  )}
-                </Paper>
-              ) : (
-                <Typography align="center" color="text.secondary" sx={{ py: 3 }}>
-                  No hay pasajeros registrados
-                </Typography>
-              )}
-            </Box>
-          )}
-
           {/* TABLA DE DONACIONES */}
-          {selectedTab === 1 && (
+          {selectedTab === 0 && (
             <Box>
               <Box sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2 }}>
                 <Box sx={{ flex: 1 }}>
@@ -865,7 +660,7 @@ const Referidos = () => {
           )}
 
           {/* TABLA DE CÓDIGOS PROMOCIONALES */}
-          {selectedTab === 2 && (
+          {selectedTab === 1 && (
             <Box>
               <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end" }}>
                 <Button
@@ -1042,7 +837,7 @@ const Referidos = () => {
           )}
 
           {/* PESTAÑA DE SORTEOS */}
-          {selectedTab === 3 && (
+          {selectedTab === 2 && (
             <SorteosTab />
           )}
         </Box>

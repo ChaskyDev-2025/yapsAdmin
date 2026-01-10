@@ -63,6 +63,7 @@ export function useTrabajadoresPorFlota(flotaId) {
               saldo: "Bs. 0.00",
               estado: "Trabajador",
               activo: trabajador.activo !== false,
+              online: trabajador.online === true,
               documentos: trabajador.documentos || {},
               documentos_aprobados: trabajador.documentos_aprobados || false,
               deletedByFlotaId: trabajador.deletedByFlotaId || null,

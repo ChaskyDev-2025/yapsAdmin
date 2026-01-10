@@ -24,6 +24,7 @@ import {
   InputLabel,
   Grid,
   Pagination,
+  Tooltip,
 } from "@mui/material";
 import { collection, getDocs, updateDoc, doc, query, where, onSnapshot, getDoc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
@@ -35,6 +36,8 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
+import WifiIcon from "@mui/icons-material/Wifi";
+import WifiOffIcon from "@mui/icons-material/WifiOff";
 import DetallesDialog from "../solicitudes/components/DetallesDialog";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
 import DateFilterComponent from "../usuarios/components/DateFilterComponent";
@@ -1168,28 +1171,48 @@ const SolicitudesAsignadas = () => {
               </FormControl>
 
               {/* Información del conductor seleccionado */}
-              {asignadoConductor && (
-                <Box sx={{ mt: 2, p: 2, backgroundColor: "#e8f5e9", borderRadius: 1, border: "1px solid #4caf50" }}>
-                  {(() => {
-                    const conductorSeleccionado = conductores.find(c => c.id === asignadoConductor);
-                    if (!conductorSeleccionado) return null;
-                    
-                    const nombre = 
-                      conductorSeleccionado?.nombre || 
-                      conductorSeleccionado?.perfil?.nombre ||
-                      conductorSeleccionado?.perfil?.name || 
-                      "Desconocido";
-                    const celular = conductorSeleccionado?.perfil?.celular || conductorSeleccionado?.celular || "-";
-                    const departamento = conductorSeleccionado?.departamento || "-";
-                    const categorias = conductorSeleccionado?.categorias?.join(", ") || "-";
-                    const servicios = conductorSeleccionado?.servicios ? Object.values(conductorSeleccionado.servicios).join(", ") : "-";
-                    
-                    return (
-                      <Box>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: "bold", color: "#2e7d32" }}>
-                            ✓ Conductor Seleccionado
-                          </Typography>
+              {asignadoConductor && (() => {
+                const conductorSeleccionado = conductores.find(c => c.id === asignadoConductor);
+                if (!conductorSeleccionado) return null;
+                
+                const nombre = 
+                  conductorSeleccionado?.nombre || 
+                  conductorSeleccionado?.perfil?.nombre ||
+                  conductorSeleccionado?.perfil?.name || 
+                  "Desconocido";
+                const celular = conductorSeleccionado?.perfil?.celular || conductorSeleccionado?.celular || "-";
+                const departamento = conductorSeleccionado?.departamento || "-";
+                const categorias = conductorSeleccionado?.categorias?.join(", ") || "-";
+                const servicios = conductorSeleccionado?.servicios ? Object.values(conductorSeleccionado.servicios).join(", ") : "-";
+                const online = conductorSeleccionado?.online === true;
+                
+                return (
+                  <Box sx={{ mt: 2, p: 2, backgroundColor: online ? "#e8f5e9" : "#ffebee", borderRadius: 1, border: `1px solid ${online ? "#4caf50" : "#f44336"}` }}>
+                    <Box>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: "bold", color: online ? "#2e7d32" : "#c62828" }}>
+                          ✓ Conductor Seleccionado
+                        </Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <Tooltip title={online ? "Conectado" : "Desconectado"}>
+                            {online ? (
+                              <WifiIcon
+                                sx={{
+                                  width: 18,
+                                  height: 18,
+                                  color: "#4caf50",
+                                }}
+                              />
+                            ) : (
+                              <WifiOffIcon
+                                sx={{
+                                  width: 18,
+                                  height: 18,
+                                  color: "#f44336",
+                                }}
+                              />
+                            )}
+                          </Tooltip>
                           <IconButton
                             size="small"
                             onClick={() => sendWhatsApp(celular, nombre)}
@@ -1199,27 +1222,27 @@ const SolicitudesAsignadas = () => {
                             <WhatsAppIcon />
                           </IconButton>
                         </Box>
-                        <Box sx={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 1, fontSize: "0.85rem" }}>
-                          <Typography variant="caption" sx={{ fontWeight: "bold", color: "#333" }}>Nombre:</Typography>
-                          <Typography variant="caption" sx={{ color: "#555" }}>{nombre}</Typography>
-                          
-                          <Typography variant="caption" sx={{ fontWeight: "bold", color: "#333" }}>Celular:</Typography>
-                          <Typography variant="caption" sx={{ color: "#555" }}>{celular}</Typography>
-                          
-                          <Typography variant="caption" sx={{ fontWeight: "bold", color: "#333" }}>Departamento:</Typography>
-                          <Typography variant="caption" sx={{ color: "#555" }}>{departamento}</Typography>
-                          
-                          <Typography variant="caption" sx={{ fontWeight: "bold", color: "#333" }}>Categorías:</Typography>
-                          <Typography variant="caption" sx={{ color: "#555" }}>{categorias}</Typography>
-                          
-                          <Typography variant="caption" sx={{ fontWeight: "bold", color: "#333" }}>Servicios:</Typography>
-                          <Typography variant="caption" sx={{ color: "#555" }}>{servicios}</Typography>
-                        </Box>
                       </Box>
-                    );
-                  })()}
-                </Box>
-              )}
+                      <Box sx={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 1, fontSize: "0.85rem" }}>
+                        <Typography variant="caption" sx={{ fontWeight: "bold", color: "#333" }}>Nombre:</Typography>
+                        <Typography variant="caption" sx={{ color: "#555" }}>{nombre}</Typography>
+                        
+                        <Typography variant="caption" sx={{ fontWeight: "bold", color: "#333" }}>Celular:</Typography>
+                        <Typography variant="caption" sx={{ color: "#555" }}>{celular}</Typography>
+                        
+                        <Typography variant="caption" sx={{ fontWeight: "bold", color: "#333" }}>Departamento:</Typography>
+                        <Typography variant="caption" sx={{ color: "#555" }}>{departamento}</Typography>
+                        
+                        <Typography variant="caption" sx={{ fontWeight: "bold", color: "#333" }}>Categorías:</Typography>
+                        <Typography variant="caption" sx={{ color: "#555" }}>{categorias}</Typography>
+                        
+                        <Typography variant="caption" sx={{ fontWeight: "bold", color: "#333" }}>Servicios:</Typography>
+                        <Typography variant="caption" sx={{ color: "#555" }}>{servicios}</Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                );
+              })()}
             </Box>
           </Box>
         </DialogContent>

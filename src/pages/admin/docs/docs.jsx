@@ -51,6 +51,8 @@ const Documentos = () => {
   const [docSeleccionado, setDocSeleccionado] = useState(null);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [docToDelete, setDocToDelete] = useState(null);
+  const [openSistemaWarning, setOpenSistemaWarning] = useState(false);
+  const [docToProtect, setDocToProtect] = useState(null);
 
   // Cargar información de la flota si es admin
   useEffect(() => {
@@ -357,31 +359,37 @@ const Documentos = () => {
                     />
                   </TableCell>
                   <TableCell align="center">
-                    <Tooltip title="Editar">
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDocSeleccionado(doc);
-                          setOpenEdit(true);
-                        }}
-                        sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffb3b8" } }}
-                      >
-                        <EditIcon />
-                      </IconButton>
+                    <Tooltip title={doc.esDocumentoSistema ? "Documento del sistema - No se puede editar" : "Editar"}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          disabled={doc.esDocumentoSistema}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDocSeleccionado(doc);
+                            setOpenEdit(true);
+                          }}
+                          sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffb3b8" }, "&:disabled": { opacity: 0.5, cursor: "not-allowed" } }}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </span>
                     </Tooltip>
-                    <Tooltip title="Eliminar">
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDocToDelete(doc);
-                          setOpenDeleteDialog(true);
-                        }}
-                        sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcdd2" } }}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
+                    <Tooltip title={doc.esDocumentoSistema ? "Documento del sistema - No se puede eliminar" : "Eliminar"}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          disabled={doc.esDocumentoSistema}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDocToDelete(doc);
+                            setOpenDeleteDialog(true);
+                          }}
+                          sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcdd2" }, "&:disabled": { opacity: 0.5, cursor: "not-allowed" } }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </span>
                     </Tooltip>
                   </TableCell>
                 </TableRow>
@@ -450,6 +458,54 @@ const Documentos = () => {
           <Button onClick={handleCancelDelete}>Cancelar</Button>
           <Button onClick={handleConfirmDelete} color="error" variant="contained">
             Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog de advertencia para proteger documento como sistema */}
+      <Dialog
+        open={openSistemaWarning}
+        onClose={() => setOpenSistemaWarning(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700, color: "#d7171a" }}>
+          ⚠️ Documento del Sistema
+        </DialogTitle>
+        <DialogContent sx={{ fontFamily: "Mulish, sans-serif", pt: 2 }}>
+          <Typography sx={{ mb: 2, fontWeight: 600 }}>
+            Vas a marcar este documento como documento del sistema.
+          </Typography>
+          <Box sx={{ backgroundColor: "#fff3e0", p: 2, borderRadius: 1, mb: 2, border: "1px solid #ff9800" }}>
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+              ⚠️ Consecuencias:
+            </Typography>
+            <Typography variant="body2" sx={{ color: "#333", lineHeight: 1.8 }}>
+              • Este documento NO podrá ser editado ni eliminado<br />
+              • La app móvil depende de este documento<br />
+              • Solo podrá ser modificado por un administrador técnico<br />
+              • Esta acción es prácticamente permanente
+            </Typography>
+          </Box>
+          <Typography variant="body2" sx={{ color: "#666", fontStyle: "italic" }}>
+            Esta protección es importante para evitar que la app móvil falle.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setOpenSistemaWarning(false)}>Cancelar</Button>
+          <Button 
+            onClick={() => {
+              if (docToProtect) {
+                const updatedDoc = { ...docToProtect, esDocumentoSistema: true };
+                handleUpdate(updatedDoc);
+              }
+              setOpenSistemaWarning(false);
+              setDocToProtect(null);
+            }} 
+            color="warning" 
+            variant="contained"
+          >
+            Sí, Proteger Documento
           </Button>
         </DialogActions>
       </Dialog>

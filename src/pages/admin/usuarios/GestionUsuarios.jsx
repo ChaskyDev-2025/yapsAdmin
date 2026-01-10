@@ -41,6 +41,8 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import LocalTaxiIcon from "@mui/icons-material/LocalTaxi";
 import DescriptionIcon from "@mui/icons-material/Description";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import WifiIcon from "@mui/icons-material/Wifi";
+import WifiOffIcon from "@mui/icons-material/WifiOff";
 import { useAuth } from "../../../auth/AuthContext";
 
 import { getAllUsers, createAdminUser, updateUser, deleteUser, isSuperAdmin } from "../../../services/userService";
@@ -147,7 +149,6 @@ const GestionUsuarios = () => {
     rol: true,
     flota: true,
     estado: true,
-    contraseña: true,
     creado: true,
     acciones: true,
   });
@@ -156,8 +157,7 @@ const GestionUsuarios = () => {
     foto: true,
     nombre: true,
     email: true,
-    modo: true,
-    provider: true,
+    phone: true,
     departamento: true,
     fecha: true,
   });
@@ -1174,7 +1174,6 @@ const GestionUsuarios = () => {
               {visibleColumnsAdmin.rol && <TableCell sx={{ fontWeight: "bold", color: "white" }}>Rol Sistema</TableCell>}
               {visibleColumnsAdmin.flota && <TableCell sx={{ fontWeight: "bold", color: "white" }}>Flota</TableCell>}
               {visibleColumnsAdmin.estado && <TableCell sx={{ fontWeight: "bold", color: "white" }}>Activo/Inactivo</TableCell>}
-              {visibleColumnsAdmin.contraseña && <TableCell sx={{ fontWeight: "bold", color: "white" }}>Contraseña</TableCell>}
               {visibleColumnsAdmin.creado && <TableCell sx={{ fontWeight: "bold", color: "white" }}>Creado</TableCell>}
               {visibleColumnsAdmin.acciones && <TableCell sx={{ fontWeight: "bold", color: "white" }} align="right">Acciones</TableCell>}
             </TableRow>
@@ -1253,28 +1252,6 @@ const GestionUsuarios = () => {
                           },
                         }}
                       />
-                    </TableCell>
-                  )}
-                  {visibleColumnsAdmin.contraseña && (
-                    <TableCell>
-                      {usuario.password ? (
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            fontFamily: "monospace", 
-                            bgcolor: "#f5f5f5", 
-                            p: 0.5, 
-                            borderRadius: 1,
-                            fontSize: "0.75rem"
-                          }}
-                        >
-                          {usuario.password}
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          -
-                        </Typography>
-                      )}
                     </TableCell>
                   )}
                   {visibleColumnsAdmin.creado && <TableCell>{new Date(usuario.createdAt).toLocaleDateString()}</TableCell>}
@@ -1410,14 +1387,9 @@ const GestionUsuarios = () => {
                       Email
                     </TableCell>
                   )}
-                  {visibleColumnsPasajeros.modo && (
+                  {visibleColumnsPasajeros.phone && (
                     <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                      Modo
-                    </TableCell>
-                  )}
-                  {visibleColumnsPasajeros.provider && (
-                    <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                      Provider
+                      Teléfono
                     </TableCell>
                   )}
                   {visibleColumnsPasajeros.departamento && (
@@ -1468,32 +1440,9 @@ const GestionUsuarios = () => {
                           {pasajero.email || pasajero.perfil?.email || "-"}
                         </TableCell>
                       )}
-                      {visibleColumnsPasajeros.modo && (
-                        <TableCell>
-                          <Chip
-                            label={pasajero.modo || pasajero.perfil?.modo || "pasajero"}
-                            size="small"
-                            sx={{
-                              bgcolor: "#484848",
-                              color: "white",
-                              fontWeight: 600,
-                              fontFamily: "Mulish, sans-serif",
-                            }}
-                          />
-                        </TableCell>
-                      )}
-                      {visibleColumnsPasajeros.provider && (
-                        <TableCell>
-                          <Chip
-                            label={pasajero.provider || pasajero.perfil?.provider || "N/A"}
-                            size="small"
-                            sx={{
-                              bgcolor: (pasajero.provider || pasajero.perfil?.provider) === "google" ? "#4285f4" : "#484848",
-                              color: "white",
-                              fontWeight: 600,
-                              fontFamily: "Mulish, sans-serif",
-                            }}
-                          />
+                      {visibleColumnsPasajeros.phone && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          {pasajero.phone || pasajero.perfil?.phone || "-"}
                         </TableCell>
                       )}
                       {visibleColumnsPasajeros.departamento && (
@@ -1639,13 +1588,16 @@ const GestionUsuarios = () => {
                     Teléfono
                   </TableCell>
                   <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Rol
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
                     Flota
                   </TableCell>
                   <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
                     Fecha Registro
+                  </TableCell>
+                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                    Documentos
+                  </TableCell>
+                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                    Conectado
                   </TableCell>
                   <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
                     Estado
@@ -1658,7 +1610,7 @@ const GestionUsuarios = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={9} align="center">
+                    <TableCell colSpan={10} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                         Cargando trabajadores...
                       </Typography>
@@ -1666,7 +1618,7 @@ const GestionUsuarios = () => {
                   </TableRow>
                 ) : conductoresFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} align="center">
+                    <TableCell colSpan={10} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                         {trabajadores.length === 0 ? "No hay trabajadores registrados" : "No hay resultados para la búsqueda"}
                       </Typography>
@@ -1707,18 +1659,6 @@ const GestionUsuarios = () => {
                           </Tooltip>
                         </Box>
                       </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={trabajador.role === "driver" ? "Conductor" : trabajador.role || "Trabajador"}
-                          size="small"
-                          sx={{
-                            bgcolor: "#1976d2",
-                            color: "white",
-                            fontWeight: 600,
-                            fontFamily: "Mulish, sans-serif",
-                          }}
-                        />
-                      </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                         {trabajador.flotaId 
                           ? flotas.find(f => f.id === trabajador.flotaId)?.nombre || "Flota no encontrada"
@@ -1726,6 +1666,24 @@ const GestionUsuarios = () => {
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                         {formatearFecha(trabajador.createdAt)}
+                      </TableCell>
+                      <TableCell>
+                        <Typography sx={{color: trabajador.documentos_aprobados ? "#d7171a" : "#bdbdbd", fontWeight: 600}}>
+                          {trabajador.documentos_aprobados ? "Sí" : "No"}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          icon={trabajador.online === true ? <WifiIcon /> : <WifiOffIcon />}
+                          label={trabajador.online === true ? "En línea" : "Desconectado"}
+                          size="small"
+                          sx={{
+                            color: trabajador.online === true ? "#2e7d32" : "#616161",
+                            backgroundColor: trabajador.online === true ? "#e8f5e9" : "#f5f5f5",
+                            fontWeight: 600,
+                            fontFamily: "Mulish, sans-serif",
+                          }}
+                        />
                       </TableCell>
                       <TableCell>
                         <FormControlLabel
