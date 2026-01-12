@@ -709,6 +709,8 @@ const BilleteraFlota = () => {
         timestamp: serverTimestamp(),
         fechaRegistro: new Date().toLocaleString("es-ES"),
         conductorId: solicitudSeleccionada.conductorId,
+        trabajadorId: solicitudSeleccionada.conductorId,
+        solicitudId: solicitudSeleccionada.id,
       });
 
       mostrarSnackbar(

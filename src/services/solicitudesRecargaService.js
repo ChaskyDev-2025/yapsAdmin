@@ -446,6 +446,7 @@ export const escucharHistorialTransacciones = (flotaId, callback) => {
           snapshot.docs.map(async (transDoc) => {
             const transaccionData = transDoc.data();
             const solicitudId = transaccionData.solicitudId;
+            const trabajadorId = transaccionData.trabajadorId; // Para recargas a conductores
             
             let comprobanteUrl = null;
             let estado = null;
@@ -454,6 +455,7 @@ export const escucharHistorialTransacciones = (flotaId, callback) => {
             // Si tiene solicitudId, buscar la solicitud para obtener el comprobante
             if (solicitudId) {
               try {
+                // Primero intentar en flotas/{flotaId}/solicitudesRecarga (recargas de flota)
                 const solicitudRef = doc(db, "flotas", flotaId, "solicitudesRecarga", solicitudId);
                 const solicitudSnapshot = await getDoc(solicitudRef);
                 if (solicitudSnapshot.exists()) {
@@ -464,6 +466,30 @@ export const escucharHistorialTransacciones = (flotaId, callback) => {
                 }
               } catch (err) {
                 console.warn(`Error obteniendo solicitud ${solicitudId}:`, err);
+              }
+            }
+            
+            // Si tiene trabajadorId pero no encontró comprobante, buscar en trabajadores (recargas a conductores)
+            if (!comprobanteUrl && trabajadorId) {
+              try {
+                const solicitudConductorRef = doc(
+                  db, 
+                  "trabajadores", 
+                  trabajadorId, 
+                  "billetera", 
+                  "data", 
+                  "solicitudes_recarga",
+                  solicitudId
+                );
+                const solicitudConductorSnapshot = await getDoc(solicitudConductorRef);
+                if (solicitudConductorSnapshot.exists()) {
+                  const solicitudData = solicitudConductorSnapshot.data();
+                  comprobanteUrl = solicitudData.comprobanteUrl || null;
+                  estado = solicitudData.estado || null;
+                  nroComprobante = solicitudData.nroComprobante || null;
+                }
+              } catch (err) {
+                console.warn(`Error obteniendo solicitud de conductor ${solicitudId}:`, err);
               }
             }
             

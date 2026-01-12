@@ -157,7 +157,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
           reglas_tarifa: {},
           tarifasAeropuerto: [{ desdeKm: "10", precio: "40.00" }, { desdeKm: "20", precio: "60.00" }],
           horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }],
-          comisiones: {},
+          comisiones: initializeComisiones(),
           imagenUrl: null,
           imagenNombre: null
         });
@@ -169,7 +169,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
           unidad_precio: 'Bs',
           tarifasAeropuerto: [{ desdeKm: "10", precio: "40.00" }, { desdeKm: "20", precio: "60.00" }],
           horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }],
-          comisiones: {},
+          comisiones: initializeComisiones(),
           imagenUrl: null,
           imagenNombre: null
         });
@@ -261,7 +261,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
         tipo_calculo: tipoCalculoFinal,
         tarifasAeropuerto: service.Tarifas_Aeropuerto?.tramos || [],
         horasPico: service.Horas_pico?.franjas || [],
-        comisiones: (typeof service.comisiones === 'object' && !Array.isArray(service.comisiones)) ? service.comisiones : {},
+        comisiones: initializeComisiones((typeof service.comisiones === 'object' && !Array.isArray(service.comisiones)) ? service.comisiones : {}),
         precio_ayudante: service.precio_ayudante || 0
       });
     }
@@ -305,37 +305,28 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
     newArr[index][field] = value;
     setFormData(prev => ({ ...prev, horasPico: newArr }));
   };
-  // Comisiones handlers (como objeto con propiedades dinámicas)
-  const [nuevoNombreComision, setNuevoNombreComision] = useState('');
-  const [nuevoValorComision, setNuevoValorComision] = useState('');
-
-  const addComision = () => {
-    if (!nuevoNombreComision.trim()) {
-      alert('Ingresa un nombre para la comisión');
-      return;
-    }
-    if (!nuevoValorComision || isNaN(nuevoValorComision)) {
-      alert('Ingresa un valor válido');
-      return;
-    }
-    setFormData(prev => ({
-      ...prev,
-      comisiones: {
-        ...prev.comisiones,
-        [nuevoNombreComision.toLowerCase()]: parseFloat(nuevoValorComision)
+  // Comisiones fijas: app, flota, caridad
+  const COMISIONES_FIJAS = ['app', 'flota', 'caridad'];
+  
+  const initializeComisiones = (existentesComisiones = {}) => {
+    const initialized = { ...existentesComisiones };
+    COMISIONES_FIJAS.forEach(nombre => {
+      if (!initialized[nombre]) {
+        initialized[nombre] = 0;
       }
-    }));
-    setNuevoNombreComision('');
-    setNuevoValorComision('');
+    });
+    return initialized;
   };
 
-  const removeComision = (key) => {
-    setFormData(prev => {
-      const newComisiones = { ...prev.comisiones };
-      delete newComisiones[key];
-      return { ...prev, comisiones: newComisiones };
-    });
-  };
+  // Al cargar o crear un servicio, inicializar comisiones fijas
+  useEffect(() => {
+    if (formData.comisiones && !Object.keys(formData.comisiones).some(k => COMISIONES_FIJAS.includes(k))) {
+      setFormData(prev => ({
+        ...prev,
+        comisiones: initializeComisiones(prev.comisiones)
+      }));
+    }
+  }, []);
 
   const updateComision = (key, value) => {
     setFormData(prev => ({
@@ -440,10 +431,13 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
         // Generar key base
         let keyBase = `${category}_${serviceName}`.replace(/[^a-zA-Z0-9]/g, '_');
         
-        // Si es La Paz, SIEMPRE incluir la zona en la clave
-        if (department === 'La Paz' && selectedZona) {
+        // Si es La Paz: NO incluir zona en el ID
+        // Si es El Alto (dentro de La Paz): INCLUIR zona en el ID
+        if (department === 'La Paz' && selectedZona && selectedZona !== 'La Paz') {
+          // El Alto: incluir la zona en el ID
           keyBase = `${keyBase}_${String(selectedZona).replace(/\s+/g, '_')}`;
         }
+        // Si es La Paz (sin El Alto): no agregar nada al keyBase
         
         key = keyBase;
       }
@@ -699,52 +693,24 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
             <Box sx={{ p: 2, border: '1px solid #ddd', borderRadius: 1, bgcolor: '#f9f9f9' }}>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Comisiones</Typography>
               
-              {/* Formulario para agregar nueva comisión */}
-              <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'flex-end' }}>
-                <TextField 
-                  label="Nombre (ej: app, flota, seguro)" 
-                  size="small"
-                  value={nuevoNombreComision}
-                  onChange={(e) => setNuevoNombreComision(e.target.value)}
-                  sx={{ flex: 2 }}
-                />
-                <TextField 
-                  label="Porcentaje (%)" 
-                  size="small" 
-                  type="number"
-                  inputProps={{ step: "0.1", min: "0" }}
-                  value={nuevoValorComision}
-                  onChange={(e) => setNuevoValorComision(e.target.value)}
-                  sx={{ flex: 1 }}
-                />
-                <Button onClick={addComision} variant="contained" color="primary" size="small">Agregar</Button>
-              </Box>
-
-              {/* Lista de comisiones existentes */}
+              {/* Lista de comisiones fijas */}
               <Box sx={{ maxHeight: '250px', overflowY: 'auto', mb: 2 }}>
-                {formData.comisiones && Object.keys(formData.comisiones).length > 0 ? (
-                  Object.entries(formData.comisiones).map(([key, valor]) => (
-                    <Box key={key} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center', p: 1, bgcolor: '#fff', borderRadius: 1 }}>
-                      <Typography sx={{ flex: 2, fontWeight: 500 }}>
-                        {key}:
-                      </Typography>
-                      <TextField 
-                        size="small" 
-                        type="number"
-                        inputProps={{ step: "0.1", min: "0" }}
-                        value={valor} 
-                        onChange={(e) => updateComision(key, e.target.value)}
-                        sx={{ flex: 1 }}
-                      />
-                      <Typography sx={{ minWidth: '30px', textAlign: 'center' }}>%</Typography>
-                      <IconButton onClick={() => removeComision(key)} color="error" size="small"><RemoveCircleOutlineIcon /></IconButton>
-                    </Box>
-                  ))
-                ) : (
-                  <Typography variant="body2" sx={{ color: '#999', fontStyle: 'italic', p: 1 }}>
-                    No hay comisiones. Agrega una arriba.
-                  </Typography>
-                )}
+                {COMISIONES_FIJAS.map((comisionNombre) => (
+                  <Box key={comisionNombre} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center', p: 1, bgcolor: '#fff', borderRadius: 1 }}>
+                    <Typography sx={{ flex: 2, fontWeight: 500, textTransform: 'capitalize' }}>
+                      {comisionNombre}:
+                    </Typography>
+                    <TextField 
+                      size="small" 
+                      type="number"
+                      inputProps={{ step: "0.1", min: "0" }}
+                      value={formData.comisiones?.[comisionNombre] || 0} 
+                      onChange={(e) => updateComision(comisionNombre, e.target.value)}
+                      sx={{ flex: 1 }}
+                    />
+                    <Typography sx={{ minWidth: '30px', textAlign: 'center' }}>%</Typography>
+                  </Box>
+                ))}
               </Box>
 
               {formData.comisiones && Object.keys(formData.comisiones).length > 0 && (

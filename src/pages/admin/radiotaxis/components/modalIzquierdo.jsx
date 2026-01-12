@@ -21,20 +21,31 @@ export default function ModalIzquierdo({ rowData }) {
   const [openRecarga, setOpenRecarga] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [saldoActual, setSaldoActual] = useState(rowData.saldo);
+  const [categorias, setCategorias] = useState([]);
+  const [servicios, setServicios] = useState({});
   
-  const categorias = Array.isArray(rowData.categorias) ? rowData.categorias : [];
-  const servicios = rowData.servicios || {};
   const flotaNombre = rowData.flotaNombre || "-";
   const departamento = rowData.departamento || "-";
 
-  // Escucha el saldo actualizado en Firestore desde billetera/data
+  // Escucha el saldo, categorías y servicios actualizados desde Firebase
   useEffect(() => {
     if (!rowData?.firebaseId) return;
-    const ref = doc(db, "trabajadores", rowData.firebaseId, "billetera", "data");
+    
+    const ref = doc(db, "trabajadores", rowData.firebaseId);
     const unsubscribe = onSnapshot(ref, (snap) => {
       const data = snap.data();
-      if (data && typeof data.saldo !== "undefined") {
-        setSaldoActual(`Bs. ${Number(data.saldo).toFixed(2)}`);
+      if (data) {
+        // Actualizar saldo desde billetera
+        if (typeof data.saldo !== "undefined") {
+          setSaldoActual(`Bs. ${Number(data.saldo).toFixed(2)}`);
+        }
+        // Actualizar categorías y servicios desde el documento del trabajador
+        if (Array.isArray(data.categorias)) {
+          setCategorias(data.categorias);
+        }
+        if (typeof data.servicios === 'object') {
+          setServicios(data.servicios || {});
+        }
       }
     });
     return () => unsubscribe();
@@ -89,41 +100,34 @@ export default function ModalIzquierdo({ rowData }) {
                 Categorías y Servicios:
               </Typography>
               <Box sx={{ mt: 0.5, pl: 1 }}>
-                {categorias.map((cat) => {
-                  // Normalizar la categoría: quitar tilde, pasar a minúscula
-                  const catNormalizada = cat
-                    .toLowerCase()
-                    .normalize('NFD')
-                    .replace(/[\u0300-\u036f]/g, '');
-                  const servicioRaw = servicios[catNormalizada] || servicios[cat.toLowerCase()] || null;
-                  
+                {Object.entries(servicios).map(([categoria, serviciosRaw]) => {
                   // Extraer los valores del servicio si es un objeto o array
                   let serviciosArray = [];
-                  if (Array.isArray(servicioRaw)) {
-                    serviciosArray = servicioRaw.map(s => {
+                  if (Array.isArray(serviciosRaw)) {
+                    serviciosArray = serviciosRaw.map(s => {
                       if (typeof s === 'object' && s?.valor) {
                         return s.valor;
                       }
                       return s;
                     });
-                  } else if (typeof servicioRaw === 'object' && servicioRaw?.valor) {
-                    serviciosArray = [servicioRaw.valor];
-                  } else if (servicioRaw && typeof servicioRaw === 'string') {
-                    serviciosArray = [servicioRaw];
+                  } else if (typeof serviciosRaw === 'object' && serviciosRaw?.valor) {
+                    serviciosArray = [serviciosRaw.valor];
+                  } else if (serviciosRaw && typeof serviciosRaw === 'string') {
+                    serviciosArray = [serviciosRaw];
                   }
                   
                   return serviciosArray.length > 0 ? (
-                    <Box key={cat}>
+                    <Box key={categoria}>
                       <Typography sx={{ fontSize: "0.9rem", fontWeight: 600, mb: 0.5 }}>
-                        {cat}:
+                        {categoria}:
                       </Typography>
                       {serviciosArray.map((s, idx) => {
                         // Quitar el prefijo de la categoría del servicio
                         let servicioLimpio = s;
                         
                         // Crear variantes del prefijo para comparación
-                        const prefijoGuion = cat.toLowerCase().replace(/\s+/g, '_') + '_';
-                        const prefijoEspacio = cat.toLowerCase() + ' ';
+                        const prefijoGuion = categoria.toLowerCase().replace(/\s+/g, '_') + '_';
+                        const prefijoEspacio = categoria.toLowerCase() + ' ';
                         
                         // Quitar el prefijo si existe (con guion bajo o espacio)
                         const servicioMinuscula = servicioLimpio.toLowerCase();

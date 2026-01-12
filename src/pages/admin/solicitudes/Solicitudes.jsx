@@ -99,6 +99,21 @@ const Solicitudes = () => {
         };
       });
 
+      // Detectar nuevas solicitudes de conductores
+      if (prevSolicitudesRef.current && prevSolicitudesRef.current.length > 0) {
+        data.forEach(nuevaSolicitud => {
+          const yaExistia = prevSolicitudesRef.current.some(old => old.id === nuevaSolicitud.id);
+          if (!yaExistia && nuevaSolicitud.solicitud?.tipo === 'conductor') {
+            // Nueva solicitud de conductor detectada
+            addNotification({
+              message: `Nueva solicitud de conductor: ${nuevaSolicitud.solicitud?.detalles?.nombre || 'Sin nombre'}`,
+              type: "info",
+              duration: 6000
+            });
+          }
+        });
+      }
+
       setSolicitudes(data);
       // Guardar snapshot actual para comparaciones en la siguiente actualización
       try {
@@ -109,7 +124,7 @@ const Solicitudes = () => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [addNotification]);
 
   // Cargar flotas para el dropdown
   useEffect(() => {
