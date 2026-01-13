@@ -277,7 +277,8 @@ export const crearSolicitudRecarga = async (
   concepto = "recarga",
   notas = "",
   comprobanteUrl = null,
-  nroComprobante = ""
+  nroComprobante = "",
+  saldoActual = null
 ) => {
   try {
     if (monto <= 0) {
@@ -295,6 +296,7 @@ export const crearSolicitudRecarga = async (
       razonRechazo: null,
       comprobanteUrl: comprobanteUrl || null,
       nroComprobante: nroComprobante || "",
+      saldoActual: saldoActual || null,
     };
 
     const solicitudesRef = getSolicitudesRef(flotaId);
@@ -347,6 +349,7 @@ export const aprobarSolicitud = async (flotaId, solicitudId, adminId) => {
       estado: "aprobada",
       fechaAprobacion: serverTimestamp(),
       respondidoPor: adminId,
+      saldoNuevo: nuevoSaldo,
     });
 
     // Actualizar saldo

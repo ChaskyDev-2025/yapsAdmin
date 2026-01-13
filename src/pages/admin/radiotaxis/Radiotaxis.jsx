@@ -89,6 +89,7 @@ const Radiotaxis = () => {
   const [sortByRadiotaxis, setSortByRadiotaxis] = useState("nombre-asc");
   const [pageRadiotaxis, setPageRadiotaxis] = useState(0);
   const [periodFilterRadiotaxis, setPeriodFilterRadiotaxis] = useState("todos");
+  const [filterConectadoRadiotaxis, setFilterConectadoRadiotaxis] = useState("todos"); // todos, en linea, desconectados
   const [visibleColumnsRadiotaxis, setVisibleColumnsRadiotaxis] = useState({
     nombre: true,
     email: true,
@@ -210,6 +211,7 @@ const Radiotaxis = () => {
       nombreEmpresa: row.nombreEmpresa || "",
       email: row.email || "",
       telefono: row.telefono || "",
+      departamento: row.departamento || "",
     });
     setEditDialogOpen(true);
   };
@@ -226,6 +228,7 @@ const Radiotaxis = () => {
         nombreEmpresa: editFormData.nombreEmpresa,
         email: editFormData.email,
         telefono: editFormData.telefono,
+        departamento: editFormData.departamento,
         updatedAt: new Date(),
       });
       setSuccessMessage("Radiotaxi actualizado correctamente");
@@ -384,6 +387,15 @@ const Radiotaxis = () => {
       });
     }
     
+    // Filtro por conectado
+    if (filterConectadoRadiotaxis !== "todos") {
+      filtered = filtered.filter(r => {
+        if (filterConectadoRadiotaxis === "en linea") return r.online === true;
+        if (filterConectadoRadiotaxis === "desconectados") return r.online !== true;
+        return true;
+      });
+    }
+    
     // Filtro por búsqueda
     if (searchRadiotaxis) {
       const search = searchRadiotaxis.toLowerCase();
@@ -409,7 +421,7 @@ const Radiotaxis = () => {
     }
     
     return sorted;
-  }, [displayRows, searchRadiotaxis, sortByRadiotaxis, periodFilterRadiotaxis]);
+  }, [displayRows, searchRadiotaxis, sortByRadiotaxis, periodFilterRadiotaxis, filterConectadoRadiotaxis]);
 
   // Paginación
   const radiotaxisPaginados = useMemo(() => {
@@ -441,12 +453,27 @@ const Radiotaxis = () => {
                 { label: "↑ Sort by Nombre (ASC)", value: "nombre-asc" },
                 { label: "↓ Sort by Nombre (DESC)", value: "nombre-desc" },
               ]}
+              filterOptions={[
+                {
+                  name: "conectado",
+                  label: "Conectado",
+                  defaultValue: "todos",
+                  options: [
+                    { label: "Todos", value: "todos" },
+                    { label: "En línea", value: "en linea" },
+                    { label: "Desconectados", value: "desconectados" },
+                  ],
+                },
+              ]}
+              filterValue={{ conectado: filterConectadoRadiotaxis }}
+              onFilterChange={(name, value) => setFilterConectadoRadiotaxis(value)}
               visibleColumns={visibleColumnsRadiotaxis}
               onColumnChange={(col, visible) => setVisibleColumnsRadiotaxis(prev => ({ ...prev, [col]: visible }))}
               showClearButton={searchRadiotaxis !== ""}
               onClear={() => {
                 setSearchRadiotaxis("");
                 setSortByRadiotaxis("nombre-asc");
+                setFilterConectadoRadiotaxis("todos");
               }}
             />
           </Box>
@@ -478,19 +505,16 @@ const Radiotaxis = () => {
                     Teléfono
                   </TableCell>
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                    Documentos
+                  </TableCell>
+                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                    Conectado
+                  </TableCell>
+                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
                     Contactar
                   </TableCell>
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
                     Fecha Registro
-                  </TableCell>
-                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                    Documentos
-                  </TableCell>
-                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                    Estado
-                  </TableCell>
-                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                    Conectado
                   </TableCell>
                   <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
                     Acciones
@@ -500,7 +524,7 @@ const Radiotaxis = () => {
               <TableBody>
                 {radiotaxisPaginados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} align="center">
+                    <TableCell colSpan={8} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                         No hay conductores registrados
                       </Typography>
@@ -549,6 +573,30 @@ const Radiotaxis = () => {
                           </Tooltip>
                         </Box>
                       </TableCell>
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        <Typography
+                          sx={{
+                            color: radio.documentos_aprobados ? "#d7171a" : "#bdbdbd",
+                            fontWeight: 600,
+                            fontFamily: "Mulish, sans-serif"
+                          }}
+                        >
+                          {radio.documentos_aprobados ? "Sí" : "No"}
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        <Chip
+                          icon={radio.online === true ? <WifiIcon /> : <WifiOffIcon />}
+                          label={radio.online === true ? "En línea" : "Desconectado"}
+                          size="small"
+                          sx={{
+                            color: radio.online === true ? "#2e7d32" : "#616161",
+                            backgroundColor: radio.online === true ? "#e8f5e9" : "#f5f5f5",
+                            fontWeight: 600,
+                            fontFamily: "Mulish, sans-serif",
+                          }}
+                        />
+                      </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif", textAlign: "center" }}>
                         {radio.telefono ? (
                           <Tooltip title="Contactar por WhatsApp">
@@ -580,44 +628,6 @@ const Radiotaxis = () => {
                               return date.toLocaleDateString("es-ES");
                             })()
                           : "-"}
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        <Typography
-                          sx={{
-                            color: radio.documentos_aprobados ? "#d7171a" : "#bdbdbd",
-                            fontWeight: 600,
-                            fontFamily: "Mulish, sans-serif"
-                          }}
-                        >
-                          {radio.documentos_aprobados ? "Sí" : "No"}
-                        </Typography>
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        <Switch
-                          checked={radio.activo === true}
-                          onChange={(e) => handleToggleHabilitado(radio.firebaseId, e.target.checked, radio.documentos_aprobados)}
-                          sx={{
-                            '& .MuiSwitch-switchBase.Mui-checked': {
-                              color: '#d7171a',
-                            },
-                            '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                              backgroundColor: '#d7171a',
-                            },
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        <Chip
-                          icon={radio.online === true ? <WifiIcon /> : <WifiOffIcon />}
-                          label={radio.online === true ? "En línea" : "Desconectado"}
-                          size="small"
-                          sx={{
-                            color: radio.online === true ? "#2e7d32" : "#616161",
-                            backgroundColor: radio.online === true ? "#e8f5e9" : "#f5f5f5",
-                            fontWeight: 600,
-                            fontFamily: "Mulish, sans-serif",
-                          }}
-                        />
                       </TableCell>
                       <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                         <Box sx={{ display: "flex", gap: 1 }}>
@@ -696,44 +706,100 @@ const Radiotaxis = () => {
 
       {/* Dialog para editar */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, bgcolor: "#000000", color: "white" }}>
-          Editar Radiotaxi
+        <DialogTitle sx={{ fontWeight: 700, bgcolor: "#000000", color: "white", display: "flex", alignItems: "center", gap: 1 }}>
+          <EditIcon /> Editar Radiotaxi
         </DialogTitle>
-        <DialogContent sx={{ mt: 2 }}>
-          <TextField
-            label="Nombre de Empresa"
-            fullWidth
-            margin="normal"
-            value={editFormData.nombreEmpresa}
-            onChange={(e) => setEditFormData({ ...editFormData, nombreEmpresa: e.target.value })}
-          />
-          <TextField
-            label="Email"
-            type="email"
-            fullWidth
-            margin="normal"
-            value={editFormData.email}
-            onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-          />
-          <TextField
-            label="Teléfono"
-            fullWidth
-            margin="normal"
-            value={editFormData.telefono}
-            onChange={(e) => setEditFormData({ ...editFormData, telefono: e.target.value })}
-          />
+        <DialogContent sx={{ mt: 3 }}>
+          {errorMessage && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {errorMessage}
+            </Alert>
+          )}
+          
+          {successMessage && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {successMessage}
+            </Alert>
+          )}
+
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+            {/* Sección 1: Información del Conductor */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#000", mb: 1.5, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
+                Información del Conductor
+              </Typography>
+              <TextField
+                label="Nombre del Conductor"
+                fullWidth
+                value={editFormData.nombreEmpresa}
+                onChange={(e) => setEditFormData({ ...editFormData, nombreEmpresa: e.target.value })}
+                placeholder="Ej: GUIDO HERBAS CECILIANO"
+                error={!editFormData.nombreEmpresa}
+                helperText={!editFormData.nombreEmpresa ? "Campo requerido" : ""}
+              />
+            </Box>
+
+            {/* Sección 2: Contacto */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#000", mb: 1.5, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
+                Información de Contacto
+              </Typography>
+              <TextField
+                label="Email"
+                type="email"
+                fullWidth
+                value={editFormData.email}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                placeholder="ejemplo@correo.com"
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                label="Teléfono"
+                fullWidth
+                value={editFormData.telefono}
+                onChange={(e) => setEditFormData({ ...editFormData, telefono: e.target.value })}
+                placeholder="+591 XXXXXXXXX"
+                error={!editFormData.telefono}
+                helperText={!editFormData.telefono ? "Campo requerido" : ""}
+              />
+            </Box>
+
+            {/* Sección 3: Ubicación */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#000", mb: 1.5, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
+                Ubicación
+              </Typography>
+              <TextField
+                label="Departamento"
+                fullWidth
+                value={editFormData.departamento}
+                onChange={(e) => setEditFormData({ ...editFormData, departamento: e.target.value })}
+                placeholder="Ej: La Paz, Santa Cruz, Cochabamba..."
+              />
+            </Box>
+          </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setEditDialogOpen(false)} sx={{ color: "#484848" }}>
+        <DialogActions sx={{ p: 2.5, borderTop: "1px solid #e0e0e0" }}>
+          <Button 
+            onClick={() => setEditDialogOpen(false)}
+            sx={{ color: "#484848", fontWeight: 600, textTransform: "none" }}
+          >
             Cancelar
           </Button>
           <Button
             onClick={handleSaveEdit}
             variant="contained"
-            disabled={loading}
-            sx={{ bgcolor: "#d7171a", "&:hover": { bgcolor: "#b01217" } }}
+            disabled={loading || !editFormData.nombreEmpresa || !editFormData.telefono}
+            sx={{ 
+              bgcolor: "#d7171a", 
+              fontWeight: 600,
+              textTransform: "none",
+              px: 3,
+              "&:hover": { bgcolor: "#b01217" },
+              "&:disabled": { bgcolor: "#ccc" }
+            }}
           >
-            {loading ? "Guardando..." : "Guardar"}
+            {loading ? "Guardando..." : "Guardar Cambios"}
           </Button>
         </DialogActions>
       </Dialog>

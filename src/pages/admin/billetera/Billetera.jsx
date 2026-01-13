@@ -41,6 +41,7 @@ import {
   obtenerSaldoTotal,
   obtenerHistorialFlota,
   obtenerTodasLasTransacciones,
+  obtenerSolicitudesRecargaFlotas,
   escucharFlotas,
   escucharSaldoTotal,
 } from "../../../services/bileteraService";
@@ -89,6 +90,8 @@ const Billetera = () => {
   const [rejectReason, setRejectReason] = useState("");
   const [selectedSolicitud, setSelectedSolicitud] = useState(null);
   const [processingId, setProcessingId] = useState(null);
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [solicitudToApprove, setSolicitudToApprove] = useState(null);
 
   // Estado para modal de comprobante
   const [comprobanteExpandidoOpen, setComprobanteExpandidoOpen] =
@@ -172,7 +175,7 @@ const Billetera = () => {
     if (tabValue === 2) {
       const recargarHistorial = async () => {
         try {
-          const historialData = await obtenerTodasLasTransacciones();
+          const historialData = await obtenerSolicitudesRecargaFlotas();
           setHistorialSolicitudes(historialData);
         } catch (error) {
           console.error("Error al recargar historial:", error);
@@ -190,7 +193,7 @@ const Billetera = () => {
           obtenerFlotas(),
           obtenerSaldoTotal(),
           obtenerSolicitudesPendientes(),
-          obtenerTodasLasTransacciones(),
+          obtenerSolicitudesRecargaFlotas(),
         ]);
 
       setFlotas(flotasData);
@@ -427,13 +430,6 @@ const Billetera = () => {
   const filteredHistorial = useMemo(() => {
     let result = [...historialSolicitudes];
 
-    // Filtrar por tipo de recarga (conductores vs flotas)
-    if (tabValue === 2) {
-      result = subtabHistorialValue === 0 
-        ? result.filter(t => t.concepto && t.concepto.toLowerCase().includes("conductor"))
-        : result.filter(t => !t.concepto || !t.concepto.toLowerCase().includes("conductor"));
-    }
-
     // Filtrar por período
     if (periodFilterHistorial !== "todos") {
       const now = new Date();
@@ -482,15 +478,19 @@ const Billetera = () => {
     // Ordenar
     if (sortByHistorial === "fecha-asc") {
       result.sort(
-        (a, b) =>
-          new Date(a.timestamp?.toDate?.() || a.timestamp || 0) -
-          new Date(b.timestamp?.toDate?.() || b.timestamp || 0)
+        (a, b) => {
+          const fechaA = a.fechaAprobacion?.toDate?.() || a.fechaAprobacion || a.fechaSolicitud?.toDate?.() || a.fechaSolicitud || a.timestamp?.toDate?.() || a.timestamp || 0;
+          const fechaB = b.fechaAprobacion?.toDate?.() || b.fechaAprobacion || b.fechaSolicitud?.toDate?.() || b.fechaSolicitud || b.timestamp?.toDate?.() || b.timestamp || 0;
+          return new Date(fechaA) - new Date(fechaB);
+        }
       );
     } else if (sortByHistorial === "fecha-desc") {
       result.sort(
-        (a, b) =>
-          new Date(b.timestamp?.toDate?.() || b.timestamp || 0) -
-          new Date(a.timestamp?.toDate?.() || a.timestamp || 0)
+        (a, b) => {
+          const fechaA = a.fechaAprobacion?.toDate?.() || a.fechaAprobacion || a.fechaSolicitud?.toDate?.() || a.fechaSolicitud || a.timestamp?.toDate?.() || a.timestamp || 0;
+          const fechaB = b.fechaAprobacion?.toDate?.() || b.fechaAprobacion || b.fechaSolicitud?.toDate?.() || b.fechaSolicitud || b.timestamp?.toDate?.() || b.timestamp || 0;
+          return new Date(fechaB) - new Date(fechaA);
+        }
       );
     } else if (sortByHistorial === "monto-asc") {
       result.sort((a, b) => (a.monto || 0) - (b.monto || 0));
@@ -521,7 +521,7 @@ const Billetera = () => {
     transaccion => !transaccion.concepto || !transaccion.concepto.toLowerCase().includes("conductor")
   );
 
-  const historialPorSubtab = subtabHistorialValue === 0 ? historialConductores : historialFlotas;
+  const historialPorSubtab = historialFlotas;
 
   const handleAbrirModal = (flota, tipo) => {
     setSelectedFlota(flota);
@@ -577,13 +577,24 @@ const Billetera = () => {
     setHistorial([]);
   };
 
-  const handleAprobarSolicitud = async (solicitud) => {
+  const handleAbrirAprobacion = (solicitud) => {
+    setSolicitudToApprove(solicitud);
+    setApproveDialogOpen(true);
+  };
+
+  const handleConfirmarAprobacion = async () => {
+    if (!solicitudToApprove) return;
+
     try {
-      setProcessingId(solicitud.id);
-      await aprobarSolicitud(solicitud.flotaId, solicitud.id, "superadmin");
+      setProcessingId(solicitudToApprove.id);
+      await aprobarSolicitud(
+        solicitudToApprove.flotaId,
+        solicitudToApprove.id,
+        "superadmin"
+      );
 
       // Remover la solicitud de la lista (listener en tiempo real actualizará luego)
-      setSolicitudes((prev) => prev.filter((s) => s.id !== solicitud.id));
+      setSolicitudes((prev) => prev.filter((s) => s.id !== solicitudToApprove.id));
 
       // Recargar solo flotas y estadísticas (solicitudes se actualizan vía listener)
       const [flotasData, estadisticasData] = await Promise.all([
@@ -593,12 +604,18 @@ const Billetera = () => {
       setFlotas(flotasData);
       setEstadisticas(estadisticasData);
 
+      setApproveDialogOpen(false);
+      setSolicitudToApprove(null);
       mostrarSnackbar("Solicitud aprobada correctamente", "success");
     } catch (error) {
       mostrarSnackbar(error.message || "Error al aprobar solicitud", "error");
     } finally {
       setProcessingId(null);
     }
+  };
+
+  const handleAprobarSolicitud = async (solicitud) => {
+    handleAbrirAprobacion(solicitud);
   };
 
   const handleRechazarSolicitud = async () => {
@@ -1193,31 +1210,6 @@ const Billetera = () => {
         {/* Contenido de Historial de Solicitudes */}
         {tabValue === 2 && (
           <>
-            {/* Subtabs para separar Conductores y Flotas */}
-            <Box sx={{ borderBottom: 2, borderColor: "divider", mb: 3 }}>
-              <Tabs
-                value={subtabHistorialValue}
-                onChange={(e, newValue) => setSubtabHistorialValue(newValue)}
-                sx={{
-                  "& .MuiTab-root": {
-                    fontWeight: 600,
-                    fontSize: "0.95rem",
-                    textTransform: "none",
-                    color: "#484848",
-                    "&.Mui-selected": {
-                      color: "#d7171a",
-                    },
-                  },
-                  "& .MuiTabs-indicator": {
-                    backgroundColor: "#d7171a",
-                  },
-                }}
-              >
-                <Tab label={`Recargas a Conductores (${historialConductores.length})`} />
-                <Tab label={`Recargas a Flotas (${historialFlotas.length})`} />
-              </Tabs>
-            </Box>
-
             <Box
               sx={{
                 display: "flex",
@@ -1271,19 +1263,6 @@ const Billetera = () => {
                             }}
                           >
                             Flota
-                          </TableCell>
-                        )}
-                        {visibleColumnsHistorial.tipo && (
-                          <TableCell
-                            sx={{
-                              backgroundColor: "#000000",
-                              color: "white",
-                              fontWeight: 700,
-                              fontFamily: "Mulish, sans-serif",
-                              fontSize: "0.95rem",
-                            }}
-                          >
-                            Tipo
                           </TableCell>
                         )}
                         {visibleColumnsHistorial.monto && (
@@ -1391,35 +1370,6 @@ const Billetera = () => {
                               {transaccion.flotaNombre || "-"}
                             </TableCell>
                           )}
-                          {visibleColumnsHistorial.tipo && (
-                            <TableCell>
-                              <Chip
-                                label={
-                                  transaccion.tipo === "deposito"
-                                    ? "Depósito"
-                                    : transaccion.tipo === "retiro"
-                                    ? "Retiro"
-                                    : "Ajuste"
-                                }
-                                size="small"
-                                sx={{
-                                  bgcolor:
-                                    transaccion.tipo === "deposito"
-                                      ? "#e8f5e9"
-                                      : transaccion.tipo === "retiro"
-                                      ? "#ffebee"
-                                      : "#fff3e0",
-                                  color:
-                                    transaccion.tipo === "deposito"
-                                      ? "#2e7d32"
-                                      : transaccion.tipo === "retiro"
-                                      ? "#c62828"
-                                      : "#e65100",
-                                  fontWeight: 600,
-                                }}
-                              />
-                            </TableCell>
-                          )}
                           {visibleColumnsHistorial.monto && (
                             <TableCell
                               align="right"
@@ -1454,7 +1404,7 @@ const Billetera = () => {
                               fontFamily: "Mulish, sans-serif",
                             }}
                           >
-                            ${(transaccion.saldoAnterior || 0).toLocaleString(
+                            ${(transaccion.saldoActual || 0).toLocaleString(
                               "es-ES",
                               { minimumFractionDigits: 2 }
                             )}
@@ -1508,11 +1458,48 @@ const Billetera = () => {
                           {visibleColumnsHistorial.fecha && (
                             <TableCell
                               sx={{
-                                fontSize: "0.9rem",
+                                fontSize: "0.85rem",
                                 fontFamily: "Mulish, sans-serif",
                               }}
                             >
-                              {transaccion.fechaRegistro || "-"}
+                              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                  Solicitado:
+                                </Typography>
+                                <Typography variant="caption">
+                                  {transaccion.fechaSolicitud
+                                    ? new Date(
+                                        transaccion.fechaSolicitud?.toDate?.() ||
+                                          transaccion.fechaSolicitud
+                                      ).toLocaleDateString("es-ES", {
+                                        year: "numeric",
+                                        month: "short",
+                                        day: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })
+                                    : transaccion.fechaRegistro || "-"}
+                                </Typography>
+                                {transaccion.fechaAprobacion && (
+                                  <>
+                                    <Typography variant="caption" sx={{ fontWeight: 600, mt: 1 }}>
+                                      Aprobado:
+                                    </Typography>
+                                    <Typography variant="caption">
+                                      {new Date(
+                                        transaccion.fechaAprobacion?.toDate?.() ||
+                                          transaccion.fechaAprobacion
+                                      ).toLocaleDateString("es-ES", {
+                                        year: "numeric",
+                                        month: "short",
+                                        day: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </Typography>
+                                  </>
+                                )}
+                              </Box>
                             </TableCell>
                           )}
                           <TableCell
@@ -1869,6 +1856,41 @@ const Billetera = () => {
           </>
         )}
       </Paper>
+
+      {/* Dialog para aprobar */}
+      <Dialog open={approveDialogOpen} onClose={() => setApproveDialogOpen(false)}>
+        <DialogTitle>Confirmar Aprobación de Solicitud</DialogTitle>
+        <DialogContent sx={{ minWidth: 400 }}>
+          <Box sx={{ pt: 2 }}>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              <strong>Flota:</strong> {solicitudToApprove?.flotaNombre}
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              <strong>Monto:</strong> $
+              {solicitudToApprove?.monto.toLocaleString("es-ES", {
+                minimumFractionDigits: 2,
+              })}
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              <strong>Concepto:</strong> {solicitudToApprove?.concepto}
+            </Typography>
+            <Typography variant="body2" sx={{ color: "orange" }}>
+              ⚠️ Asegúrate de que los datos sean correctos antes de aprobar.
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setApproveDialogOpen(false)}>Cancelar</Button>
+          <Button
+            onClick={handleConfirmarAprobacion}
+            variant="contained"
+            color="success"
+            disabled={processingId === solicitudToApprove?.id}
+          >
+            Aprobar
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Dialog para rechazar */}
       <Dialog

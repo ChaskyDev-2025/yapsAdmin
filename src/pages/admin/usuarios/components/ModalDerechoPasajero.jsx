@@ -60,12 +60,6 @@ export default function ModalDerechoPasajero({ userId }) {
 
   return (
     <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <Box sx={{ px: 3, py: 2, borderBottom: "2px solid #e0e0e0" }}>
-        <Typography variant="h6" fontWeight={700} sx={{ color: "#000000" }}>
-          📋 Historial de Órdenes ({totalOrdenes})
-        </Typography>
-      </Box>
-
       {totalOrdenes === 0 ? (
         <Box sx={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
           <Typography sx={{ color: "#bdbdbd", fontFamily: "Mulish, sans-serif" }}>
@@ -74,8 +68,8 @@ export default function ModalDerechoPasajero({ userId }) {
         </Box>
       ) : (
         <>
-          {/* Tabs */}
-          <Box sx={{ borderBottom: "2px solid #e0e0e0", px: 3 }}>
+          {/* Tabs sin encabezado */}
+          <Box sx={{ borderBottom: "2px solid #e0e0e0", px: 2 }}>
             <Tabs
               value={tabValue}
               onChange={handleTabChange}
@@ -277,3 +271,5 @@ export default function ModalDerechoPasajero({ userId }) {
     </Box>
   );
 }
+
+

@@ -619,3 +619,61 @@ export const escucharSaldoTotal = (callback) => {
   }
 };
 
+// Obtener solo las solicitudes de recarga a flotas (aprobadas por superadmin)
+export const obtenerSolicitudesRecargaFlotas = async () => {
+  try {
+    const flotasRef = collection(db, FLOTAS_PATH);
+    const flotasSnapshot = await getDocs(flotasRef);
+    
+    let todasLasSolicitudes = [];
+    
+    console.log(`Procesando ${flotasSnapshot.docs.length} flotas...`);
+    
+    // Para cada flota, obtener sus solicitudes de recarga
+    await Promise.all(
+      flotasSnapshot.docs.map(async (flotaDoc) => {
+        try {
+          const flotaId = flotaDoc.id;
+          const flotaData = flotaDoc.data();
+          
+          // Obtener solicitudes de recarga de esta flota
+          const solicitudesRef = collection(db, FLOTAS_PATH, flotaId, "solicitudesRecarga");
+          const solicitudesSnapshot = await getDocs(solicitudesRef);
+          
+          console.log(`Flota ${flotaData.nombre || flotaId}: ${solicitudesSnapshot.docs.length} solicitudes`);
+          
+          solicitudesSnapshot.docs.forEach((solicDoc) => {
+            const solicitudData = solicDoc.data();
+            
+            todasLasSolicitudes.push({
+              id: solicDoc.id,
+              flotaId: flotaId,
+              flotaNombre: flotaData.nombre || "Sin nombre",
+              comprobanteUrl: solicitudData.comprobanteUrl || null,
+              concepto: solicitudData.concepto || "recarga",
+              estado: solicitudData.estado || null,
+              nroComprobante: solicitudData.nroComprobante || null,
+              monto: solicitudData.monto || 0,
+              notas: solicitudData.notas || "",
+              razonRechazo: solicitudData.razonRechazo || null,
+              respondidoPor: solicitudData.respondidoPor || null,
+              fechaSolicitud: solicitudData.fechaSolicitud || null,
+              fechaAprobacion: solicitudData.fechaAprobacion || null,
+              ...solicitudData, // Incluir todos los campos por si hay más
+            });
+          });
+        } catch (err) {
+          console.error(`Error obteniendo solicitudes de recarga de flota ${flotaDoc.id}:`, err);
+        }
+      })
+    );
+    
+    console.log(`Total de solicitudes obtenidas: ${todasLasSolicitudes.length}`);
+    return todasLasSolicitudes;
+  } catch (error) {
+    console.error("Error al obtener solicitudes de recarga de flotas:", error);
+    return [];
+  }
+};
+
+

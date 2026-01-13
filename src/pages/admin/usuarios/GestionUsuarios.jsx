@@ -106,7 +106,7 @@ const GestionUsuarios = () => {
   const [searchPasajeros, setSearchPasajeros] = useState("");
   const [searchConductores, setSearchConductores] = useState("");
   const [filterEstado, setFilterEstado] = useState("todos"); // todos, activos, inactivos
-  const [filterEstadoConductores, setFilterEstadoConductores] = useState("todos"); // todos, activos, inactivos
+  const [filterConectadoConductores, setFilterConectadoConductores] = useState("todos"); // todos, en linea, desconectados
 
   // Resetear página al cambiar búsqueda
   useEffect(() => {
@@ -119,7 +119,7 @@ const GestionUsuarios = () => {
   
   useEffect(() => {
     setPageConductores(0);
-  }, [searchConductores, filterEstadoConductores]);
+  }, [searchConductores, filterConectadoConductores]);
   
   // Estados para ordenamiento
   const [sortByAdmin, setSortByAdmin] = useState("email-asc"); // email-asc, email-desc, nombre-asc, nombre-desc
@@ -193,6 +193,13 @@ const GestionUsuarios = () => {
     servicio: "",
     categoria: "",
     activo: true,
+    telefono: "",
+    numerolicencia: "",
+    placavehiculo: "",
+    marcavehiculo: "",
+    modelovehiculo: "",
+    colorvehiculo: "",
+    anosexperiencia: "",
   });
 
   // Función para formatear fechas de Firestore
@@ -457,11 +464,11 @@ const GestionUsuarios = () => {
       });
     }
     
-    // Filtro por estado
-    if (filterEstadoConductores !== "todos") {
+    // Filtro por conectado
+    if (filterConectadoConductores !== "todos") {
       filtered = filtered.filter(t => {
-        if (filterEstadoConductores === "activos") return t.activo !== false;
-        if (filterEstadoConductores === "inactivos") return t.activo === false;
+        if (filterConectadoConductores === "en linea") return t.online === true;
+        if (filterConectadoConductores === "desconectados") return t.online !== true;
         return true;
       });
     }
@@ -569,7 +576,7 @@ const GestionUsuarios = () => {
     }
     
     return sorted;
-  }, [trabajadores, searchConductores, sortByConductores, filterEstadoConductores, dateFilterTypeConductores, customStartDateConductores, customEndDateConductores]);
+  }, [trabajadores, searchConductores, sortByConductores, filterConectadoConductores, dateFilterTypeConductores, customStartDateConductores, customEndDateConductores]);
 
   // Datos paginados para Administradores
   const usuariosPaginados = useMemo(() => {
@@ -736,6 +743,8 @@ const GestionUsuarios = () => {
   };
 
   const handleClearAllConductores = () => {
+    setSearchConductores("");
+    setFilterConectadoConductores("todos");
     setDateFilterTypeConductores("todos");
     setCustomStartDateConductores("");
     setCustomEndDateConductores("");
@@ -751,27 +760,42 @@ const GestionUsuarios = () => {
 
   const handleOpenDialog = (usuario = null) => {
     if (usuario) {
-      setEditingUser(usuario);
       // Detectar tipo de usuario
-      const isPasajero = usuario.modo === "pasajero";
+      const isPasajero = usuario.modo === "pasajero" || (usuario.perfil && usuario.name === undefined && usuario.email === undefined);
       const isTrabajador = usuario.perfil && usuario.role;
+      const isConductor = usuario.role === "driver" || (usuario.servicio && usuario.categoria);
+      
+      // Agregar tipo para mejor identificación en el componente
+      const usuarioConTipo = {
+        ...usuario,
+        _tipo: isConductor ? "conductor" : isPasajero ? "pasajero" : "admin"
+      };
+      
+      setEditingUser(usuarioConTipo);
       
       // Obtener nombre y email según el tipo
       let nombreFinal = "";
       let emailFinal = "";
+      let telefonoFinal = "";
       
-      if (isPasajero || isTrabajador) {
+      if (isPasajero) {
+        nombreFinal = usuario.name || usuario.nombre || usuario.perfil?.name || usuario.perfil?.nombre || "";
+        emailFinal = usuario.email || usuario.perfil?.email || "";
+        telefonoFinal = usuario.phone || usuario.perfil?.phone || usuario.phoneNumber || "";
+      } else if (isTrabajador) {
         nombreFinal = usuario.perfil?.name || "";
         emailFinal = usuario.perfil?.email || "";
+        telefonoFinal = usuario.perfil?.phone || "";
       } else {
         nombreFinal = usuario.nombre || "";
         emailFinal = usuario.email || "";
+        telefonoFinal = usuario.telefono || usuario.phoneNumber || "";
       }
       
       setFormData({
         email: emailFinal,
         nombre: nombreFinal,
-        role: usuario.role || "driver",
+        role: usuario.role || "admin",
         password: "",
         departamentoActual: usuario.departamentoActual || "",
         codigoReferido: usuario.codigoReferido || "",
@@ -782,6 +806,13 @@ const GestionUsuarios = () => {
         servicio: usuario.servicio || "",
         categoria: usuario.categoria || "",
         activo: usuario.activo !== false,
+        telefono: telefonoFinal,
+        numerolicencia: usuario.numerolicencia || "",
+        placavehiculo: usuario.placavehiculo || "",
+        marcavehiculo: usuario.marcavehiculo || "",
+        modelovehiculo: usuario.modelovehiculo || "",
+        colorvehiculo: usuario.colorvehiculo || "",
+        anosexperiencia: usuario.anosexperiencia || "",
       });
     } else {
       setEditingUser(null);
@@ -799,6 +830,13 @@ const GestionUsuarios = () => {
         servicio: "",
         categoria: "",
         activo: true,
+        telefono: "",
+        numerolicencia: "",
+        placavehiculo: "",
+        marcavehiculo: "",
+        modelovehiculo: "",
+        colorvehiculo: "",
+        anosexperiencia: "",
       });
     }
     setOpenDialog(true);
@@ -1541,18 +1579,18 @@ const GestionUsuarios = () => {
                   onSortChange={setSortByConductores}
                   filterOptions={[
                     {
-                      name: "estado",
-                      label: "Estado",
+                      name: "conectado",
+                      label: "Conectado",
                       defaultValue: "todos",
                       options: [
                         { label: "Todos", value: "todos" },
-                        { label: "Activos", value: "activos" },
-                        { label: "Inactivos", value: "inactivos" },
+                        { label: "En línea", value: "en linea" },
+                        { label: "Desconectados", value: "desconectados" },
                       ],
                     },
                   ]}
-                  filterValue={{ estado: filterEstadoConductores }}
-                  onFilterChange={(name, value) => setFilterEstadoConductores(value)}
+                  filterValue={{ conectado: filterConectadoConductores }}
+                  onFilterChange={(name, value) => setFilterConectadoConductores(value)}
                   visibleColumns={visibleColumnsConductores}
                   onColumnChange={(col, visible) => setVisibleColumnsConductores(prev => ({ ...prev, [col]: visible }))}
                   showClearButton={true}
@@ -1600,9 +1638,6 @@ const GestionUsuarios = () => {
                     Conectado
                   </TableCell>
                   <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Estado
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
                     Acciones
                   </TableCell>
                 </TableRow>
@@ -1610,7 +1645,7 @@ const GestionUsuarios = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={10} align="center">
+                    <TableCell colSpan={9} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                         Cargando trabajadores...
                       </Typography>
@@ -1618,7 +1653,7 @@ const GestionUsuarios = () => {
                   </TableRow>
                 ) : conductoresFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} align="center">
+                    <TableCell colSpan={9} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                         {trabajadores.length === 0 ? "No hay trabajadores registrados" : "No hay resultados para la búsqueda"}
                       </Typography>
@@ -1682,51 +1717,6 @@ const GestionUsuarios = () => {
                             backgroundColor: trabajador.online === true ? "#e8f5e9" : "#f5f5f5",
                             fontWeight: 600,
                             fontFamily: "Mulish, sans-serif",
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={trabajador.activo !== false}
-                              onChange={async (e) => {
-                                try {
-                                  const ref = doc(db, "trabajadores", trabajador.id);
-                                  await updateDoc(ref, {
-                                    activo: e.target.checked,
-                                  });
-                                } catch (err) {
-                                  setSnackbar({
-                                    open: true,
-                                    message: "Error al actualizar estado",
-                                    severity: "error"
-                                  });
-                                }
-                              }}
-                              size="small"
-                              sx={{
-                                "& .MuiSwitch-switchBase.Mui-checked": {
-                                  color: "#4caf50",
-                                },
-                                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                                  backgroundColor: "#4caf50",
-                                },
-                              }}
-                            />
-                          }
-                          label={trabajador.activo !== false ? "Activo" : "Inactivo"}
-                          sx={{
-                            m: 0,
-                            "& .MuiFormControlLabel-label": {
-                              fontSize: "0.875rem",
-                              fontWeight: 600,
-                              color: "#fff",
-                              backgroundColor: trabajador.activo !== false ? "#4caf50" : "#9e9e9e",
-                              padding: "4px 12px",
-                              borderRadius: "16px",
-                              display: "inline-block",
-                            },
                           }}
                         />
                       </TableCell>
@@ -1809,10 +1799,10 @@ const GestionUsuarios = () => {
 
       {/* Dialog para crear/editar usuario */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>
+        <DialogTitle sx={{ fontWeight: 700, bgcolor: "#000000", color: "white", display: "flex", alignItems: "center", gap: 1 }}>
           {editingUser ? "Editar Usuario" : "Crear Nuevo Usuario"}
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ mt: 3 }}>
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}
@@ -1824,131 +1814,242 @@ const GestionUsuarios = () => {
             </Alert>
           )}
 
-          {editingUser?.modo === "pasajero" && (
-            <Box sx={{ display: "flex", justifyContent: "center", mb: 3, mt: 1 }}>
+          {(editingUser?._tipo === "pasajero" || editingUser?._tipo === "conductor") && (
+            <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
               <Avatar
-                src={editingUser.perfil?.photoUrl || editingUser.photoURL}
-                alt={editingUser.perfil?.name || editingUser.name}
-                sx={{ width: 100, height: 100, bgcolor: "#d7171a" }}
+                src={editingUser.perfil?.foto || editingUser.perfil?.fotoUrl || editingUser.perfil?.photoUrl || editingUser.perfil?.photoURL || editingUser.photoURL || editingUser.photoUrl || editingUser.fotoUrl || editingUser.foto}
+                alt={editingUser.perfil?.name || editingUser.name || editingUser.nombre}
+                sx={{ width: 100, height: 100, bgcolor: "#d7171a", border: "3px solid #d7171a" }}
               >
-                {(editingUser.perfil?.name || editingUser.name || "?")?.charAt(0).toUpperCase()}
+                {(editingUser.perfil?.name || editingUser.name || editingUser.nombre || "?")?.charAt(0).toUpperCase()}
               </Avatar>
             </Box>
           )}
 
-          <TextField
-            label="Email"
-            type="email"
-            fullWidth
-            margin="normal"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            disabled={editingUser !== null}
-          />
-
-          <TextField
-            label="Nombre Completo"
-            fullWidth
-            margin="normal"
-            value={formData.nombre}
-            onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-          />
-
-          {!editingUser && (
-            <FormControl fullWidth margin="normal">
-              <InputLabel>Rol</InputLabel>
-              <Select
-                value={formData.role}
-                label="Rol"
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              >
-                <MenuItem value="admin">Admin</MenuItem>
-                <MenuItem value="superadmin">Super Admin</MenuItem>
-              </Select>
-            </FormControl>
-          )}
-
-          {editingUser?.modo === "pasajero" && (
-            <>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+            {/* Sección 1: Información Base */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#000", mb: 1.5, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
+                Información Personal
+              </Typography>
               <TextField
-                label="Departamento Actual"
+                label="Email"
+                type="email"
                 fullWidth
-                margin="normal"
-                value={formData.departamentoActual}
-                onChange={(e) => setFormData({ ...formData, departamentoActual: e.target.value })}
-              />
-            </>
-          )}
-
-          {editingUser?.perfil && editingUser?.role && (
-            <>
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Departamento/Ciudad</InputLabel>
-                <Select
-                  value={formData.departamento}
-                  label="Departamento/Ciudad"
-                  onChange={(e) => setFormData({ ...formData, departamento: e.target.value, ciudad: e.target.value })}
-                >
-                  <MenuItem value="">
-                    <em>Seleccionar</em>
-                  </MenuItem>
-                  {DEPARTAMENTOS.map((dept) => (
-                    <MenuItem key={dept} value={dept}>
-                      {dept}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <TextField
-                label="Servicio"
-                fullWidth
-                margin="normal"
-                value={formData.servicio}
-                disabled
-                inputProps={{ readOnly: true }}
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                disabled={editingUser !== null}
+                error={editingUser === null && !formData.email}
+                helperText={editingUser === null && !formData.email ? "Email requerido" : ""}
+                sx={{ mb: 2 }}
               />
               <TextField
-                label="Categoría"
+                label="Nombre Completo"
                 fullWidth
-                margin="normal"
-                value={formData.categoria}
-                disabled
-                inputProps={{ readOnly: true }}
+                value={formData.nombre}
+                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                error={!formData.nombre}
+                helperText={!formData.nombre ? "Nombre requerido" : ""}
+                sx={{ mb: 2 }}
               />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.activo}
-                    onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
+              <TextField
+                label="Teléfono"
+                fullWidth
+                value={formData.telefono}
+                onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                placeholder="+591 XXXXXXXXX"
+              />
+            </Box>
+
+            {!editingUser && (
+              <>
+                {/* Sección 2: Rol y Contraseña (Solo crear) */}
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#000", mb: 1.5, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
+                    Acceso
+                  </Typography>
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <InputLabel>Rol</InputLabel>
+                    <Select
+                      value={formData.role}
+                      label="Rol"
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    >
+                      <MenuItem value="admin">Admin</MenuItem>
+                      <MenuItem value="superadmin">Super Admin</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <TextField
+                    label="Contraseña"
+                    type="password"
+                    fullWidth
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    error={!formData.password}
+                    helperText={!formData.password ? "Contraseña requerida" : ""}
                   />
-                }
-                label="Conductor Activo"
-                sx={{ mt: 1 }}
-              />
-            </>
-          )}
+                </Box>
+              </>
+            )}
 
-          {!editingUser && (
-            <TextField
-              label="Contraseña"
-              type="password"
-              fullWidth
-              margin="normal"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            />
-          )}
+            {editingUser?.modo === "pasajero" && (
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#000", mb: 1.5, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
+                  Ubicación
+                </Typography>
+                <TextField
+                  label="Departamento Actual"
+                  fullWidth
+                  value={formData.departamentoActual}
+                  onChange={(e) => setFormData({ ...formData, departamentoActual: e.target.value })}
+                  sx={{ mb: 2 }}
+                />
+                <TextField
+                  label="Código de Referido"
+                  fullWidth
+                  value={formData.codigoReferido}
+                  onChange={(e) => setFormData({ ...formData, codigoReferido: e.target.value })}
+                />
+              </Box>
+            )}
+
+            {editingUser?._tipo === "conductor" && (
+              <>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#000", mb: 1.5, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
+                    Información del Conductor
+                  </Typography>
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <InputLabel>Departamento/Ciudad</InputLabel>
+                    <Select
+                      value={formData.departamento}
+                      label="Departamento/Ciudad"
+                      onChange={(e) => setFormData({ ...formData, departamento: e.target.value, ciudad: e.target.value })}
+                    >
+                      <MenuItem value="">
+                        <em>Seleccionar</em>
+                      </MenuItem>
+                      {DEPARTAMENTOS.map((dept) => (
+                        <MenuItem key={dept} value={dept}>
+                          {dept}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <TextField
+                    label="Servicio"
+                    fullWidth
+                    value={formData.servicio}
+                    disabled
+                    inputProps={{ readOnly: true }}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    label="Categoría"
+                    fullWidth
+                    value={formData.categoria}
+                    disabled
+                    inputProps={{ readOnly: true }}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    label="Años de Experiencia"
+                    type="number"
+                    fullWidth
+                    value={formData.anosexperiencia}
+                    onChange={(e) => setFormData({ ...formData, anosexperiencia: e.target.value })}
+                    inputProps={{ min: 0 }}
+                  />
+                </Box>
+
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#000", mb: 1.5, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
+                    Documentos
+                  </Typography>
+                  <TextField
+                    label="Número de Licencia"
+                    fullWidth
+                    value={formData.numerolicencia}
+                    onChange={(e) => setFormData({ ...formData, numerolicencia: e.target.value })}
+                    placeholder="Ej: 123456789"
+                    sx={{ mb: 2 }}
+                  />
+                </Box>
+
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#000", mb: 1.5, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
+                    Datos del Vehículo
+                  </Typography>
+                  <TextField
+                    label="Placa del Vehículo"
+                    fullWidth
+                    value={formData.placavehiculo}
+                    onChange={(e) => setFormData({ ...formData, placavehiculo: e.target.value })}
+                    placeholder="Ej: XYZ-1234"
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    label="Marca del Vehículo"
+                    fullWidth
+                    value={formData.marcavehiculo}
+                    onChange={(e) => setFormData({ ...formData, marcavehiculo: e.target.value })}
+                    placeholder="Ej: Toyota"
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    label="Modelo del Vehículo"
+                    fullWidth
+                    value={formData.modelovehiculo}
+                    onChange={(e) => setFormData({ ...formData, modelovehiculo: e.target.value })}
+                    placeholder="Ej: Prius 2020"
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    label="Color del Vehículo"
+                    fullWidth
+                    value={formData.colorvehiculo}
+                    onChange={(e) => setFormData({ ...formData, colorvehiculo: e.target.value })}
+                    placeholder="Ej: Negro"
+                  />
+                </Box>
+
+                <Box sx={{ p: 2, bgcolor: "#f5f5f5", borderRadius: 1 }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={formData.activo}
+                        onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
+                      />
+                    }
+                    label={formData.activo ? "Conductor Activo" : "Conductor Inactivo"}
+                    sx={{ fontWeight: 600 }}
+                  />
+                </Box>
+              </>
+            )}
+          </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={handleCloseDialog} sx={{ color: "#484848" }}>
+        <DialogActions sx={{ p: 2.5, borderTop: "1px solid #e0e0e0" }}>
+          <Button 
+            onClick={handleCloseDialog}
+            sx={{ color: "#484848", fontWeight: 600, textTransform: "none" }}
+          >
             Cancelar
           </Button>
           <Button
             onClick={handleSaveUser}
             variant="contained"
-            sx={{ bgcolor: "#d7171a", "&:hover": { bgcolor: "#b01217" } }}
+            disabled={!formData.nombre || !formData.email || (editingUser === null && !formData.password)}
+            sx={{
+              bgcolor: "#d7171a",
+              fontWeight: 600,
+              textTransform: "none",
+              px: 3,
+              "&:hover": { bgcolor: "#b01217" },
+              "&:disabled": { bgcolor: "#ccc" }
+            }}
           >
-            {editingUser ? "Actualizar" : "Crear"}
+            {editingUser ? "Actualizar Usuario" : "Crear Usuario"}
           </Button>
         </DialogActions>
       </Dialog>

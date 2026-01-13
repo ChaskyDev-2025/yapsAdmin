@@ -14,7 +14,7 @@ export default function ModalIzquierdoConductor({ rowData }) {
   const nombre = capitalizarNombre(rowData.nombre || rowData.perfil?.nombre || rowData.perfil?.name || rowData.name || rowData.email || "-");
   const email = rowData.email || rowData.perfil?.email || "-";
   const telefono = rowData.telefono || rowData.phoneNumber || "Sin teléfono";
-  const fotoUrl = rowData.perfil?.fotoUrl || rowData.perfil?.foto || rowData.perfil?.photoURL || rowData.fotoUrl || rowData.photoURL || rowData.perfil?.photoUrl || "";
+  const fotoUrl = rowData.perfil?.foto || rowData.perfil?.fotoUrl || rowData.perfil?.photoUrl || rowData.perfil?.photoURL || rowData.fotoUrl || rowData.photoURL || rowData.fotoUrl || "";
   const estado = rowData.activo !== false ? "Activo" : "Inactivo";
   const departamento = rowData.departamento || "-";
   const categorias = Array.isArray(rowData.categorias) ? rowData.categorias : [];
@@ -22,7 +22,7 @@ export default function ModalIzquierdoConductor({ rowData }) {
   const flotaNombre = rowData.flotaNombre || "-";
 
   return (
-    <Box sx={{ width: 350, display: "flex", justifyContent: "flex-start", alignItems: "flex-start", pt: 3, overflow: "auto", pl: 2 }}>
+    <Box sx={{ width: 350, display: "flex", justifyContent: "flex-start", alignItems: "flex-start", pt: 3, overflow: "auto", pl: 2, pb: 3, height: "100%", maxHeight: "600px" }}>
       <Box
         sx={{
           width: 280,
@@ -32,6 +32,8 @@ export default function ModalIzquierdoConductor({ rowData }) {
           border: "1px solid #00000033",
           boxShadow: "0 4px 12px rgba(0, 0, 0, 0.33)",
           textAlign: "left",
+          flexShrink: 0,
+          wordBreak: "break-word",
         }}
       >
         {/* Avatar */}
@@ -58,17 +60,17 @@ export default function ModalIzquierdoConductor({ rowData }) {
         </Typography>
 
         {/* Información Personal */}
-        <Stack spacing={0.5} sx={{ mb: 2, "& b": { color: "text.secondary" } }}>
-          <Typography>
+        <Stack spacing={0.5} sx={{ mb: 2, "& b": { color: "text.secondary" }, "& p": { wordBreak: "break-word", overflowWrap: "break-word" } }}>
+          <Typography sx={{ wordBreak: "break-word", overflowWrap: "break-word" }}>
             <b>Email:</b> {email}
           </Typography>
-          <Typography>
+          <Typography sx={{ wordBreak: "break-word", overflowWrap: "break-word" }}>
             <b>Teléfono:</b> {telefono}
           </Typography>
-          <Typography>
+          <Typography sx={{ wordBreak: "break-word", overflowWrap: "break-word" }}>
             <b>Departamento:</b> {departamento}
           </Typography>
-          <Typography>
+          <Typography sx={{ wordBreak: "break-word", overflowWrap: "break-word" }}>
             <b>Flota:</b> {flotaNombre}
           </Typography>
           {categorias.length > 0 && (
@@ -125,7 +127,7 @@ export default function ModalIzquierdoConductor({ rowData }) {
                         servicioLimpio = servicioLimpio.replace(/_/g, ' ');
                         
                         return (
-                          <Typography key={idx} sx={{ fontSize: "0.85rem", ml: 1 }}>
+                          <Typography key={idx} sx={{ fontSize: "0.85rem", ml: 1, wordBreak: "break-word", overflowWrap: "break-word" }}>
                             • {servicioLimpio}
                           </Typography>
                         );
