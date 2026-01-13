@@ -16,7 +16,7 @@ import {
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import { useTrendenciaTrabajadores } from "../hooks/useTrendenciaTrabajadores";
 
-const COLORS = ["#d7171a", "#FF8042", "#00C49F", "#0088FE"];
+const COLORS = ["#d7171a", "#FF8042", "#00C49F"];
 
 export default function ChartsMetrics({ metricas }) {
   const { trendData, loading: trendLoading } = useTrendenciaTrabajadores();
@@ -76,57 +76,93 @@ export default function ChartsMetrics({ metricas }) {
       </Paper>
 
       {/* Contenedor de Pie Charts */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "24px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(450px, 1fr))", gap: "24px" }}>
         {/* Gráfico de Pie - Órdenes */}
-        <Paper sx={{ p: 4, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)", textAlign: "center" }}>
-          <Typography variant="h6" fontWeight={700} mb={2}>
+        <Paper sx={{ p: 3, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+          <Typography variant="h6" fontWeight={700} mb={2} sx={{ textAlign: "center" }}>
             Estado de Órdenes
           </Typography>
-          <ResponsiveContainer width="100%" height={400}>
-            <PieChart>
-              <Pie
-                data={ordenesData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name}: ${value}`}
-                outerRadius={120}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {ordenesData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+            <ResponsiveContainer width="100%" height={400}>
+              <PieChart>
+                <Pie
+                  data={ordenesData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={120}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {ordenesData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => value} />
+              </PieChart>
+            </ResponsiveContainer>
+          </Box>
+          <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 1 }}>
+            {ordenesData.map((item, idx) => (
+              <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Box
+                  sx={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "2px",
+                    backgroundColor: COLORS[idx],
+                  }}
+                />
+                <Typography variant="body2">
+                  {item.name}: {item.value}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
         </Paper>
 
         {/* Gráfico de Pie - Documentos */}
-        <Paper sx={{ p: 4, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)", textAlign: "center" }}>
-          <Typography variant="h6" fontWeight={700} mb={2}>
+        <Paper sx={{ p: 3, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+          <Typography variant="h6" fontWeight={700} mb={2} sx={{ textAlign: "center" }}>
             Estado de Documentos
           </Typography>
-          <ResponsiveContainer width="100%" height={400}>
-            <PieChart>
-              <Pie
-                data={documentosData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name}: ${value}`}
-                outerRadius={120}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {documentosData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+            <ResponsiveContainer width="100%" height={400}>
+              <PieChart>
+                <Pie
+                  data={documentosData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={120}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {documentosData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => value} />
+              </PieChart>
+            </ResponsiveContainer>
+          </Box>
+          <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 1 }}>
+            {documentosData.map((item, idx) => (
+              <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Box
+                  sx={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "2px",
+                    backgroundColor: COLORS[idx],
+                  }}
+                />
+                <Typography variant="body2">
+                  {item.name}: {item.value}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
         </Paper>
       </div>
     </div>

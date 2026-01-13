@@ -1,5 +1,6 @@
 // src/components/NotificationBell.jsx
 import React, { useState, useContext } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   IconButton,
   Badge,
@@ -21,6 +22,7 @@ import { NotificationContext } from "../context/NotificationContext";
 import { useAuth } from "../auth/AuthContext";
 
 const NotificationBell = () => {
+  const navigate = useNavigate();
   const { userRole } = useAuth();
   const {
     notifications,
@@ -48,6 +50,11 @@ const NotificationBell = () => {
   const handleNotificationClick = (notification) => {
     if (!notification.read) {
       markAsRead(notification.id);
+    }
+    // Redirigir a la ruta asociada con la notificación
+    if (notification.route) {
+      handleClose();
+      navigate(notification.route);
     }
   };
 

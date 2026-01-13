@@ -238,7 +238,7 @@ const SolicitudesAsignadas = () => {
 
           if (shouldNotify() && !notified.has(doc.id)) {
             const origen = docData.solicitud?.origen?.nombre || "Nueva solicitud";
-            addNotification({ message: `Solicitud solicitada: ${origen}`, type: "warning" });
+            addNotification({ message: `Solicitud solicitada: ${origen}`, type: "solicitud_servicio", title: "Nueva Solicitud Asignada" });
             playNotificationSound();
             notified.add(doc.id);
           }

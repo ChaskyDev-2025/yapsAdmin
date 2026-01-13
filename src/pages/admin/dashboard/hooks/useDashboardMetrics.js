@@ -170,10 +170,13 @@ export const useDashboardMetrics = () => {
           const trabajadorIds = trabajadoresData.map(t => t.id);
           
           ordenesFiltered = ordenesData.filter(orden => {
-            const match = trabajadorIds.includes(orden.uidTaxista);
+            // Obtener uidTaxista de la orden - puede estar en nivel raíz o dentro del submapa 'orden'
+            const uidTaxista = orden.uidTaxista || (orden.orden && orden.orden.uidTaxista);
+            const match = trabajadorIds.includes(uidTaxista);
             return match;
           });
           
+          console.log(`📊 Dashboard Flota: ${ordenesData.length} órdenes totales → ${ordenesFiltered.length} órdenes filtradas (pertenecen a ${trabajadorIds.length} trabajadores)`);
         }
 
         const newMetricas = calcularMetricas(trabajadoresData, ordenesFiltered, solicitudesData, pasajerosData);

@@ -19,19 +19,19 @@ export const useTendenciaOrdenes = () => {
 
       // Definir función para calcular tendencia
       const calcularTendencia = () => {
-        // Filtrar solicitudes según rol
-        let solicitudesFiltered = solicitudesData;
+        // Filtrar órdenes según rol (solo órdenes completadas)
+        let ordenesFiltered = solicitudesData.filter(orden => 
+          orden.estado === "completado" || orden.estado === "completada"
+        );
         
         if (!isSuperAdmin && trabajadoresData.length > 0) {
           const trabajadorIds = trabajadoresData.map(t => t.id);
-          solicitudesFiltered = solicitudesData.filter(solicitud => 
-            trabajadorIds.includes(solicitud.conductor_asignado) || 
-            trabajadorIds.includes(solicitud.uidTaxista)
-          );
+          ordenesFiltered = ordenesFiltered.filter(orden => {
+            // Obtener uidTaxista de la orden - puede estar en nivel raíz o dentro del submapa 'orden'
+            const uidTaxista = orden.uidTaxista || (orden.orden && orden.orden.uidTaxista);
+            return trabajadorIds.includes(uidTaxista);
+          });
         }
-
-        // Filtrar solo solicitudes completadas
-        solicitudesFiltered = solicitudesFiltered.filter(solicitud => solicitud.estado === "completado");
 
         // Calcular últimos 7 días
         const today = new Date();
@@ -44,9 +44,10 @@ export const useTendenciaOrdenes = () => {
           trendMap[dateStr] = 0;
         }
 
-        // Contar solicitudes completadas por día (según fechaCreacion)
-        solicitudesFiltered.forEach(solicitud => {
-          let fechaRef = solicitud.fechaCreacion || solicitud.solicitud?.fechaCreacion || solicitud.createdAt;
+        // Contar órdenes completadas por día
+        ordenesFiltered.forEach(orden => {
+          // Buscar fecha en diferentes ubicaciones posibles
+          let fechaRef = orden.createdAt || orden.updatedAt || orden.orden?.createdAt;
           
           if (fechaRef) {
             let date;
@@ -101,17 +102,17 @@ export const useTendenciaOrdenes = () => {
       });
       unsubscribers.push(unsubTrabajadores);
 
-      // Listener para solicitudes (no órdenes)
-      const solicitudesQuery = collection(db, "solicitudes");
+      // Listener para órdenes
+      const ordenesQuery = collection(db, "ordenes");
 
-      const unsubSolicitudes = onSnapshot(solicitudesQuery, (snapshot) => {
+      const unsubOrdenes = onSnapshot(ordenesQuery, (snapshot) => {
         solicitudesData = snapshot.docs.map(doc => doc.data());
         calcularTendencia();
       }, (error) => {
-        console.error("❌ Error en listener de solicitudes:", error);
+        console.error("❌ Error en listener de órdenes:", error);
         setLoading(false);
       });
-      unsubscribers.push(unsubSolicitudes);
+      unsubscribers.push(unsubOrdenes);
 
       // Cleanup
       return () => {
