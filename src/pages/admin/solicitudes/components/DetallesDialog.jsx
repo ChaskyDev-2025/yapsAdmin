@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Dialog, DialogTitle, DialogContent, Box, Typography, Grid, TextField, IconButton, Modal } from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, Box, Typography, Grid, TextField, IconButton, Modal, Tooltip } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 
 const DetallesDialog = ({
   open,
@@ -10,6 +11,8 @@ const DetallesDialog = ({
   disabledTextFieldStyles,
   obtenerNombreUsuario,
   obtenerNombreConductor,
+  sendWhatsApp,
+  pasajeros,
 }) => {
   const [imagenExpandida, setImagenExpandida] = useState(null);
 
@@ -32,6 +35,19 @@ const DetallesDialog = ({
   const uidUser = solicitudSeleccionada.uidUser || s.uidUser || "";
 
   const passengerName = solicitudSeleccionada.pasajero?.perfil?.name || s.pasajero?.perfil?.name || null;
+
+  // Obtener teléfono del pasajero
+  const getPhoneNumber = () => {
+    if (pasajeros && uidUser) {
+      const pasajero = pasajeros.find(p => p.id === uidUser);
+      if (pasajero && pasajero.phone) {
+        return pasajero.phone;
+      }
+    }
+    return null;
+  };
+
+  const phoneNumber = getPhoneNumber();
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -496,16 +512,34 @@ const DetallesDialog = ({
 
               { (passengerName || solicitudSeleccionada.uidUser) && (
                 <Grid item xs={6}>
-                  <TextField
-                    label="Usuario"
-                    value={
-                      passengerName || (obtenerNombreUsuario ? obtenerNombreUsuario(uidUser) : (uidUser || ''))
-                    }
-                    disabled
-                    fullWidth
-                    size="small"
-                    sx={disabledTextFieldStyles}
-                  />
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <TextField
+                      label="Usuario"
+                      value={
+                        passengerName || (obtenerNombreUsuario ? obtenerNombreUsuario(uidUser) : (uidUser || ''))
+                      }
+                      disabled
+                      fullWidth
+                      size="small"
+                      sx={disabledTextFieldStyles}
+                    />
+                    {phoneNumber && sendWhatsApp && (
+                      <Tooltip title="Contactar por WhatsApp">
+                        <IconButton
+                          size="small"
+                          onClick={() => sendWhatsApp(phoneNumber, passengerName || (obtenerNombreUsuario ? obtenerNombreUsuario(uidUser) : uidUser))}
+                          sx={{
+                            color: "#25D366",
+                            "&:hover": {
+                              backgroundColor: "rgba(37, 211, 102, 0.1)",
+                            },
+                          }}
+                        >
+                          <WhatsAppIcon />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
                 </Grid>
               )}
             </Grid>

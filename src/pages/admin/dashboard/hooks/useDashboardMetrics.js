@@ -176,7 +176,7 @@ export const useDashboardMetrics = () => {
             return match;
           });
           
-          console.log(`📊 Dashboard Flota: ${ordenesData.length} órdenes totales → ${ordenesFiltered.length} órdenes filtradas (pertenecen a ${trabajadorIds.length} trabajadores)`);
+          // Dashboard Flota: órdenes totales y filtradas
         }
 
         const newMetricas = calcularMetricas(trabajadoresData, ordenesFiltered, solicitudesData, pasajerosData);

@@ -13,7 +13,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-const GenerarOfertaModal = ({ open, onClose, solicitud, onSave }) => {
+const GenerarOfertaModal = ({ open, onClose, solicitud, onSave, onShowDialog }) => {
   const [costo, setCosto] = useState('');
   const [campos, setCampos] = useState([]);
   const [nuevoCampo, setNuevoField] = useState({ nombre: '', valor: '' });
@@ -115,7 +115,13 @@ const GenerarOfertaModal = ({ open, onClose, solicitud, onSave }) => {
 
   const handleSave = async () => {
     if (!costo.trim()) {
-      alert('Por favor ingresa el costo de la oferta');
+      if (onShowDialog) {
+        onShowDialog({
+          title: "⚠️ Validación",
+          message: "Por favor ingresa el costo de la oferta",
+          type: "warning"
+        });
+      }
       return;
     }
 

@@ -108,6 +108,9 @@ const Radiotaxis = () => {
   // Estados para diálogo de eliminación de conductor
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [conductorToDelete, setConductorToDelete] = useState(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [confirmDialogData, setConfirmDialogData] = useState({ title: "", message: "", type: "success" });
+  const [confirmAction, setConfirmAction] = useState(null);
   
   // Cargar todos los radiotaxis (solo para superadmin)
   useEffect(() => {
@@ -289,7 +292,13 @@ const Radiotaxis = () => {
   const handleToggleHabilitado = async (firebaseId, nuevoEstado, documentosAprobados) => {
     // Si intenta activar y documentos_aprobados es false, no permitir
     if (nuevoEstado && !documentosAprobados) {
-      alert("No puede activar este radiotaxi. Los documentos aún no han sido aprobados.");
+      setConfirmDialogData({
+        title: "\u26a0️ Documentos no aprobados",
+        message: "No puede activar este radiotaxi. Los documentos aún no han sido aprobados.",
+        type: "warning"
+      });
+      setConfirmAction(null);
+      setConfirmDialogOpen(true);
       return;
     }
 
@@ -309,7 +318,13 @@ const Radiotaxis = () => {
   const sendWhatsApp = (phone, name) => {
     try {
       if (!phone) {
-        alert("No hay número de teléfono disponible para este radiotaxi.");
+        setConfirmDialogData({
+          title: "\u26a0️ Validación",
+          message: "No hay número de teléfono disponible para este radiotaxi.",
+          type: "warning"
+        });
+        setConfirmAction(null);
+        setConfirmDialogOpen(true);
         return;
       }
 
@@ -317,7 +332,13 @@ const Radiotaxis = () => {
       const digits = cleaned.startsWith("+") ? cleaned.slice(1) : cleaned;
 
       if (!digits || digits.length < 6) {
-        alert("Número de teléfono inválido para WhatsApp: " + phone);
+        setConfirmDialogData({
+          title: "\u26a0️ Validación",
+          message: `Número de teléfono inválido para WhatsApp: ${phone}`,
+          type: "warning"
+        });
+        setConfirmAction(null);
+        setConfirmDialogOpen(true);
         return;
       }
 
@@ -326,7 +347,13 @@ const Radiotaxis = () => {
       window.open(url, "_blank");
     } catch (err) {
       console.error("Error al abrir WhatsApp:", err);
-      alert("No se pudo abrir WhatsApp");
+      setConfirmDialogData({
+        title: "\u274c Error",
+        message: "No se pudo abrir WhatsApp. Por favor intenta nuevamente.",
+        type: "error"
+      });
+      setConfirmAction(null);
+      setConfirmDialogOpen(true);
     }
   };
 
@@ -851,6 +878,56 @@ const Radiotaxis = () => {
           <Button onClick={handleCloseDeleteDialog}>Cancelar</Button>
           <Button onClick={handleConfirmDelete} color="error" variant="contained" disabled={loading}>
             {loading ? "Eliminando..." : "Eliminar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo de confirmación personalizado */}
+      <Dialog 
+        open={confirmDialogOpen} 
+        onClose={() => setConfirmDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ 
+          backgroundColor: 
+            confirmDialogData.type === "success" ? "#4caf50" :
+            confirmDialogData.type === "error" ? "#f44336" :
+            "#ff9800",
+          color: "white",
+          fontWeight: "bold",
+          fontSize: "1.2rem"
+        }}>
+          {confirmDialogData.title}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3, pb: 3 }}>
+          <Typography variant="body1" sx={{ color: "#333" }}>
+            {confirmDialogData.message}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button 
+            onClick={() => {
+              setConfirmDialogOpen(false);
+              if (confirmAction) {
+                confirmAction();
+              }
+            }}
+            variant="contained" 
+            sx={{ 
+              backgroundColor: 
+                confirmDialogData.type === "success" ? "#4caf50" :
+                confirmDialogData.type === "error" ? "#f44336" :
+                "#ff9800",
+              "&:hover": {
+                backgroundColor:
+                  confirmDialogData.type === "success" ? "#388e3c" :
+                  confirmDialogData.type === "error" ? "#d32f2f" :
+                  "#e65100"
+              }
+            }}
+          >
+            Aceptar
           </Button>
         </DialogActions>
       </Dialog>

@@ -10,6 +10,10 @@ import {
   Pagination,
   CircularProgress,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import {
@@ -38,6 +42,9 @@ const Bonos = () => {
   const [editingRegla, setEditingRegla] = useState(null);
   const [reglasForm, setReglasForm] = useState({ viajes: "", monto: "" });
   const [procesando, setProcesando] = useState(false);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [confirmDialogData, setConfirmDialogData] = useState({ title: "", message: "", type: "success" });
+  const [confirmAction, setConfirmAction] = useState(null);
 
   // Estados para paginación
   const [pageBonos, setPageBonos] = useState(0);
@@ -90,7 +97,13 @@ const Bonos = () => {
 
   const handleGuardarRegla = async () => {
     if (!reglasForm.viajes || !reglasForm.monto) {
-      alert("Por favor completa todos los campos");
+      setConfirmDialogData({
+        title: "⚠️ Validación",
+        message: "Por favor completa todos los campos",
+        type: "warning"
+      });
+      setConfirmAction(null);
+      setConfirmDialogOpen(true);
       return;
     }
 
@@ -102,15 +115,32 @@ const Bonos = () => {
           reglasForm.viajes,
           reglasForm.monto
         );
-        alert("Regla actualizada exitosamente");
+        setConfirmDialogData({
+          title: "✅ Éxito",
+          message: "Regla actualizada exitosamente",
+          type: "success"
+        });
       } else {
         await crearReglaBonosConductores(reglasForm.viajes, reglasForm.monto);
-        alert("Regla creada exitosamente");
+        setConfirmDialogData({
+          title: "✅ Éxito",
+          message: "Regla creada exitosamente",
+          type: "success"
+        });
       }
-      handleCerrarReglasDialog();
-      await recargarReglas();
+      setConfirmAction(() => () => {
+        handleCerrarReglasDialog();
+        recargarReglas();
+      });
+      setConfirmDialogOpen(true);
     } catch (error) {
-      alert("Error al guardar la regla");
+      setConfirmDialogData({
+        title: "❌ Error",
+        message: "Error al guardar la regla. Por favor intenta nuevamente",
+        type: "error"
+      });
+      setConfirmAction(null);
+      setConfirmDialogOpen(true);
       console.error(error);
     } finally {
       setProcesando(false);
@@ -288,6 +318,56 @@ const Bonos = () => {
         formData={reglasForm}
         onFormChange={handleFormChange}
       />
+
+      {/* Diálogo de confirmación personalizado */}
+      <Dialog 
+        open={confirmDialogOpen} 
+        onClose={() => setConfirmDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ 
+          backgroundColor: 
+            confirmDialogData.type === "success" ? "#4caf50" :
+            confirmDialogData.type === "error" ? "#f44336" :
+            "#ff9800",
+          color: "white",
+          fontWeight: "bold",
+          fontSize: "1.2rem"
+        }}>
+          {confirmDialogData.title}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3, pb: 3 }}>
+          <Typography variant="body1" sx={{ color: "#333" }}>
+            {confirmDialogData.message}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button 
+            onClick={() => {
+              setConfirmDialogOpen(false);
+              if (confirmAction) {
+                confirmAction();
+              }
+            }}
+            variant="contained" 
+            sx={{ 
+              backgroundColor: 
+                confirmDialogData.type === "success" ? "#4caf50" :
+                confirmDialogData.type === "error" ? "#f44336" :
+                "#ff9800",
+              "&:hover": {
+                backgroundColor:
+                  confirmDialogData.type === "success" ? "#388e3c" :
+                  confirmDialogData.type === "error" ? "#d32f2f" :
+                  "#e65100"
+              }
+            }}
+          >
+            Aceptar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

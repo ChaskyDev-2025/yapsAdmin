@@ -183,7 +183,7 @@ export const aplicarBonoConductor = async (conductorId, regla, totalViajes, flot
       const flotaBileteraDoc = await getDoc(flotaBileteraRef);
       const flotaSaldoActual = flotaBileteraDoc.exists() ? parseFloat(flotaBileteraDoc.data().monto || 0) : 0;
       
-      console.log("Saldo flota actual:", flotaSaldoActual, "Monto a descontar:", regla.monto);
+      // Saldo flota actual
       
       const nuevoSaldoFlota = flotaSaldoActual - parseFloat(regla.monto);
       
@@ -192,7 +192,7 @@ export const aplicarBonoConductor = async (conductorId, regla, totalViajes, flot
         updatedAt: serverTimestamp(),
       });
       
-      console.log("Saldo flota actualizado a:", nuevoSaldoFlota);
+      // Saldo flota actualizado
     }
 
     // 2. Asignar a la billetera del trabajador
@@ -200,7 +200,7 @@ export const aplicarBonoConductor = async (conductorId, regla, totalViajes, flot
     const trabajadorBileteraDoc = await getDoc(trabajadorBileteraRef);
     const trabajadorSaldoActual = trabajadorBileteraDoc.exists() ? parseFloat(trabajadorBileteraDoc.data().saldo || 0) : 0;
     
-    console.log("Saldo trabajador actual:", trabajadorSaldoActual, "Monto a agregar:", regla.monto);
+    // Saldo trabajador actual
     
     const nuevoSaldoTrabajador = trabajadorSaldoActual + parseFloat(regla.monto);
     
@@ -209,7 +209,7 @@ export const aplicarBonoConductor = async (conductorId, regla, totalViajes, flot
       updatedAt: serverTimestamp(),
     });
     
-    console.log("Saldo trabajador actualizado a:", nuevoSaldoTrabajador);
+    // Saldo trabajador actualizado
 
     // 3. Crear registro en historial de bonos
     const historialRef = collection(
@@ -233,7 +233,7 @@ export const aplicarBonoConductor = async (conductorId, regla, totalViajes, flot
       totalViajes: 0,
     });
 
-    console.log("Bono aplicado exitosamente:", bonoDoc.id);
+    // Bono aplicado exitosamente
     return bonoDoc.id;
   } catch (error) {
     console.error("Error aplicando bono:", error);
@@ -354,7 +354,7 @@ export const obtenerConductoresFlotaConViajes = async (flotaId) => {
       return { conductores: [], viajesCond: {} };
     }
 
-    console.log("Buscando conductores para flotaId:", flotaId);
+    // Buscando conductores para flotaId
 
     // Obtener todos los conductores que pertenecen a esta flota
     // Buscar en la colección trabajadores donde flotaId === el id de la flota
@@ -364,7 +364,7 @@ export const obtenerConductoresFlotaConViajes = async (flotaId) => {
     );
     
     const conductoresSnapshot = await getDocs(q);
-    console.log("Conductores encontrados:", conductoresSnapshot.docs.length);
+    // Conductores encontrados
 
     const conductores = conductoresSnapshot.docs.map((doc) => {
       const data = doc.data();
@@ -379,7 +379,7 @@ export const obtenerConductoresFlotaConViajes = async (flotaId) => {
       };
     });
 
-    console.log("Datos de conductores:", conductores);
+    // Datos de conductores procesados
 
     // Cargar viajes para cada conductor
     const viajesCond = {};
@@ -398,7 +398,7 @@ export const obtenerConductoresFlotaConViajes = async (flotaId) => {
       }
     }
 
-    console.log("Viajes de conductores:", viajesCond);
+    // Viajes de conductores procesados
     return { conductores, viajesCond };
   } catch (error) {
     console.error("Error cargando conductores de la flota:", error);
@@ -415,7 +415,7 @@ export const onConductoresFlotaConViajes = (flotaId, callback) => {
       return () => {};
     }
 
-    console.log("Escuchando conductores para flotaId:", flotaId);
+    // Escuchando conductores para flotaId
 
     const q = query(
       collection(db, "trabajadores"),
@@ -426,7 +426,7 @@ export const onConductoresFlotaConViajes = (flotaId, callback) => {
     const unsubscribe = onSnapshot(
       q,
       async (conductoresSnapshot) => {
-        console.log("Conductores encontrados:", conductoresSnapshot.docs.length);
+        // Conductores encontrados
 
         const conductores = conductoresSnapshot.docs.map((doc) => {
           const data = doc.data();
@@ -461,7 +461,7 @@ export const onConductoresFlotaConViajes = (flotaId, callback) => {
           return acc;
         }, {});
 
-        console.log("Viajes de conductores:", viajesCond);
+        // Viajes de conductores procesados
         callback({ conductores, viajesCond });
       },
       (error) => {

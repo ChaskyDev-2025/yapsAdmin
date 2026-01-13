@@ -627,7 +627,7 @@ export const obtenerSolicitudesRecargaFlotas = async () => {
     
     let todasLasSolicitudes = [];
     
-    console.log(`Procesando ${flotasSnapshot.docs.length} flotas...`);
+    // Procesando flotas
     
     // Para cada flota, obtener sus solicitudes de recarga
     await Promise.all(
@@ -640,7 +640,7 @@ export const obtenerSolicitudesRecargaFlotas = async () => {
           const solicitudesRef = collection(db, FLOTAS_PATH, flotaId, "solicitudesRecarga");
           const solicitudesSnapshot = await getDocs(solicitudesRef);
           
-          console.log(`Flota ${flotaData.nombre || flotaId}: ${solicitudesSnapshot.docs.length} solicitudes`);
+          // Procesando solicitudes de flota
           
           solicitudesSnapshot.docs.forEach((solicDoc) => {
             const solicitudData = solicDoc.data();
@@ -668,7 +668,7 @@ export const obtenerSolicitudesRecargaFlotas = async () => {
       })
     );
     
-    console.log(`Total de solicitudes obtenidas: ${todasLasSolicitudes.length}`);
+    // Total de solicitudes obtenidas
     return todasLasSolicitudes;
   } catch (error) {
     console.error("Error al obtener solicitudes de recarga de flotas:", error);

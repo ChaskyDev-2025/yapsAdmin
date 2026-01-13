@@ -29,12 +29,7 @@ const HistorialTransacciones = ({ open, onClose, flota, transacciones = [] }) =>
   // Debug: log transacciones para ver si tienen comprobante
   React.useEffect(() => {
     if (open && transacciones.length > 0) {
-      console.log("[DEBUG HistorialTransacciones] Transacciones:", transacciones.map(t => ({
-        id: t.id,
-        monto: t.monto,
-        comprobanteUrl: t.comprobanteUrl,
-        solicitudId: t.solicitudId,
-      })));
+      // Transacciones procesadas
     }
   }, [open, transacciones]);
 

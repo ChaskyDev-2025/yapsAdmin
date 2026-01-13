@@ -133,7 +133,7 @@ const SorteosTab = () => {
 
       if (uidsUnicos.length === 0) return cupones;
 
-      console.log(`🔍 Enriqueciendo ${uidsUnicos.length} cupones con datos de pasajero...`);
+      // Enriqueciendo cupones con datos de pasajero
 
       // Crear un mapa de UID -> nombre del pasajero
       const usuariosMap = {};
@@ -166,7 +166,7 @@ const SorteosTab = () => {
         };
       });
 
-      console.log("✓ Cupones enriquecidos exitosamente");
+      // Cupones enriquecidos exitosamente
       return cuponesEnriquecidos;
     } catch (error) {
       console.error("Error enriqueciendo cupones:", error);
