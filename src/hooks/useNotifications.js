@@ -13,42 +13,45 @@ import { useAuth } from "../auth/AuthContext";
 
 const playNotificationSound = () => {
   try {
-    // Usar Web Audio API para crear un sonido más confiable
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     
-    // Algunos navegadores requieren activar el contexto primero
     if (audioContext.state === 'suspended') {
       audioContext.resume();
     }
+
+    const now = audioContext.currentTime;
+    // Triada Musical: Do, La, Sol, Fa
+    const frequencies = [262, 220, 196, 175];
     
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    // Sonido de notificación (dos beeps)
-    oscillator.frequency.value = 800;
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.2);
-
-    // Segundo beep
-    setTimeout(() => {
-      const osc2 = audioContext.createOscillator();
-      const gain2 = audioContext.createGain();
-      osc2.connect(gain2);
-      gain2.connect(audioContext.destination);
-      osc2.frequency.value = 1000;
-      gain2.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-      osc2.start(audioContext.currentTime);
-      osc2.stop(audioContext.currentTime + 0.2);
-    }, 250);
+    frequencies.forEach((freq, index) => {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      
+      osc.frequency.setValueAtTime(freq, now + index * 0.08);
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.14, now + index * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + index * 0.08 + 0.25);
+      
+      osc.start(now + index * 0.08);
+      osc.stop(now + index * 0.08 + 0.25);
+    });
   } catch (error) {
     console.error("❌ Error reproduciendo sonido:", error);
   }
+};
+
+const lastNotificationSoundTimeRef = { current: 0 };
+
+const playNotificationSoundWithDebounce = () => {
+  const now = Date.now();
+  // Si ha pasado menos de 500ms desde el último sonido, no reproducir
+  if (now - lastNotificationSoundTimeRef.current < 500) {
+    return;
+  }
+  lastNotificationSoundTimeRef.current = now;
+  playNotificationSound();
 };
 
 export const useNotifications = () => {
@@ -103,7 +106,8 @@ export const useNotifications = () => {
                   message: `Solicitud de ${data.solicitud?.detalles?.servicio || "servicio"} - ${data.solicitud?.detalles?.ciudad || ""}`,
                   data: { id: change.doc.id, ...data },
                 });
-                playNotificationSound();
+                // playNotificationSoundWithDebounce(); // DESACTIVADO
+                // playNotificationSound(); // DESACTIVADO
               }
               
               // Notificar cuando una solicitud es RECHAZADA
@@ -114,7 +118,6 @@ export const useNotifications = () => {
                   message: `${data.solicitud?.detalles?.servicio || "Solicitud"} - ${data.solicitud?.detalles?.ciudad || ""} fue rechazada por la flota`,
                   data: { id: change.doc.id, ...data },
                 });
-                playNotificationSound();
               }
             });
           },
@@ -151,23 +154,8 @@ export const useNotifications = () => {
             solicitudesRecargaRef,
             (snapshot) => {
               snapshot.docChanges().forEach((change) => {
-                const data = change.doc.data();
-
-                // Aceptamos cualquier documento con estado "pendiente" que cambie
-                if (data.estado === "pendiente" && (change.type === "added" || change.type === "modified")) {
-                  addNotification({
-                    type: "solicitud_recarga",
-                    title: "Nueva solicitud de recarga",
-                    message: `${flotaNombre} - $${data.monto || "0"}`,
-                    data: {
-                      id: change.doc.id,
-                      flotaId: flotaId,
-                      flotaNombre: flotaNombre,
-                      ...data
-                    },
-                  });
-                  playNotificationSound();
-                }
+                // No generar notificaciones individuales aquí
+                // Las notificaciones se manejan desde NotificationContext
               });
             },
             (error) => {

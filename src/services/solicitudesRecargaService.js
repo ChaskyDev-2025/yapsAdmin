@@ -278,7 +278,8 @@ export const crearSolicitudRecarga = async (
   notas = "",
   comprobanteUrl = null,
   nroComprobante = "",
-  saldoActual = null
+  saldoActual = null,
+  createdByUserId = null
 ) => {
   try {
     if (monto <= 0) {
@@ -297,6 +298,7 @@ export const crearSolicitudRecarga = async (
       comprobanteUrl: comprobanteUrl || null,
       nroComprobante: nroComprobante || "",
       saldoActual: saldoActual || null,
+      createdByUserId: createdByUserId || null,
     };
 
     const solicitudesRef = getSolicitudesRef(flotaId);
@@ -656,5 +658,60 @@ export const escucharSaldoFlota = (flotaId, callback) => {
     return unsubscribe;
   } catch (error) {
     return () => {};
+  }
+};
+
+/**
+ * Obtiene el historial de billetera de todos los conductores de una flota
+ * Lee desde trabajadores/{uid}/historial-billetera
+ */
+export const obtenerHistorialConductores = async (flotaId) => {
+  try {
+    // Primero obtener todos los trabajadores de la flota
+    const trabajadoresRef = query(
+      collection(db, "trabajadores"),
+      where("flotaId", "==", flotaId)
+    );
+
+    const trabajadoresSnapshot = await getDocs(trabajadoresRef);
+    const historialCompleto = [];
+
+    // Para cada trabajador, obtener su historial-billetera
+    for (const trabajadorDoc of trabajadoresSnapshot.docs) {
+      const trabajadorId = trabajadorDoc.id;
+      const trabajadorData = trabajadorDoc.data();
+
+      const historialRef = collection(
+        db,
+        "trabajadores",
+        trabajadorId,
+        "historial-billetera"
+      );
+
+      const historialSnapshot = await getDocs(
+        query(historialRef, orderBy("timestamp", "desc"))
+      );
+
+      historialSnapshot.docs.forEach((doc) => {
+        historialCompleto.push({
+          id: doc.id,
+          trabajadorId,
+          trabajadorNombre: trabajadorData.nombre || trabajadorData.email || trabajadorId,
+          ...doc.data(),
+        });
+      });
+    }
+
+    // Ordenar todo el historial por timestamp descendente
+    historialCompleto.sort((a, b) => {
+      const timeA = a.timestamp?.toMillis?.() || 0;
+      const timeB = b.timestamp?.toMillis?.() || 0;
+      return timeB - timeA;
+    });
+
+    return historialCompleto;
+  } catch (error) {
+    console.error("Error al obtener historial de conductores:", error);
+    return [];
   }
 };

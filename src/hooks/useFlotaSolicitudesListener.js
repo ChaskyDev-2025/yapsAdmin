@@ -9,8 +9,9 @@ import { NotificationContext } from "../context/NotificationContext";
  * También detecta reasignaciones (cuando una solicitud rechazada vuelve a ser asignada)
  */
 export const useFlotaSolicitudesListener = (userFlotaId) => {
-  const { addNotification } = useContext(NotificationContext);
+  const { addNotification, deleteNotification } = useContext(NotificationContext);
   const prevSolicitudesRef = useRef([]);
+  const persistentSolicitudesRef = useRef(null);
   const [datosIniciales, setDatosIniciales] = useState(false);
 
   useEffect(() => {
@@ -33,9 +34,23 @@ export const useFlotaSolicitudesListener = (userFlotaId) => {
         ...doc.data()
       }));
 
-
-      // Marcar como datos iniciales en la primera carga
+      // PRIMERA CARGA: mostrar notificación persistente si hay solicitudes
       if (!datosIniciales) {
+        const solicitudesPendientes = solicitudesActuales.filter(s => 
+          s.estado === "solicitado" || s.estado === "asignada"
+        );
+        
+        // Si hay solicitudes asignadas, crear notificación persistente
+        if (solicitudesPendientes.length > 0) {
+          const message = `Tienes ${solicitudesPendientes.length} solicitud(es) asignada(s)`;
+          const newId = addNotification({
+            type: "solicitud_servicio",
+            title: "Solicitudes Asignadas",
+            message: message,
+          });
+          persistentSolicitudesRef.current = newId;
+        }
+        
         prevSolicitudesRef.current = solicitudesActuales;
         setDatosIniciales(true);
         return;
@@ -72,21 +87,44 @@ export const useFlotaSolicitudesListener = (userFlotaId) => {
       notificacionesPendientes.forEach((notif) => {
         if (notif.tipo === "nueva") {
           addNotification({
-            type: "success",
+            type: "solicitud_servicio",
             title: "¡Nueva Solicitud!",
             message: `${notif.categoria} - ${notif.origen}`,
-            duration: 6000,
           });
         } else if (notif.tipo === "reasignada") {
           addNotification({
-            type: "success",
+            type: "solicitud_servicio",
             title: "¡Solicitud Reasignada!",
             message: `${notif.categoria} - ${notif.origen}`,
-            duration: 6000,
           });
         }
-        playNotificationSound();
       });
+
+      // Actualizar notificación persistente de conteo
+      const solicitudesPendientes = solicitudesActuales.filter(s => 
+        s.estado === "solicitado" || s.estado === "asignada"
+      );
+      
+      if (solicitudesPendientes.length > 0) {
+        const message = `Tienes ${solicitudesPendientes.length} solicitud(es) asignada(s)`;
+        const existingId = persistentSolicitudesRef.current;
+        
+        if (existingId) {
+          try { deleteNotification(existingId); } catch (e) {}
+        }
+        
+        const newId = addNotification({
+          type: "solicitud_servicio",
+          title: "Solicitudes Asignadas",
+          message: message,
+        });
+        persistentSolicitudesRef.current = newId;
+      } else {
+        if (persistentSolicitudesRef.current) {
+          try { deleteNotification(persistentSolicitudesRef.current); } catch (e) {}
+          persistentSolicitudesRef.current = null;
+        }
+      }
 
       // Actualizar ref
       prevSolicitudesRef.current = solicitudesActuales;
@@ -97,29 +135,11 @@ export const useFlotaSolicitudesListener = (userFlotaId) => {
     return () => {
       unsubscribe();
     };
-  }, [userFlotaId, datosIniciales, addNotification]);
+  }, [userFlotaId, datosIniciales, addNotification, deleteNotification]);
 };
 
 const playNotificationSound = () => {
-  try {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-
-    oscillator.connect(gain);
-    gain.connect(audioContext.destination);
-
-    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-    oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
-
-    gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.2);
-  } catch (error) {
-    // Error reproduciendo sonido
-  }
+  // Función deshabilitada - sin sonidos
 };
 
 

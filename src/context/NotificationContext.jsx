@@ -22,7 +22,7 @@ const NOTIFICATION_ROUTES = {
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const { userRole, userFlotaId } = useAuth();
+  const { userRole, userFlotaId, user } = useAuth();
 
   const persistentSolicitadoRef = useRef(null);
   const persistentDocumentosPendientesRef = useRef(null);
@@ -34,6 +34,9 @@ export const NotificationProvider = ({ children }) => {
   const recargasFlotaInitializedRef = useRef(false);
   const recargasInitializedRef = useRef(false);
   const initializedRef = useRef(false);
+  const lastDocumentosPendientesCountRef = useRef(0); // Para evitar notificaciones duplicadas
+  const lastRecargaCountRef = useRef(0); // Para evitar notificaciones de recargas propias
+  const lastRecargaIdRef = useRef(null); // Rastrear últimas recargas que se notificaron
 
   const addNotification = useCallback((notification) => {
     const id = Date.now();
@@ -188,6 +191,15 @@ export const NotificationProvider = ({ children }) => {
             });
           });
 
+          // Solo procesar si el conteo realmente cambió
+          const conteoAnterior = lastDocumentosPendientesCountRef.current;
+          if (conteoAnterior === totalDocumentosPendientes && documentosInitializedRef.current) {
+            // El conteo no cambió, no hacer nada
+            return;
+          }
+          
+          lastDocumentosPendientesCountRef.current = totalDocumentosPendientes;
+
           // Notificación persistente: conteo de documentos pendientes
           const existingId = persistentDocumentosPendientesRef.current;
           if (totalDocumentosPendientes > 0) {
@@ -245,7 +257,8 @@ export const NotificationProvider = ({ children }) => {
           snapshot.docs.forEach((doc) => {
             const solicitud = doc.data();
             
-            if (solicitud.estado === 'pendiente') {
+            // Solo contar recargas pendientes que NO fueron creadas por el usuario actual
+            if (solicitud.estado === 'pendiente' && solicitud.createdByUserId !== user?.uid) {
               totalSolicitudesPendientes++;
             }
           });
@@ -287,7 +300,7 @@ export const NotificationProvider = ({ children }) => {
     return () => {
       unsubSolicitudes();
     };
-  }, [userRole, userFlotaId, addNotification, deleteNotification, playNotificationSound]);
+  }, [userRole, userFlotaId, user, addNotification, deleteNotification, playNotificationSound]);
 
   const recargasFlotaCountRef = useRef({});
 
@@ -392,7 +405,8 @@ export const NotificationProvider = ({ children }) => {
               
               snapshot.docs.forEach((doc) => {
                 const solicitud = doc.data();
-                if (solicitud && solicitud.estado === 'pendiente') {
+                // Solo contar recargas pendientes que NO fueron creadas por el usuario actual
+                if (solicitud && solicitud.estado === 'pendiente' && solicitud.createdByUserId !== user?.uid) {
                   totalRecargasPendientes++;
                 }
               });
@@ -439,7 +453,7 @@ export const NotificationProvider = ({ children }) => {
     return () => {
       unsubscribers.forEach(unsub => unsub());
     };
-  }, [userRole, userFlotaId, addNotification, deleteNotification, playNotificationSound]);
+  }, [userRole, userFlotaId, user, addNotification, deleteNotification, playNotificationSound]);
 
   const recargasCountRef = useRef({});
 
@@ -465,19 +479,25 @@ export const NotificationProvider = ({ children }) => {
               }
             });
 
-            // Para cada trabajador de la flota, crear un listener de sus solicitudes
+            // Para cada trabajador de la flota, crear un listener de su historial de billetera
             trabajadoresSnapshot.docs.forEach((trabajadorDoc) => {
               const trabajadorId = trabajadorDoc.id;
               
-              const unsubSolicitudes = onSnapshot(
-                collection(db, 'trabajadores', trabajadorId, 'billetera', 'data', 'solicitudes_recarga'),
-                (solicitudesSnapshot) => {
+              const unsubHistorial = onSnapshot(
+                collection(db, 'trabajadores', trabajadorId, 'historial-billetera'),
+                (historialSnapshot) => {
                   try {
                     let countPendientes = 0;
-                    solicitudesSnapshot.docs.forEach((doc) => {
-                      const solicitud = doc.data();
-                      if (solicitud && solicitud.estado === 'pendiente') {
-                        countPendientes++;
+                    historialSnapshot.docs.forEach((doc) => {
+                      const historial = doc.data();
+                      // Contar solo "Recargas" pendientes (usando la etiqueta)
+                      if (historial && (historial.etiqueta === 'Recarga' || historial.etiqueta === 'Recarga rechazada')) {
+                        // Los registros aprobados tienen isPositive = true
+                        // Los registros rechazados tienen isPositive = false
+                        // Solo contar si está pendiente (no tiene estado aprobada)
+                        if (!historial.estado || historial.estado === 'pendiente') {
+                          countPendientes++;
+                        }
                       }
                     });
                     
@@ -512,11 +532,11 @@ export const NotificationProvider = ({ children }) => {
                       recargasInitializedRef.current = true;
                     }
                   } catch (e) {
-                    console.error('❌ Error procesando solicitudes de conductor:', e);
+                    console.error('❌ Error procesando historial de conductor:', e);
                   }
                 }
               );
-              nestedUnsubscribers.push(unsubSolicitudes);
+              nestedUnsubscribers.push(unsubHistorial);
             });
 
             // Limpiar listeners anidados cuando cambien los trabajadores

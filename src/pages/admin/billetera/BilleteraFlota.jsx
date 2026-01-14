@@ -46,7 +46,7 @@ import {
 } from "../../../services/imageUploadService";
 import {
   obtenerSolicitudesFlota,
-  obtenerHistorialTransacciones,
+  obtenerHistorialConductores,
   crearSolicitudRecarga,
   escucharSolicitudesFlota,
   escucharHistorialTransacciones,
@@ -63,14 +63,13 @@ import {
   onSnapshot,
   updateDoc,
   serverTimestamp,
-  addDoc,
   setDoc,
 } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 import { NotificationContext } from "../../../context/NotificationContext";
 
 const BilleteraFlota = () => {
-  const { userFlotaId } = useAuth();
+  const { userFlotaId, user } = useAuth();
   const { addNotification } = useContext(NotificationContext);
   const flotaId = userFlotaId;
   
@@ -186,34 +185,39 @@ const BilleteraFlota = () => {
 
       const todasSolicitudes = [];
 
-      // Para cada trabajador, obtener sus solicitudes
+      // Para cada trabajador, obtener su historial de billetera
       for (const trabajadorDoc of trabajadoresSnapshot.docs) {
         const trabajadorId = trabajadorDoc.id;
         const trabajadorData = trabajadorDoc.data();
 
-        const solicitudesRef = collection(
+        const historialRef = collection(
           db,
           "trabajadores",
           trabajadorId,
-          "billetera",
-          "data",
-          "solicitudes_recarga"
+          "historial-billetera"
         );
 
-        const solicitudesSnapshot = await getDocs(solicitudesRef);
+        const historialSnapshot = await getDocs(historialRef);
 
-        solicitudesSnapshot.docs.forEach((solicitudDoc) => {
+        historialSnapshot.docs.forEach((historialDoc) => {
           todasSolicitudes.push({
-            id: solicitudDoc.id,
+            id: historialDoc.id,
             conductorId: trabajadorId,
             conductorNombre:
               trabajadorData.nombre ||
               trabajadorData.displayName ||
               "Conductor",
-            ...solicitudDoc.data(),
+            ...historialDoc.data(),
           });
         });
       }
+
+      // Ordenar por timestamp descendente (más nuevas primero)
+      todasSolicitudes.sort((a, b) => {
+        const timeA = a.timestamp?.toMillis?.() || 0;
+        const timeB = b.timestamp?.toMillis?.() || 0;
+        return timeB - timeA;
+      });
 
       setSolicitudesConductores(todasSolicitudes);
     } catch (error) {
@@ -283,7 +287,7 @@ const BilleteraFlota = () => {
 
         const [solicitudesData, historialData] = await Promise.all([
           obtenerSolicitudesFlota(flotaId),
-          obtenerHistorialTransacciones(flotaId),
+          obtenerHistorialConductores(flotaId),
         ]);
 
         if (isMounted) {
@@ -362,22 +366,22 @@ const BilleteraFlota = () => {
       }
     );
 
-    // Listener en tiempo real para solicitudes de recarga usando collectionGroup
-    // Listener en tiempo real para solicitudes de recarga (SOLO de mi flota)
+    // Listener en tiempo real para historial de billetera usando collectionGroup
+    // Listener en tiempo real para historial (SOLO de mi flota)
     const unsubscribeSolicitudesRT = onSnapshot(
       query(
-        collectionGroup(db, "solicitudes_recarga"),
+        collectionGroup(db, "historial-billetera"),
         // No podemos filtrar directamente por flotaId aquí porque está en trabajadores
         // Así que validamos en el callback
       ),
       (snapshot) => {
         if (isMounted) {
           snapshot.docChanges().forEach(async (change) => {
-            if (change.type === "added") {
+            if (change.type === "added" || change.type === "modified") {
               try {
-                // Nueva solicitud agregada
+                // Nuevo historial agregado o modificado
                 const docPath = change.doc.ref.path;
-                // Extraer trabajadorId del path: trabajadores/{trabajadorId}/billetera/data/solicitudes_recarga/{solicitudId}
+                // Extraer trabajadorId del path: trabajadores/{trabajadorId}/historial-billetera/{historialId}
                 const pathParts = docPath.split("/");
                 const trabajadorId = pathParts[1]; // El índice 1 es el trabajadorId
                 
@@ -389,7 +393,7 @@ const BilleteraFlota = () => {
                   cargarSolicitudesConductores();
                 }
               } catch (error) {
-                console.error("Error verificando solicitud:", error);
+                console.error("Error verificando historial:", error);
               }
             }
           });
@@ -590,6 +594,11 @@ const BilleteraFlota = () => {
     try {
       setProcesando(true);
 
+      // Convertir monto a número (quitar " BOB" si está)
+      const montoNumerico = typeof solicitudSeleccionada.monto === 'string'
+        ? parseFloat(solicitudSeleccionada.monto.replace(' BOB', '').replace(',', '.'))
+        : parseFloat(solicitudSeleccionada.monto);
+
       // Validar saldo de la flota
       const flotaBilleteraRef = doc(
         db,
@@ -604,8 +613,8 @@ const BilleteraFlota = () => {
         : 0;
 
       // Verificar si la flota tiene saldo suficiente
-      if (saldoFlota < solicitudSeleccionada.monto) {
-        const faltante = solicitudSeleccionada.monto - saldoFlota;
+      if (saldoFlota < montoNumerico) {
+        const faltante = montoNumerico - saldoFlota;
         setMontoFaltante(faltante);
         setSaldoInsuficienteOpen(true);
         setProcesando(false);
@@ -626,7 +635,7 @@ const BilleteraFlota = () => {
       const saldoActual = billeteraSnapshot.exists()
         ? billeteraSnapshot.data().saldo || 0
         : 0;
-      const nuevoSaldo = saldoActual + solicitudSeleccionada.monto;
+      const nuevoSaldo = saldoActual + montoNumerico;
 
       // Crear o actualizar saldo del trabajador
       await setDoc(
@@ -641,22 +650,6 @@ const BilleteraFlota = () => {
         { merge: true }
       );
 
-      // Actualizar estado de la solicitud
-      const solicitudRef = doc(
-        db,
-        "trabajadores",
-        solicitudSeleccionada.conductorId,
-        "billetera",
-        "data",
-        "solicitudes_recarga",
-        solicitudSeleccionada.id
-      );
-
-      await updateDoc(solicitudRef, {
-        estado: "aprobada",
-        fechaAprobacion: serverTimestamp(),
-      });
-
       // Crear entrada en el historial del trabajador
       const historialRef = collection(
         db,
@@ -665,52 +658,19 @@ const BilleteraFlota = () => {
         "historial-billetera"
       );
 
-      const ahora = new Date();
-      const fechaHora = ahora.toLocaleString("es-ES", {
-        weekday: "long",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-
-      await addDoc(historialRef, {
-        titulo: `${fechaHora} · Recarga aprobada por administrador`,
+      // Actualizar el documento existente del historial con el estado de aprobación
+      const historialDocRef = doc(historialRef, solicitudSeleccionada.id);
+      await updateDoc(historialDocRef, {
+        estado: "aprobada",
+        fechaAprobacion: serverTimestamp(),
         descripcion: "Recarga de saldo aprobada",
-        etiqueta: "Recarga",
-        monto: `${solicitudSeleccionada.monto} BOB`,
-        isPositive: true,
-        timestamp: serverTimestamp(),
-        solicitudId: solicitudSeleccionada.id,
       });
 
       // Descontar saldo de la flota
-      const nuevoSaldoFlota = saldoFlota - solicitudSeleccionada.monto;
+      const nuevoSaldoFlota = saldoFlota - montoNumerico;
       await updateDoc(flotaBilleteraRef, {
         monto: nuevoSaldoFlota,
         updatedAt: serverTimestamp(),
-      });
-
-      // Crear transacción en el historial de la flota
-      const flotaTransaccionesRef = collection(
-        db,
-        "flotas",
-        flotaId,
-        "billetera",
-        "saldo",
-        "transacciones"
-      );
-
-      await addDoc(flotaTransaccionesRef, {
-        tipo: "retiro",
-        monto: solicitudSeleccionada.monto,
-        concepto: "Recarga a conductor",
-        notas: `Recarga aprobada para conductor ${solicitudSeleccionada.conductorNombre || solicitudSeleccionada.conductorId}`,
-        saldoAnterior: saldoFlota,
-        saldoNuevo: nuevoSaldoFlota,
-        timestamp: serverTimestamp(),
-        fechaRegistro: new Date().toLocaleString("es-ES"),
-        conductorId: solicitudSeleccionada.conductorId,
-        trabajadorId: solicitudSeleccionada.conductorId,
-        solicitudId: solicitudSeleccionada.id,
       });
 
       mostrarSnackbar(
@@ -740,20 +700,23 @@ const BilleteraFlota = () => {
 
       setProcesando(true);
 
-      const solicitudRef = doc(
+      // Crear entrada en el historial del trabajador
+
+      // Crear entrada en el historial del trabajador
+      const historialRef = collection(
         db,
         "trabajadores",
         solicitudSeleccionada.conductorId,
-        "billetera",
-        "data",
-        "solicitudes_recarga",
-        solicitudSeleccionada.id
+        "historial-billetera"
       );
 
-      await updateDoc(solicitudRef, {
+      // Actualizar el documento existente del historial con el estado de rechazo
+      const historialDocRef = doc(historialRef, solicitudSeleccionada.id);
+      await updateDoc(historialDocRef, {
         estado: "rechazada",
         fechaRechazo: serverTimestamp(),
         motivoRechazo: motivoRechazo,
+        descripcion: `Motivo: ${motivoRechazo}`,
       });
 
       mostrarSnackbar("Solicitud rechazada", "success");
@@ -958,7 +921,8 @@ const BilleteraFlota = () => {
         notas,
         comprobanteUrl,
         nroComprobante,
-        saldoActual
+        saldoActual,
+        user?.uid
       );
 
       mostrarSnackbar("Solicitud enviada al superadmin", "success");
@@ -993,20 +957,20 @@ const BilleteraFlota = () => {
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
       filtered = filtered.filter((s) => {
-        if (!s.fechaSolicitud) return false;
+        if (!s.timestamp) return false;
 
         let fechaDate;
         if (
-          s.fechaSolicitud?.toDate &&
-          typeof s.fechaSolicitud.toDate === "function"
+          s.timestamp?.toDate &&
+          typeof s.timestamp.toDate === "function"
         ) {
-          fechaDate = s.fechaSolicitud.toDate();
-        } else if (typeof s.fechaSolicitud === "string") {
-          fechaDate = new Date(s.fechaSolicitud);
-        } else if (s.fechaSolicitud instanceof Date) {
-          fechaDate = s.fechaSolicitud;
-        } else if (s.fechaSolicitud?.seconds) {
-          fechaDate = new Date(s.fechaSolicitud.seconds * 1000);
+          fechaDate = s.timestamp.toDate();
+        } else if (typeof s.timestamp === "string") {
+          fechaDate = new Date(s.timestamp);
+        } else if (s.timestamp instanceof Date) {
+          fechaDate = s.timestamp;
+        } else if (s.timestamp?.seconds) {
+          fechaDate = new Date(s.timestamp.seconds * 1000);
         } else {
           return false;
         }
@@ -1066,15 +1030,15 @@ const BilleteraFlota = () => {
       case "fecha-asc":
         sorted.sort(
           (a, b) =>
-            new Date(a.fechaSolicitud?.toDate?.() || 0) -
-            new Date(b.fechaSolicitud?.toDate?.() || 0)
+            new Date(a.timestamp?.toDate?.() || 0) -
+            new Date(b.timestamp?.toDate?.() || 0)
         );
         break;
       case "fecha-desc":
         sorted.sort(
           (a, b) =>
-            new Date(b.fechaSolicitud?.toDate?.() || 0) -
-            new Date(a.fechaSolicitud?.toDate?.() || 0)
+            new Date(b.timestamp?.toDate?.() || 0) -
+            new Date(a.timestamp?.toDate?.() || 0)
         );
         break;
       case "monto-asc":
@@ -1259,15 +1223,15 @@ const BilleteraFlota = () => {
       case "fecha-asc":
         sorted.sort(
           (a, b) =>
-            new Date(a.fechaSolicitud?.toDate?.() || 0) -
-            new Date(b.fechaSolicitud?.toDate?.() || 0)
+            new Date(a.timestamp?.toDate?.() || 0) -
+            new Date(b.timestamp?.toDate?.() || 0)
         );
         break;
       case "fecha-desc":
         sorted.sort(
           (a, b) =>
-            new Date(b.fechaSolicitud?.toDate?.() || 0) -
-            new Date(a.fechaSolicitud?.toDate?.() || 0)
+            new Date(b.timestamp?.toDate?.() || 0) -
+            new Date(a.timestamp?.toDate?.() || 0)
         );
         break;
       case "monto-asc":
@@ -1434,6 +1398,7 @@ const BilleteraFlota = () => {
           >
             <Tab label="📋 Mis Solicitudes" />
             <Tab label="👥 Solicitudes de Conductores" />
+            <Tab label="📊 Historial de Transacciones" />
           </Tabs>
         </Box>
 
@@ -1583,9 +1548,9 @@ const BilleteraFlota = () => {
                       >
                         {visibleColumnsSolicitudes.fecha && (
                           <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                            {solicitud.fechaSolicitud
+                            {solicitud.timestamp
                               ?.toDate?.()
-                              .toLocaleDateString("es-ES") || "N/A"}
+                              .toLocaleString("es-ES") || "N/A"}
                           </TableCell>
                         )}
                         {visibleColumnsSolicitudes.monto && (
@@ -1596,9 +1561,14 @@ const BilleteraFlota = () => {
                             }}
                           >
                             $
-                            {solicitud.monto.toLocaleString("es-ES", {
-                              minimumFractionDigits: 2,
-                            })}
+                            {(() => {
+                              const montoNumerico = typeof solicitud.monto === 'string'
+                                ? parseFloat(solicitud.monto.replace(' BOB', '').replace(',', '.'))
+                                : parseFloat(solicitud.monto);
+                              return isNaN(montoNumerico) ? "N/A" : montoNumerico.toLocaleString("es-ES", {
+                                minimumFractionDigits: 2,
+                              });
+                            })()}
                           </TableCell>
                         )}
                         {visibleColumnsSolicitudes.concepto && (
@@ -1864,9 +1834,14 @@ const BilleteraFlota = () => {
                           }}
                         >
                           $
-                          {solicitud.monto.toLocaleString("es-ES", {
-                            minimumFractionDigits: 2,
-                          })}
+                          {(() => {
+                            const montoNumerico = typeof solicitud.monto === 'string'
+                              ? parseFloat(solicitud.monto.replace(' BOB', '').replace(',', '.'))
+                              : parseFloat(solicitud.monto);
+                            return isNaN(montoNumerico) ? "N/A" : montoNumerico.toLocaleString("es-ES", {
+                              minimumFractionDigits: 2,
+                            });
+                          })()}
                         </TableCell>
                         <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
                           {solicitud.referencia || "-"}
@@ -1888,9 +1863,9 @@ const BilleteraFlota = () => {
                           />
                         </TableCell>
                         <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                          {solicitud.fechaSolicitud
+                          {solicitud.timestamp
                             ?.toDate?.()
-                            .toLocaleDateString("es-ES") || "N/A"}
+                            .toLocaleString("es-ES") || "N/A"}
                         </TableCell>
                         <TableCell align="center">
                           <Tooltip title="Ver detalles">
@@ -1996,6 +1971,319 @@ const BilleteraFlota = () => {
                   }
                   color="standard"
                   variant="outlined"
+                />
+              </Box>
+            )}
+          </>
+        )}
+
+        {/* TAB 3: HISTORIAL */}
+        {tabValue === 2 && (
+          <>
+            {/* Subtabs para Historial */}
+            <Box sx={{ borderBottom: 2, borderColor: "divider", mb: 3 }}>
+              <Tabs 
+                value={subtabHistorialValue} 
+                onChange={(e, newValue) => {
+                  setSubtabHistorialValue(newValue);
+                  setPageHistorial(0); // Reset pagination al cambiar subtab
+                }}
+                sx={{
+                  "& .MuiTab-root": {
+                    fontFamily: "Mulish, sans-serif",
+                    fontWeight: 600,
+                  },
+                  "& .Mui-selected": {
+                    color: "#d7171a !important",
+                  },
+                  "& .MuiTabs-indicator": {
+                    backgroundColor: "#d7171a",
+                  },
+                }}
+              >
+                <Tab 
+                  label={`Recargas a Flota (${historialFiltrado.filter(h => !h.concepto || !h.concepto.toLowerCase().includes("conductor")).length})`}
+                  sx={{ fontFamily: "Mulish, sans-serif" }}
+                />
+                <Tab 
+                  label={`Recargas a Conductores (${historialFiltrado.filter(h => h.concepto && h.concepto.toLowerCase().includes("conductor")).length})`}
+                  sx={{ fontFamily: "Mulish, sans-serif" }}
+                />
+              </Tabs>
+            </Box>
+
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 3,
+                gap: 2,
+              }}
+            >
+              <Box sx={{ flex: 1 }}>
+                <TableToolbar
+                  searchValue={searchHistorial}
+                  onSearchChange={setSearchHistorial}
+                  sortValue={sortByHistorial}
+                  onSortChange={setSortByHistorial}
+                  sortOptions={[
+                    { label: "↑ Fecha (Más antigua)", value: "fecha-asc" },
+                    { label: "↓ Fecha (Más reciente)", value: "fecha-desc" },
+                    { label: "↑ Monto (Menor)", value: "monto-asc" },
+                    { label: "↓ Monto (Mayor)", value: "monto-desc" },
+                  ]}
+                  visibleColumns={visibleColumnsHistorial}
+                  onColumnChange={(col, visible) =>
+                    setVisibleColumnsHistorial((prev) => ({
+                      ...prev,
+                      [col]: visible,
+                    }))
+                  }
+                />
+              </Box>
+              <DateFilterComponent
+                onFilterChange={setPeriodFilterHistorial}
+                currentDateFilter={periodFilterHistorial}
+              />
+            </Box>
+            <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
+              <Table stickyHeader>
+                <TableHead sx={{ backgroundColor: "#000000" }}>
+                  <TableRow>
+                    {visibleColumnsHistorial.fecha && (
+                      <TableCell
+                        sx={{
+                          backgroundColor: "#000000",
+                          color: "white",
+                          fontWeight: 700,
+                          fontFamily: "Mulish, sans-serif",
+                          fontSize: "0.95rem",
+                        }}
+                      >
+                        Fecha
+                      </TableCell>
+                    )}
+                    {visibleColumnsHistorial.tipo && (
+                      <TableCell
+                        sx={{
+                          backgroundColor: "#000000",
+                          color: "white",
+                          fontWeight: 700,
+                          fontFamily: "Mulish, sans-serif",
+                          fontSize: "0.95rem",
+                        }}
+                      >
+                        Tipo
+                      </TableCell>
+                    )}
+                    {visibleColumnsHistorial.monto && (
+                      <TableCell
+                        sx={{
+                          backgroundColor: "#000000",
+                          color: "white",
+                          fontWeight: 700,
+                          fontFamily: "Mulish, sans-serif",
+                          fontSize: "0.95rem",
+                        }}
+                      >
+                        Monto
+                      </TableCell>
+                    )}
+                    {visibleColumnsHistorial.concepto && (
+                      <TableCell
+                        sx={{
+                          backgroundColor: "#000000",
+                          color: "white",
+                          fontWeight: 700,
+                          fontFamily: "Mulish, sans-serif",
+                          fontSize: "0.95rem",
+                        }}
+                      >
+                        Concepto
+                      </TableCell>
+                    )}
+                    {visibleColumnsHistorial.saldo && (
+                      <TableCell
+                        sx={{
+                          backgroundColor: "#000000",
+                          color: "white",
+                          fontWeight: 700,
+                          fontFamily: "Mulish, sans-serif",
+                          fontSize: "0.95rem",
+                        }}
+                      >
+                        Saldo Posterior
+                      </TableCell>
+                    )}
+                    {visibleColumnsHistorial.comprobante && (
+                      <TableCell
+                        align="center"
+                        sx={{
+                          backgroundColor: "#000000",
+                          color: "white",
+                          fontWeight: 700,
+                          fontFamily: "Mulish, sans-serif",
+                          fontSize: "0.95rem",
+                        }}
+                      >
+                        Comprobante
+                      </TableCell>
+                    )}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {historialFiltrado.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        <Typography
+                          sx={{
+                            py: 3,
+                            color: "#484848",
+                            fontFamily: "Mulish, sans-serif",
+                          }}
+                        >
+                          No hay transacciones registradas
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    historialPaginado.map((tx) => (
+                      <TableRow
+                        key={tx.id}
+                        sx={{ borderBottom: "1px solid #d0d0d0" }}
+                      >
+                        {visibleColumnsHistorial.fecha && (
+                          <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                            {tx.fechaRegistro}
+                          </TableCell>
+                        )}
+                        {visibleColumnsHistorial.tipo && (
+                          <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                            <Chip
+                              label={
+                                tx.tipo === "deposito" ? "Depósito" : "Retiro"
+                              }
+                              size="small"
+                              sx={{
+                                bgcolor:
+                                  tx.tipo === "deposito"
+                                    ? "#d7171a"
+                                    : "#ff5252",
+                                color: "#fff",
+                                fontWeight: 600,
+                              }}
+                            />
+                          </TableCell>
+                        )}
+                        {visibleColumnsHistorial.monto && (
+                          <TableCell
+                            sx={{
+                              fontFamily: "Mulish, sans-serif",
+                              fontWeight: 600,
+                            }}
+                          >
+                            $
+                            {Math.abs(tx.monto).toLocaleString("es-ES", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </TableCell>
+                        )}
+                        {visibleColumnsHistorial.concepto && (
+                          <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                            {tx.concepto}
+                          </TableCell>
+                        )}
+                        {visibleColumnsHistorial.saldo && (
+                          <TableCell
+                            sx={{
+                              fontFamily: "Mulish, sans-serif",
+                              fontWeight: 600,
+                              color: "#d7171a",
+                            }}
+                          >
+                            $
+                            {tx.saldoNuevo.toLocaleString("es-ES", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </TableCell>
+                        )}
+                        {visibleColumnsHistorial.comprobante && (
+                          <TableCell align="center">
+                            {tx.comprobanteUrl ? (
+                              <Tooltip title="Ver comprobante">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => {
+                                    setComprobanteExpandidoUrl(
+                                      tx.comprobanteUrl
+                                    );
+                                    setComprobanteExpandidoOpen(true);
+                                  }}
+                                  sx={{
+                                    bgcolor: "#e3f2fd",
+                                    color: "#1976d2",
+                                    "&:hover": { bgcolor: "#bbdefb" },
+                                  }}
+                                >
+                                  <ImageIcon />
+                                </IconButton>
+                              </Tooltip>
+                            ) : (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: "#999",
+                                  fontFamily: "Mulish, sans-serif",
+                                }}
+                              >
+                                -
+                              </Typography>
+                            )}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            {historialFiltrado.length > 0 && (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  mt: 2,
+                  gap: 2,
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{ fontFamily: "Mulish, sans-serif" }}
+                >
+                  Mostrando {pageHistorial * ITEMS_PER_PAGE + 1} -{" "}
+                  {Math.min(
+                    (pageHistorial + 1) * ITEMS_PER_PAGE,
+                    historialFiltrado.length
+                  )}{" "}
+                  de {historialFiltrado.length}
+                </Typography>
+                <Pagination
+                  count={totalPagesHistorial}
+                  page={pageHistorial + 1}
+                  onChange={(e, page) => setPageHistorial(page - 1)}
+                  sx={{
+                    "& .MuiButtonBase-root": {
+                      fontFamily: "Mulish, sans-serif",
+                      color: "#000",
+                    },
+                    "& .Mui-selected": {
+                      backgroundColor: "#aaaaaa !important",
+                      color: "white",
+                    },
+                  }}
                 />
               </Box>
             )}
@@ -2621,9 +2909,14 @@ const BilleteraFlota = () => {
                         }}
                       >
                         $
-                        {solicitudInfo.monto.toLocaleString("es-ES", {
-                          minimumFractionDigits: 2,
-                        })}
+                        {(() => {
+                          const montoNumerico = typeof solicitudInfo.monto === 'string'
+                            ? parseFloat(solicitudInfo.monto.replace(' BOB', '').replace(',', '.'))
+                            : parseFloat(solicitudInfo.monto);
+                          return isNaN(montoNumerico) ? "N/A" : montoNumerico.toLocaleString("es-ES", {
+                            minimumFractionDigits: 2,
+                          });
+                        })()}
                       </Typography>
                     </Box>
 
@@ -2697,7 +2990,7 @@ const BilleteraFlota = () => {
                         variant="body1"
                         sx={{ fontFamily: "Mulish, sans-serif" }}
                       >
-                        {solicitudInfo.fechaSolicitud
+                        {solicitudInfo.timestamp
                           ?.toDate?.()
                           .toLocaleString("es-ES") || "N/A"}
                       </Typography>
@@ -2724,6 +3017,142 @@ const BilleteraFlota = () => {
                         }}
                       >
                         {solicitudInfo.notas}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {solicitudInfo.descripcion && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 600,
+                          color: "#495057",
+                          fontFamily: "Mulish, sans-serif",
+                        }}
+                      >
+                        Descripción:
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          fontFamily: "Mulish, sans-serif",
+                        }}
+                      >
+                        {solicitudInfo.descripcion}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {solicitudInfo.etiqueta && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 600,
+                          color: "#495057",
+                          fontFamily: "Mulish, sans-serif",
+                        }}
+                      >
+                        Etiqueta:
+                      </Typography>
+                      <Chip
+                        label={solicitudInfo.etiqueta}
+                        variant="outlined"
+                        sx={{ fontFamily: "Mulish, sans-serif" }}
+                      />
+                    </Box>
+                  )}
+
+                  {solicitudInfo.solicitudId && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 600,
+                          color: "#495057",
+                          fontFamily: "Mulish, sans-serif",
+                        }}
+                      >
+                        ID de Solicitud:
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          fontFamily: "Mulish, sans-serif",
+                          wordBreak: "break-all",
+                        }}
+                      >
+                        {solicitudInfo.solicitudId}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {solicitudInfo.iniciador && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 600,
+                          color: "#495057",
+                          fontFamily: "Mulish, sans-serif",
+                        }}
+                      >
+                        Iniciador:
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          fontFamily: "Mulish, sans-serif",
+                        }}
+                      >
+                        {solicitudInfo.iniciador}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {solicitudInfo.timestamp && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 600,
+                          color: "#495057",
+                          fontFamily: "Mulish, sans-serif",
+                        }}
+                      >
+                        Timestamp:
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          fontFamily: "Mulish, sans-serif",
+                        }}
+                      >
+                        {solicitudInfo.timestamp?.toDate?.().toLocaleString("es-ES") || "N/A"}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {solicitudInfo.fechaAprobacion && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 600,
+                          color: "#495057",
+                          fontFamily: "Mulish, sans-serif",
+                        }}
+                      >
+                        Fecha de Aprobación:
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          fontFamily: "Mulish, sans-serif",
+                        }}
+                      >
+                        {solicitudInfo.fechaAprobacion?.toDate?.().toLocaleString("es-ES") || "N/A"}
                       </Typography>
                     </Box>
                   )}
@@ -2888,9 +3317,14 @@ const BilleteraFlota = () => {
                   sx={{ mb: 2, fontFamily: "Mulish, sans-serif" }}
                 >
                   <strong>Monto solicitado:</strong> $
-                  {solicitudSeleccionada.monto.toLocaleString("es-ES", {
-                    minimumFractionDigits: 2,
-                  })}
+                  {(() => {
+                    const montoNumerico = typeof solicitudSeleccionada.monto === 'string'
+                      ? parseFloat(solicitudSeleccionada.monto.replace(' BOB', '').replace(',', '.'))
+                      : parseFloat(solicitudSeleccionada.monto);
+                    return isNaN(montoNumerico) ? "N/A" : montoNumerico.toLocaleString("es-ES", {
+                      minimumFractionDigits: 2,
+                    });
+                  })()}
                 </Typography>
 
                 <Typography

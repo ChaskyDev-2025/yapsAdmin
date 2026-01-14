@@ -19,9 +19,9 @@ export const useSolicitudesHistorial = (conductorId) => {
     setError(null);
 
     try {
-      // Buscar solicitudes donde uidUser coincida con el conductorId
+      // Buscar solicitudes donde conductor_asignado coincida con el conductorId
       const solicitudesRef = collection(db, "solicitudes");
-      const q = query(solicitudesRef, where("uidUser", "==", conductorId));
+      const q = query(solicitudesRef, where("conductor_asignado", "==", conductorId));
 
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const solicitudesData = [];

@@ -232,8 +232,8 @@ export default function ModalDerecho({ userId }) {
         </Box>
       )}
 
-      {/* Tabla de Viajes - mostrar si hay viajes y (solo viajes o tab 0 seleccionado) */}
-      {tieneViajes && (tabActual === 0 || (!tieneEnvios && tieneViajes)) ? (
+      {/* Tabla de Viajes - mostrar si hay viajes y tab 0 seleccionado */}
+      {tieneViajes && tabActual === 0 ? (
         tieneViajes ? (
         <TableContainer sx={{ flex: 1, overflow: "auto" }}>
           <Table stickyHeader size="small">
@@ -352,8 +352,8 @@ export default function ModalDerecho({ userId }) {
         )
       ) : null}
 
-      {/* Tabla de Envios - mostrar si hay envios y (solo envios o tab 1 seleccionado) */}
-      {tieneEnvios && (tabActual === 1 || (!tieneViajes && tieneEnvios)) ? (
+      {/* Tabla de Envios - mostrar si hay envios y tab 1 seleccionado */}
+      {tieneEnvios && tabActual === 1 ? (
         tieneEnvios ? (
           <TableContainer sx={{ flex: 1, overflow: "auto" }}>
             <Table stickyHeader size="small">
@@ -468,8 +468,8 @@ export default function ModalDerecho({ userId }) {
         )
       ) : null}
 
-      {/* Tabla de Solicitudes - mostrar si hay solicitudes y tab correspondiente */}
-      {tieneSolicitudes && (tabActual === 2 || (!tieneViajes && !tieneEnvios)) && (
+      {/* Tabla de Solicitudes - mostrar si hay solicitudes y tab 2 seleccionado */}
+      {tieneSolicitudes && tabActual === 2 && (
         <TableContainer sx={{ flex: 1, overflow: "auto" }}>
             <Table stickyHeader size="small">
               <TableHead>

@@ -792,10 +792,18 @@ const GestionUsuarios = () => {
         telefonoFinal = usuario.telefono || usuario.phoneNumber || "";
       }
       
+      // Determinar el rol del usuario - asegurar que se preserve el rol existente
+      let rolFinal = "admin"; // Default
+      if (usuario.role === "superadmin") {
+        rolFinal = "superadmin";
+      } else if (usuario.role === "admin") {
+        rolFinal = "admin";
+      }
+
       setFormData({
         email: emailFinal,
         nombre: nombreFinal,
-        role: usuario.role || "admin",
+        role: rolFinal,
         password: "",
         departamentoActual: usuario.departamentoActual || "",
         codigoReferido: usuario.codigoReferido || "",
@@ -911,7 +919,7 @@ const GestionUsuarios = () => {
         const result = await updateUser(editingUser.id, {
           email: formData.email,
           nombre: formData.nombre,
-          role: "admin",
+          role: formData.role,
           flotaId: formData.flotaId || null,
         });
 
@@ -1888,6 +1896,28 @@ const GestionUsuarios = () => {
                     error={!formData.password}
                     helperText={!formData.password ? "Contraseña requerida" : ""}
                   />
+                </Box>
+              </>
+            )}
+
+            {editingUser && !editingUser.modo && !editingUser.perfil && (
+              <>
+                {/* Sección 2: Rol (Solo editar admins) */}
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#000", mb: 1.5, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
+                    Acceso
+                  </Typography>
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <InputLabel>Rol</InputLabel>
+                    <Select
+                      value={formData.role}
+                      label="Rol"
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    >
+                      <MenuItem value="admin">Admin</MenuItem>
+                      <MenuItem value="superadmin">Super Admin</MenuItem>
+                    </Select>
+                  </FormControl>
                 </Box>
               </>
             )}

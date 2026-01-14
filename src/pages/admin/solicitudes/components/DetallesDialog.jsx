@@ -225,26 +225,62 @@ const DetallesDialog = ({
                 <Box>
                   {Object.entries(solicitudSeleccionada.solicitud.datosEspecificos).map(([k, v]) => {
                     // Si es timestamp, formatear
-                    let display = "";
                     if (v && typeof v === 'object' && (typeof v.seconds === 'number' || typeof v.toDate === 'function')) {
-                      display = formatMaybeTimestamp(v);
-                    } else if (typeof v === 'object') {
-                      display = JSON.stringify(v);
+                      return (
+                        <TextField
+                          key={k}
+                          label={String(k)}
+                          value={formatMaybeTimestamp(v)}
+                          disabled
+                          fullWidth
+                          size="small"
+                          sx={{ mb: 1, ...disabledTextFieldStyles }}
+                        />
+                      );
+                    } else if (typeof v === 'object' && v !== null) {
+                      // Si es un objeto, mostrar cada propiedad en un campo separado
+                      return (
+                        <Box key={k} sx={{ mb: 2, p: 1, backgroundColor: "#f9f9f9", borderRadius: 1, border: "1px solid #e8e8e8" }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: "#333" }}>
+                            {k}
+                          </Typography>
+                          {Object.entries(v).map(([subK, subV]) => {
+                            let subDisplay = "";
+                            if (subV && typeof subV === 'object' && (typeof subV.seconds === 'number' || typeof subV.toDate === 'function')) {
+                              subDisplay = formatMaybeTimestamp(subV);
+                            } else if (typeof subV === 'object') {
+                              subDisplay = JSON.stringify(subV);
+                            } else {
+                              subDisplay = String(subV);
+                            }
+                            return (
+                              <TextField
+                                key={`${k}-${subK}`}
+                                label={String(subK)}
+                                value={subDisplay}
+                                disabled
+                                fullWidth
+                                size="small"
+                                sx={{ mb: 1, ...disabledTextFieldStyles }}
+                              />
+                            );
+                          })}
+                        </Box>
+                      );
                     } else {
-                      display = String(v);
+                      // Valor primitivo
+                      return (
+                        <TextField
+                          key={k}
+                          label={String(k)}
+                          value={String(v)}
+                          disabled
+                          fullWidth
+                          size="small"
+                          sx={{ mb: 1, ...disabledTextFieldStyles }}
+                        />
+                      );
                     }
-
-                    return (
-                      <TextField
-                        key={k}
-                        label={String(k)}
-                        value={display}
-                        disabled
-                        fullWidth
-                        size="small"
-                        sx={{ mb: 1, ...disabledTextFieldStyles }}
-                      />
-                    );
                   })}
                 </Box>
               )}

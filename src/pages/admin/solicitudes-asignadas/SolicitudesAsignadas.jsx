@@ -242,7 +242,6 @@ const SolicitudesAsignadas = () => {
           if (shouldNotify() && !notified.has(doc.id)) {
             const origen = docData.solicitud?.origen?.nombre || "Nueva solicitud";
             addNotification({ message: `Solicitud solicitada: ${origen}`, type: "solicitud_servicio", title: "Nueva Solicitud Asignada" });
-            playNotificationSound();
             notified.add(doc.id);
           }
         });
@@ -305,9 +304,9 @@ const SolicitudesAsignadas = () => {
         const origen = solicitud.solicitud?.origen?.nombre || "Nueva solicitud";
         addNotification({
           message: `Solicitud asignada: ${origen}`,
-          type: "warning",
+          type: "solicitud_servicio",
+          title: "Nueva Solicitud Asignada",
         });
-        playNotificationSound();
       });
     }
 
@@ -316,25 +315,7 @@ const SolicitudesAsignadas = () => {
   }, [solicitudes, datosIniciales, addNotification]);
 
   const playNotificationSound = () => {
-    try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      
-      oscillator.connect(gain);
-      gain.connect(audioContext.destination);
-      
-      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-      oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
-      
-      gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-      
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.2);
-    } catch (error) {
-      // Error reproduciendo sonido
-    }
+    // Función deshabilitada - sin sonidos
   };
 
   // Cargar conductores de la flota
