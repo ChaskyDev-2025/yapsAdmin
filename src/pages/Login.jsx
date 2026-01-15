@@ -56,6 +56,15 @@ const Login = () => {
             {submitting ? "Entrando…" : "Iniciar sesión"}
           </Button>
         </form>
+
+        <Typography variant="body2" sx={{ mt: 3, textAlign: "center" }}>
+          <Button
+            onClick={() => navigate("/politicas")}
+            sx={{ textTransform: "none", color: "#d7171a", fontSize: "0.875rem", '&:hover': { textDecoration: "underline" } }}
+          >
+            Ver Políticas de Privacidad
+          </Button>
+        </Typography>
       </Paper>
     </Box>
   );

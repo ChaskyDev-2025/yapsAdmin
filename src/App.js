@@ -8,6 +8,7 @@ import Login        from "./pages/Login";
 import StartupPage  from "./pages/StartupPage";
 import AdminRoutes  from "./routes/AdminRoutes";
 import LandingPage  from "./pages/landing/LandingPage";
+import PublicPoliticas from "./pages/PublicPoliticas";
 
 // 👇 importa AuthProvider + ProtectedRoute
 import { AuthProvider } from "./auth/AuthContext";
@@ -27,6 +28,7 @@ const App = () => (
               <Route path="/"        element={<StartupPage />} />
               <Route path="/login"   element={<Login />} />
               <Route path="/landing" element={<LandingPage />} />
+              <Route path="/politicas" element={<PublicPoliticas />} />
 
               {/* 👇 protege TODO lo que esté bajo /admin/* */}
               <Route element={<ProtectedRoute />}>
