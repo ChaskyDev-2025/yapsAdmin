@@ -35,10 +35,6 @@ export default function ModalIzquierdo({ rowData }) {
     const unsubscribe = onSnapshot(ref, (snap) => {
       const data = snap.data();
       if (data) {
-        // Actualizar saldo desde billetera
-        if (typeof data.saldo !== "undefined") {
-          setSaldoActual(`Bs. ${Number(data.saldo).toFixed(2)}`);
-        }
         // Actualizar categorías y servicios desde el documento del trabajador
         if (Array.isArray(data.categorias)) {
           setCategorias(data.categorias);
@@ -48,58 +44,74 @@ export default function ModalIzquierdo({ rowData }) {
         }
       }
     });
-    return () => unsubscribe();
+    
+    // Listener separado para obtener el saldo desde billetera/data
+    const billeteraRef = doc(db, "trabajadores", rowData.firebaseId, "billetera", "data");
+    const unsubscribeBilletera = onSnapshot(billeteraRef, (snap) => {
+      if (snap.exists()) {
+        const billeteraData = snap.data();
+        if (typeof billeteraData.saldo !== "undefined") {
+          setSaldoActual(`Bs. ${Number(billeteraData.saldo).toFixed(2)}`);
+        }
+      }
+    });
+    
+    return () => {
+      unsubscribe();
+      unsubscribeBilletera();
+    };
   }, [rowData?.firebaseId]);
 
   if (!rowData) return null;
   return (
-    <Box sx={{ width: 350, display: "flex", justifyContent: "flex-start", alignItems: "flex-start", pt: 3, overflow: "auto", pl: 2 }}>
-      <Box
-        sx={{
-          width: 280,
-          p: 3,
-          borderRadius: 3,
-          bgcolor: "#fff",
-          border: "1px solid #00000033",
-          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.33)",
-          textAlign: "left",
-        }}
-      >
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 2 }}>
-          <Avatar
-            src={rowData.perfil?.fotoUrl || rowData.fotoUrl || rowData.logo}
-            alt={rowData.nombreEmpresa}
-            sx={{
-              width: 110,
-              height: 110,
-              mb: 2,
-              border: "3px solid",
-              borderColor: "primary.main",
-              boxShadow: 2,
-            }}
-          >
-            {rowData.nombreEmpresa?.[0] || "?"}
-          </Avatar>
-        </Box>
-        <Typography variant="h6" fontWeight={600} mb={1}>
+    <>
+      <Box sx={{ width: 420, display: "flex", justifyContent: "flex-start", alignItems: "flex-start", pt: 3, pl: 2, maxHeight: "calc(100vh - 80px)", overflowY: "auto" }}>
+        <Box
+          sx={{
+            width: 380,
+            p: 3,
+            borderRadius: 3,
+            bgcolor: "#fff",
+            border: "1px solid #00000033",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.33)",
+            textAlign: "left",
+          }}
+        >
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 2 }}>
+            <Avatar
+              src={rowData.perfil?.fotoUrl || rowData.fotoUrl || rowData.logo}
+              alt={rowData.nombreEmpresa}
+              sx={{
+                width: 110,
+                height: 110,
+                mb: 2,
+                border: "3px solid",
+                borderColor: "primary.main",
+                boxShadow: 2,
+              }}
+            >
+              {rowData.nombreEmpresa?.[0] || "?"}
+            </Avatar>
+          </Box>
+        <Typography variant="h6" fontWeight={600} mb={1} sx={{ wordBreak: "break-word", overflowWrap: "break-word", textAlign: "center" }}>
           {capitalizarNombre(rowData.nombreEmpresa)}
         </Typography>
-        <Stack spacing={0.5} sx={{ mb: 2, "& b": { color: "text.secondary" } }}>
-          <Typography>
+        <Stack spacing={0.5} sx={{ mb: 2, "& b": { color: "text.secondary" }, width: "100%" }}>
+          <Typography sx={{ fontSize: "0.9rem", wordBreak: "break-word", overflowWrap: "break-word" }}>
             <b>Email:</b> {rowData.representante || "No proporcionado"}
           </Typography>
-          <Typography>
+          <Typography sx={{ fontSize: "0.9rem", wordBreak: "break-word", overflowWrap: "break-word" }}>
             <b>Teléfono:</b> {rowData.telefono || "No proporcionado"}
           </Typography>
-          <Typography>
+          <Typography sx={{ fontSize: "0.9rem" }}>
             <b>Departamento:</b> {departamento}
           </Typography>
           {categorias.length > 0 && (
-            <Box sx={{ mt: 1 }}>
-              <Typography component="b" sx={{ color: "text.secondary" }}>
+            <Box sx={{ mt: 1, mb: 1, width: "100%" }}>
+              <Typography component="b" sx={{ color: "text.secondary", display: "block", mb: 0.5, fontSize: "0.9rem" }}>
                 Categorías y Servicios:
               </Typography>
-              <Box sx={{ mt: 0.5, pl: 1 }}>
+              <Box sx={{ mt: 0.5, pl: 1, width: "100%" }}>
                 {Object.entries(servicios).map(([categoria, serviciosRaw]) => {
                   // Extraer los valores del servicio si es un objeto o array
                   let serviciosArray = [];
@@ -117,9 +129,9 @@ export default function ModalIzquierdo({ rowData }) {
                   }
                   
                   return serviciosArray.length > 0 ? (
-                    <Box key={categoria}>
-                      <Typography sx={{ fontSize: "0.9rem", fontWeight: 600, mb: 0.5 }}>
-                        {categoria}:
+                    <Box key={categoria} sx={{ mb: 0.75, width: "100%" }}>
+                      <Typography sx={{ fontSize: "0.8rem", fontWeight: 600, mb: 0.25, color: "#555", wordBreak: "break-word", overflowWrap: "break-word" }}>
+                        <b>{categoria}:</b>
                       </Typography>
                       {serviciosArray.map((s, idx) => {
                         // Quitar el prefijo de la categoría del servicio
@@ -141,7 +153,7 @@ export default function ModalIzquierdo({ rowData }) {
                         servicioLimpio = servicioLimpio.replace(/_/g, ' ');
                         
                         return (
-                          <Typography key={idx} sx={{ fontSize: "0.85rem", ml: 1 }}>
+                          <Typography key={idx} sx={{ fontSize: "0.75rem", ml: 1.5, color: "#666", wordBreak: "break-word", overflowWrap: "break-word" }}>
                             • {servicioLimpio}
                           </Typography>
                         );
@@ -152,10 +164,10 @@ export default function ModalIzquierdo({ rowData }) {
               </Box>
             </Box>
           )}
-          <Typography>
+          <Typography sx={{ fontSize: "0.9rem", wordBreak: "break-word", overflowWrap: "break-word" }}>
             <b>Flota:</b> {flotaNombre}
           </Typography>
-          <Typography>
+          <Typography sx={{ fontSize: "0.9rem" }}>
             <b>Estado:</b>{" "}
             <Chip
               label={rowData.estado}
@@ -164,7 +176,7 @@ export default function ModalIzquierdo({ rowData }) {
               variant="outlined"
             />
           </Typography>
-          <Typography>
+          <Typography sx={{ fontSize: "0.9rem" }}>
             <b>Fecha registro:</b> {
               (() => {
                 if (!rowData.createdAt) return "No disponible";
@@ -190,54 +202,46 @@ export default function ModalIzquierdo({ rowData }) {
           </Typography>
         </Stack>
         <Divider sx={{ my: 1.5 }} />
-        <Typography variant="subtitle2" fontWeight={600}>
-          Saldo de la billetera
-        </Typography>
-        <Typography variant="h5" color="primary" fontWeight={700} mb={1}>
-          {saldoActual || "No proporcionado"}
-        </Typography>
-        <Button
-          variant="contained"
-          color="success"
-          size="small"
-          sx={{ px: 3, textTransform: "none" }}
-          onClick={() => setOpenRecarga(true)}
-          disabled={guardando}
-        >
-          {guardando ? "Guardando..." : "Agregar monto"}
-        </Button>
+        <Box sx={{ textAlign: "center" }}>
+          <Typography variant="subtitle2" fontWeight={600}>
+            Saldo de la billetera
+          </Typography>
+          <Typography variant="h5" color="primary" fontWeight={700} mb={1}>
+            {saldoActual || "No proporcionado"}
+          </Typography>
+        </Box>
       </Box>
-
-<RecargaSaldoModal
-  open={openRecarga}
-  onClose={() => setOpenRecarga(false)}
-  onGuardar={async (delta) => {
-    try {
-      setGuardando(true);
-      const value = parseFloat(String(delta).replace(",", "."));
-      if (!isFinite(value) || value === 0) throw new Error("Monto inválido");
-      
-    // 1) Actualiza saldo
-    await actualizarSaldoSeguro(rowData.firebaseId, value);
-
-    // 2) Estado según signo: negativo => "descuento", positivo => "recarga"
-    const estadoMovimiento = value < 0 ? "descuento" : "recarga";
-
-    // 3) Guarda en historial con ese estado y el monto
-    await agregarHistorialRecarga(rowData.firebaseId, {
-      estado: estadoMovimiento,
-      monto: value,
-    });
-    } catch (e) {
-      console.error("Error guardando saldo:", e);
-      alert(e?.message || "No se pudo guardar el saldo");
-    } finally {
-      setGuardando(false);
-      setOpenRecarga(false);
-    }
-  }}
-/>
-
     </Box>
+
+    <RecargaSaldoModal
+      open={openRecarga}
+      onClose={() => setOpenRecarga(false)}
+      onGuardar={async (delta) => {
+        try {
+          setGuardando(true);
+          const value = parseFloat(String(delta).replace(",", "."));
+          if (!isFinite(value) || value === 0) throw new Error("Monto inválido");
+          
+        // 1) Actualiza saldo
+        await actualizarSaldoSeguro(rowData.firebaseId, value);
+
+        // 2) Estado según signo: negativo => "descuento", positivo => "recarga"
+        const estadoMovimiento = value < 0 ? "descuento" : "recarga";
+
+        // 3) Guarda en historial con ese estado y el monto
+        await agregarHistorialRecarga(rowData.firebaseId, {
+          estado: estadoMovimiento,
+          monto: value,
+        });
+        } catch (e) {
+          console.error("Error guardando saldo:", e);
+          alert(e?.message || "No se pudo guardar el saldo");
+        } finally {
+          setGuardando(false);
+          setOpenRecarga(false);
+        }
+      }}
+    />
+    </>
   );
 }

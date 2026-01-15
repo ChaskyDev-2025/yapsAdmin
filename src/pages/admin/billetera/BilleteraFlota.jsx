@@ -1322,7 +1322,7 @@ const BilleteraFlota = () => {
             variant="h3"
             sx={{ fontWeight: 700, fontFamily: "Mulish, sans-serif" }}
           >
-            ${saldoActual.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+            ${(typeof saldoActual === 'number' && saldoActual !== undefined ? saldoActual : 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
           </Typography>
           <Typography
             variant="caption"
@@ -1398,7 +1398,6 @@ const BilleteraFlota = () => {
           >
             <Tab label="📋 Mis Solicitudes" />
             <Tab label="👥 Solicitudes de Conductores" />
-            <Tab label="📊 Historial de Transacciones" />
           </Tabs>
         </Box>
 
@@ -1548,9 +1547,70 @@ const BilleteraFlota = () => {
                       >
                         {visibleColumnsSolicitudes.fecha && (
                           <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                            {solicitud.timestamp
-                              ?.toDate?.()
-                              .toLocaleString("es-ES") || "N/A"}
+                            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                              {/* Fecha Solicitud */}
+                              <Box>
+                                <Typography variant="caption" sx={{ color: "#666", fontSize: "0.75rem" }}>
+                                  Solicitado:
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                  {(() => {
+                                    if (!solicitud.fechaSolicitud) return "N/A";
+                                    let date;
+                                    if (solicitud.fechaSolicitud?.toDate && typeof solicitud.fechaSolicitud.toDate === 'function') {
+                                      date = solicitud.fechaSolicitud.toDate();
+                                    } else if (typeof solicitud.fechaSolicitud === 'string') {
+                                      date = new Date(solicitud.fechaSolicitud);
+                                    } else if (solicitud.fechaSolicitud instanceof Date) {
+                                      date = solicitud.fechaSolicitud;
+                                    } else if (solicitud.fechaSolicitud?.seconds) {
+                                      date = new Date(solicitud.fechaSolicitud.seconds * 1000);
+                                    } else {
+                                      return "N/A";
+                                    }
+                                    return date.toLocaleString("es-ES", {
+                                      day: "2-digit",
+                                      month: "short",
+                                      year: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit"
+                                    });
+                                  })()}
+                                </Typography>
+                              </Box>
+
+                              {/* Fecha Aprobación */}
+                              {solicitud.fechaAprobacion && (
+                                <Box>
+                                  <Typography variant="caption" sx={{ color: "#666", fontSize: "0.75rem" }}>
+                                    Aprobado:
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {(() => {
+                                      let date;
+                                      if (solicitud.fechaAprobacion?.toDate && typeof solicitud.fechaAprobacion.toDate === 'function') {
+                                        date = solicitud.fechaAprobacion.toDate();
+                                      } else if (typeof solicitud.fechaAprobacion === 'string') {
+                                        date = new Date(solicitud.fechaAprobacion);
+                                      } else if (solicitud.fechaAprobacion instanceof Date) {
+                                        date = solicitud.fechaAprobacion;
+                                      } else if (solicitud.fechaAprobacion?.seconds) {
+                                        date = new Date(solicitud.fechaAprobacion.seconds * 1000);
+                                      } else {
+                                        return "N/A";
+                                      }
+                                      return date.toLocaleString("es-ES", {
+                                        day: "2-digit",
+                                        month: "short",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit"
+                                      });
+                                    })()}
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
                           </TableCell>
                         )}
                         {visibleColumnsSolicitudes.monto && (
@@ -1584,9 +1644,9 @@ const BilleteraFlota = () => {
                               sx={{
                                 bgcolor:
                                   solicitud.estado === "aprobada"
-                                    ? "#d7171a"
+                                    ? "#4caf50"
                                     : solicitud.estado === "rechazada"
-                                      ? "#ff5252"
+                                      ? "#f44336"
                                       : "#ffc107",
                                 color: "#fff",
                                 fontWeight: 600,
@@ -1863,9 +1923,71 @@ const BilleteraFlota = () => {
                           />
                         </TableCell>
                         <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                          {solicitud.timestamp
-                            ?.toDate?.()
-                            .toLocaleString("es-ES") || "N/A"}
+                          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                            {/* Timestamp (Fecha Solicitud) */}
+                            <Box>
+                              <Typography variant="caption" sx={{ color: "#666", fontSize: "0.75rem" }}>
+                                Solicitado:
+                              </Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {(() => {
+                                  if (!solicitud.timestamp) return "N/A";
+                                  let date;
+                                  if (solicitud.timestamp?.toDate && typeof solicitud.timestamp.toDate === 'function') {
+                                    date = solicitud.timestamp.toDate();
+                                  } else if (typeof solicitud.timestamp === 'string') {
+                                    date = new Date(solicitud.timestamp);
+                                  } else if (solicitud.timestamp instanceof Date) {
+                                    date = solicitud.timestamp;
+                                  } else if (solicitud.timestamp?.seconds) {
+                                    date = new Date(solicitud.timestamp.seconds * 1000);
+                                  } else {
+                                    return "N/A";
+                                  }
+                                  return date.toLocaleString("es-ES", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit"
+                                  });
+                                })()}
+                              </Typography>
+                            </Box>
+
+                            {/* Fecha Aprobación o Rechazo */}
+                            {(solicitud.fechaAprobacion || solicitud.fechaRechazo) && (
+                              <Box>
+                                <Typography variant="caption" sx={{ color: "#666", fontSize: "0.75rem" }}>
+                                  {solicitud.fechaAprobacion ? "Aprobado:" : "Rechazado:"}
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                  {(() => {
+                                    const fecha = solicitud.fechaAprobacion || solicitud.fechaRechazo;
+                                    let date;
+                                    if (fecha?.toDate && typeof fecha.toDate === 'function') {
+                                      date = fecha.toDate();
+                                    } else if (typeof fecha === 'string') {
+                                      date = new Date(fecha);
+                                    } else if (fecha instanceof Date) {
+                                      date = fecha;
+                                    } else if (fecha?.seconds) {
+                                      date = new Date(fecha.seconds * 1000);
+                                    } else {
+                                      return "N/A";
+                                    }
+                                    return date.toLocaleString("es-ES", {
+                                      day: "2-digit",
+                                      month: "short",
+                                      year: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit"
+                                    });
+                                  })()}
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
                         </TableCell>
                         <TableCell align="center">
                           <Tooltip title="Ver detalles">
@@ -1977,318 +2099,59 @@ const BilleteraFlota = () => {
           </>
         )}
 
-        {/* TAB 3: HISTORIAL */}
-        {tabValue === 2 && (
-          <>
-            {/* Subtabs para Historial */}
-            <Box sx={{ borderBottom: 2, borderColor: "divider", mb: 3 }}>
-              <Tabs 
-                value={subtabHistorialValue} 
-                onChange={(e, newValue) => {
-                  setSubtabHistorialValue(newValue);
-                  setPageHistorial(0); // Reset pagination al cambiar subtab
-                }}
-                sx={{
-                  "& .MuiTab-root": {
-                    fontFamily: "Mulish, sans-serif",
-                    fontWeight: 600,
-                  },
-                  "& .Mui-selected": {
-                    color: "#d7171a !important",
-                  },
-                  "& .MuiTabs-indicator": {
-                    backgroundColor: "#d7171a",
-                  },
-                }}
-              >
-                <Tab 
-                  label={`Recargas a Flota (${historialFiltrado.filter(h => !h.concepto || !h.concepto.toLowerCase().includes("conductor")).length})`}
-                  sx={{ fontFamily: "Mulish, sans-serif" }}
-                />
-                <Tab 
-                  label={`Recargas a Conductores (${historialFiltrado.filter(h => h.concepto && h.concepto.toLowerCase().includes("conductor")).length})`}
-                  sx={{ fontFamily: "Mulish, sans-serif" }}
-                />
-              </Tabs>
-            </Box>
-
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                mb: 3,
-                gap: 2,
-              }}
-            >
-              <Box sx={{ flex: 1 }}>
-                <TableToolbar
-                  searchValue={searchHistorial}
-                  onSearchChange={setSearchHistorial}
-                  sortValue={sortByHistorial}
-                  onSortChange={setSortByHistorial}
-                  sortOptions={[
-                    { label: "↑ Fecha (Más antigua)", value: "fecha-asc" },
-                    { label: "↓ Fecha (Más reciente)", value: "fecha-desc" },
-                    { label: "↑ Monto (Menor)", value: "monto-asc" },
-                    { label: "↓ Monto (Mayor)", value: "monto-desc" },
-                  ]}
-                  visibleColumns={visibleColumnsHistorial}
-                  onColumnChange={(col, visible) =>
-                    setVisibleColumnsHistorial((prev) => ({
-                      ...prev,
-                      [col]: visible,
-                    }))
-                  }
-                />
-              </Box>
-              <DateFilterComponent
-                onFilterChange={setPeriodFilterHistorial}
-                currentDateFilter={periodFilterHistorial}
-              />
-            </Box>
-            <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
-              <Table stickyHeader>
-                <TableHead sx={{ backgroundColor: "#000000" }}>
-                  <TableRow>
-                    {visibleColumnsHistorial.fecha && (
-                      <TableCell
-                        sx={{
-                          backgroundColor: "#000000",
-                          color: "white",
-                          fontWeight: 700,
-                          fontFamily: "Mulish, sans-serif",
-                          fontSize: "0.95rem",
-                        }}
-                      >
-                        Fecha
-                      </TableCell>
-                    )}
-                    {visibleColumnsHistorial.tipo && (
-                      <TableCell
-                        sx={{
-                          backgroundColor: "#000000",
-                          color: "white",
-                          fontWeight: 700,
-                          fontFamily: "Mulish, sans-serif",
-                          fontSize: "0.95rem",
-                        }}
-                      >
-                        Tipo
-                      </TableCell>
-                    )}
-                    {visibleColumnsHistorial.monto && (
-                      <TableCell
-                        sx={{
-                          backgroundColor: "#000000",
-                          color: "white",
-                          fontWeight: 700,
-                          fontFamily: "Mulish, sans-serif",
-                          fontSize: "0.95rem",
-                        }}
-                      >
-                        Monto
-                      </TableCell>
-                    )}
-                    {visibleColumnsHistorial.concepto && (
-                      <TableCell
-                        sx={{
-                          backgroundColor: "#000000",
-                          color: "white",
-                          fontWeight: 700,
-                          fontFamily: "Mulish, sans-serif",
-                          fontSize: "0.95rem",
-                        }}
-                      >
-                        Concepto
-                      </TableCell>
-                    )}
-                    {visibleColumnsHistorial.saldo && (
-                      <TableCell
-                        sx={{
-                          backgroundColor: "#000000",
-                          color: "white",
-                          fontWeight: 700,
-                          fontFamily: "Mulish, sans-serif",
-                          fontSize: "0.95rem",
-                        }}
-                      >
-                        Saldo Posterior
-                      </TableCell>
-                    )}
-                    {visibleColumnsHistorial.comprobante && (
-                      <TableCell
-                        align="center"
-                        sx={{
-                          backgroundColor: "#000000",
-                          color: "white",
-                          fontWeight: 700,
-                          fontFamily: "Mulish, sans-serif",
-                          fontSize: "0.95rem",
-                        }}
-                      >
-                        Comprobante
-                      </TableCell>
-                    )}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {historialFiltrado.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center">
-                        <Typography
-                          sx={{
-                            py: 3,
-                            color: "#484848",
-                            fontFamily: "Mulish, sans-serif",
-                          }}
-                        >
-                          No hay transacciones registradas
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    historialPaginado.map((tx) => (
-                      <TableRow
-                        key={tx.id}
-                        sx={{ borderBottom: "1px solid #d0d0d0" }}
-                      >
-                        {visibleColumnsHistorial.fecha && (
-                          <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                            {tx.fechaRegistro}
-                          </TableCell>
-                        )}
-                        {visibleColumnsHistorial.tipo && (
-                          <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                            <Chip
-                              label={
-                                tx.tipo === "deposito" ? "Depósito" : "Retiro"
-                              }
-                              size="small"
-                              sx={{
-                                bgcolor:
-                                  tx.tipo === "deposito"
-                                    ? "#d7171a"
-                                    : "#ff5252",
-                                color: "#fff",
-                                fontWeight: 600,
-                              }}
-                            />
-                          </TableCell>
-                        )}
-                        {visibleColumnsHistorial.monto && (
-                          <TableCell
-                            sx={{
-                              fontFamily: "Mulish, sans-serif",
-                              fontWeight: 600,
-                            }}
-                          >
-                            $
-                            {Math.abs(tx.monto).toLocaleString("es-ES", {
-                              minimumFractionDigits: 2,
-                            })}
-                          </TableCell>
-                        )}
-                        {visibleColumnsHistorial.concepto && (
-                          <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                            {tx.concepto}
-                          </TableCell>
-                        )}
-                        {visibleColumnsHistorial.saldo && (
-                          <TableCell
-                            sx={{
-                              fontFamily: "Mulish, sans-serif",
-                              fontWeight: 600,
-                              color: "#d7171a",
-                            }}
-                          >
-                            $
-                            {tx.saldoNuevo.toLocaleString("es-ES", {
-                              minimumFractionDigits: 2,
-                            })}
-                          </TableCell>
-                        )}
-                        {visibleColumnsHistorial.comprobante && (
-                          <TableCell align="center">
-                            {tx.comprobanteUrl ? (
-                              <Tooltip title="Ver comprobante">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => {
-                                    setComprobanteExpandidoUrl(
-                                      tx.comprobanteUrl
-                                    );
-                                    setComprobanteExpandidoOpen(true);
-                                  }}
-                                  sx={{
-                                    bgcolor: "#e3f2fd",
-                                    color: "#1976d2",
-                                    "&:hover": { bgcolor: "#bbdefb" },
-                                  }}
-                                >
-                                  <ImageIcon />
-                                </IconButton>
-                              </Tooltip>
-                            ) : (
-                              <Typography
-                                variant="caption"
-                                sx={{
-                                  color: "#999",
-                                  fontFamily: "Mulish, sans-serif",
-                                }}
-                              >
-                                -
-                              </Typography>
-                            )}
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            {historialFiltrado.length > 0 && (
+        {/* MODAL NUEVA SOLICITUD */}
+        <Dialog
+          open={modalOpen}
+          onClose={handleModalClose}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle
+            sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700 }}
+          >
+            Solicitar Recarga
+          </DialogTitle>
+          <DialogContent sx={{ pt: 2 }}>
+            {/* Mostrar QR del SuperAdmin si existe */}
+            {superAdminQr && (
               <Box
                 sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  mt: 2,
-                  gap: 2,
+                  mb: 3,
+                  textAlign: "center",
+                  p: 2,
+                  bgcolor: "#f5f5f5",
+                  borderRadius: 2,
                 }}
               >
                 <Typography
                   variant="body2"
-                  sx={{ fontFamily: "Mulish, sans-serif" }}
-                >
-                  Mostrando {pageHistorial * ITEMS_PER_PAGE + 1} -{" "}
-                  {Math.min(
-                    (pageHistorial + 1) * ITEMS_PER_PAGE,
-                    historialFiltrado.length
-                  )}{" "}
-                  de {historialFiltrado.length}
-                </Typography>
-                <Pagination
-                  count={totalPagesHistorial}
-                  page={pageHistorial + 1}
-                  onChange={(e, page) => setPageHistorial(page - 1)}
                   sx={{
-                    "& .MuiButtonBase-root": {
-                      fontFamily: "Mulish, sans-serif",
-                      color: "#000",
-                    },
-                    "& .Mui-selected": {
-                      backgroundColor: "#aaaaaa !important",
-                      color: "white",
-                    },
+                    mb: 2,
+                    color: "#666",
+                    fontWeight: 600,
+                    fontFamily: "Mulish, sans-serif",
+                  }}
+                >
+                  📱 Realiza la transferencia escaneando este QR:
+                </Typography>
+                <Box
+                  component="img"
+                  src={superAdminQr}
+                  alt="QR SuperAdmin"
+                  onClick={() => setQrExpandedOpen(true)}
+                  sx={{
+                    maxWidth: "250px",
+                    maxHeight: "250px",
+                    border: "3px solid #d7171a",
+                    borderRadius: 2,
+                    objectFit: "contain",
+                    cursor: "pointer",
                   }}
                 />
               </Box>
             )}
-          </>
-        )}
+          </DialogContent>
+        </Dialog>
 
         {/* MODAL NUEVA SOLICITUD */}
         <Dialog
@@ -2371,13 +2234,15 @@ const BilleteraFlota = () => {
                     }}
                   >
                     Última edición:{" "}
-                    {new Date(superAdminQrUpdatedAt).toLocaleString("es-ES", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {superAdminQrUpdatedAt
+                      ? new Date(superAdminQrUpdatedAt).toLocaleString("es-ES", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "N/A"}
                   </Typography>
                 )}
               </Box>
@@ -2609,13 +2474,15 @@ const BilleteraFlota = () => {
                     }}
                   >
                     Última edición:{" "}
-                    {new Date(qrUpdatedAt).toLocaleString("es-ES", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {qrUpdatedAt
+                      ? new Date(qrUpdatedAt).toLocaleString("es-ES", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "N/A"}
                   </Typography>
                 )}
               </Box>
@@ -2990,9 +2857,22 @@ const BilleteraFlota = () => {
                         variant="body1"
                         sx={{ fontFamily: "Mulish, sans-serif" }}
                       >
-                        {solicitudInfo.timestamp
-                          ?.toDate?.()
-                          .toLocaleString("es-ES") || "N/A"}
+                        {(() => {
+                          if (!solicitudInfo.timestamp) return "N/A";
+                          let date;
+                          if (solicitudInfo.timestamp?.toDate && typeof solicitudInfo.timestamp.toDate === 'function') {
+                            date = solicitudInfo.timestamp.toDate();
+                          } else if (typeof solicitudInfo.timestamp === 'string') {
+                            date = new Date(solicitudInfo.timestamp);
+                          } else if (solicitudInfo.timestamp instanceof Date) {
+                            date = solicitudInfo.timestamp;
+                          } else if (solicitudInfo.timestamp?.seconds) {
+                            date = new Date(solicitudInfo.timestamp.seconds * 1000);
+                          } else {
+                            return "N/A";
+                          }
+                          return date.toLocaleString("es-ES");
+                        })()}
                       </Typography>
                     </Box>
                   </Box>
@@ -3129,7 +3009,7 @@ const BilleteraFlota = () => {
                           fontFamily: "Mulish, sans-serif",
                         }}
                       >
-                        {solicitudInfo.timestamp?.toDate?.().toLocaleString("es-ES") || "N/A"}
+                        {solicitudInfo.timestamp ? (typeof solicitudInfo.timestamp.toDate === 'function' ? solicitudInfo.timestamp.toDate().toLocaleString("es-ES") : new Date(solicitudInfo.timestamp).toLocaleString("es-ES")) : "N/A"}
                       </Typography>
                     </Box>
                   )}
@@ -3152,7 +3032,7 @@ const BilleteraFlota = () => {
                           fontFamily: "Mulish, sans-serif",
                         }}
                       >
-                        {solicitudInfo.fechaAprobacion?.toDate?.().toLocaleString("es-ES") || "N/A"}
+                        {solicitudInfo.fechaAprobacion ? (typeof solicitudInfo.fechaAprobacion.toDate === 'function' ? solicitudInfo.fechaAprobacion.toDate().toLocaleString("es-ES") : new Date(solicitudInfo.fechaAprobacion).toLocaleString("es-ES")) : "N/A"}
                       </Typography>
                     </Box>
                   )}
@@ -3341,8 +3221,10 @@ const BilleteraFlota = () => {
                 >
                   <strong>Fecha de solicitud:</strong>{" "}
                   {solicitudSeleccionada.fechaSolicitud
-                    ?.toDate?.()
-                    .toLocaleString("es-ES") || "N/A"}
+                    ? (typeof solicitudSeleccionada.fechaSolicitud.toDate === 'function'
+                        ? solicitudSeleccionada.fechaSolicitud.toDate().toLocaleString("es-ES")
+                        : new Date(solicitudSeleccionada.fechaSolicitud).toLocaleString("es-ES"))
+                    : "N/A"}
                 </Typography>
 
                 {solicitudSeleccionada.comprobanteUrl && (
