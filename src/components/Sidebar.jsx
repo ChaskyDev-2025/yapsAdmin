@@ -3,7 +3,7 @@ import { Box, Toolbar, List, ListItem, ListItemIcon, ListItemText } from "@mui/m
 import { Link, useLocation } from "react-router-dom";
 import { CardGiftcard } from "@mui/icons-material/CardGiftcard";
 
-const drawerWidthExpanded = 230;
+const drawerWidthExpanded = 250;
 const drawerWidthCollapsed = 70;
 
 const Sidebar = ({ logo, menuItems }) => {
@@ -94,6 +94,9 @@ const Sidebar = ({ logo, menuItems }) => {
                   background: "linear-gradient(90deg, #D61319 0%, #A30E13 50%, #700A09 100%)",
                   mx: 0.1,
                   px: 0.1,
+                  "& .MuiListItemIcon-root": {
+                    color: "#fff",
+                  },
                 },
                 transition: "background 0.3s, margin 0.3s, padding 0.3s",
                 justifyContent: expanded ? "flex-start" : "center",
@@ -124,6 +127,7 @@ const Sidebar = ({ logo, menuItems }) => {
                     "& .MuiListItemText-primary": {
                       fontSize: "0.95rem",
                       fontWeight: isActive ? "600" : "400",
+                      color: isActive ? "#d7171a" : "#fff",
                     }
                   }}
                 />

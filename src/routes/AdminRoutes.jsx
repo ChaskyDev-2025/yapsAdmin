@@ -15,7 +15,7 @@ import Banners from "../pages/admin/banner/Banners";
 import Personalizar from "../pages/admin/personalizar/Personalizar";
 import Perfil from "../pages/admin/perfil/Perfil";
 import VerificarRol from "../pages/admin/perfil/VerificarRol";
-import Documentos from "../pages/admin/docs/docs"; // Asegúrate de que esta ruta sea correcta
+import Documentos from "../pages/admin/docs/docs"; 
 import GestionFlotas from "../pages/admin/flotas/GestionFlotas";
 import GestionServicios from "../pages/admin/servicios/GestionServicios";
 import Referidos from "../pages/admin/referidos/Referidos";
@@ -27,6 +27,7 @@ import BilleteraFlota from "../pages/admin/billetera/BilleteraFlota";
 import GestionarSolicitudes from "../pages/admin/billetera/GestionarSolicitudes";
 import Bonos from "../pages/admin/bonos/Bonos";
 import BonosAdmin from "../pages/admin/bonos-aplicar/BonosAdmin";
+import Politicas from "../pages/admin/politicas/Politicas";
 
 const AdminRoutes = () => (
   <Routes>
@@ -52,6 +53,7 @@ const AdminRoutes = () => (
       <Route path="solicitudes" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Solicitudes /></RoleProtectedRoute>} />
       <Route path="bonos" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Bonos /></RoleProtectedRoute>} />
       <Route path="aplicar-bonos" element={<RoleProtectedRoute allowedRoles={["admin"]}><BonosAdmin /></RoleProtectedRoute>} />
+      <Route path="politicas" element={<RoleProtectedRoute allowedRoles={["superadmin"]}><Politicas /></RoleProtectedRoute>} />
       
       {/* RUTAS PARA FLOTAS */}
       <Route path="solicitudes-asignadas" element={<FlotaProtectedRoute><SolicitudesAsignadas /></FlotaProtectedRoute>} />

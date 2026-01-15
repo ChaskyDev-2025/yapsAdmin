@@ -1267,7 +1267,6 @@ const Billetera = () => {
                         )}
                         {visibleColumnsHistorial.monto && (
                           <TableCell
-                            align="right"
                             sx={{
                               backgroundColor: "#000000",
                               color: "white",
@@ -1291,7 +1290,6 @@ const Billetera = () => {
                           Concepto
                         </TableCell>
                         <TableCell
-                          align="right"
                           sx={{
                             backgroundColor: "#000000",
                             color: "white",
@@ -1303,7 +1301,6 @@ const Billetera = () => {
                           Saldo Anterior
                         </TableCell>
                         <TableCell
-                          align="right"
                           sx={{
                             backgroundColor: "#000000",
                             color: "white",
@@ -1316,6 +1313,7 @@ const Billetera = () => {
                         </TableCell>
                         {visibleColumnsHistorial.comprobante && (
                           <TableCell
+                            align="center"
                             sx={{
                               backgroundColor: "#000000",
                               color: "white",
@@ -1358,7 +1356,14 @@ const Billetera = () => {
                         <TableRow
                           key={transaccion.id}
                           hover
-                          sx={{ borderBottom: "1px solid #d0d0d0" }}
+                          sx={{ 
+                            borderBottom: "1px solid #d0d0d0",
+                            height: "auto",
+                            "& td": {
+                              verticalAlign: "flex-start",
+                              paddingY: 1.5,
+                            }
+                          }}
                         >
                           {visibleColumnsHistorial.flota && (
                             <TableCell
@@ -1372,7 +1377,6 @@ const Billetera = () => {
                           )}
                           {visibleColumnsHistorial.monto && (
                             <TableCell
-                              align="right"
                               sx={{
                                 fontWeight: 700,
                                 fontSize: "1.05rem",
@@ -1399,7 +1403,6 @@ const Billetera = () => {
                             {transaccion.concepto || "-"}
                           </TableCell>
                           <TableCell
-                            align="right"
                             sx={{
                               fontFamily: "Mulish, sans-serif",
                             }}
@@ -1410,7 +1413,6 @@ const Billetera = () => {
                             )}
                           </TableCell>
                           <TableCell
-                            align="right"
                             sx={{
                               fontWeight: 600,
                               fontFamily: "Mulish, sans-serif",
@@ -1642,7 +1644,6 @@ const Billetera = () => {
                       )}
                       {visibleColumnsFlotas.saldo && (
                       <TableCell
-                        align="right"
                         sx={{
                           backgroundColor: "#000000",
                           color: "white",
@@ -1688,7 +1689,14 @@ const Billetera = () => {
                       <TableRow
                         key={flota.id}
                         hover
-                        sx={{ borderBottom: "1px solid #d0d0d0" }}
+                        sx={{ 
+                          borderBottom: "1px solid #d0d0d0",
+                          height: "auto",
+                          "& td": {
+                            verticalAlign: "flex-start",
+                            paddingY: 1.5,
+                          }
+                        }}
                       >
                         {visibleColumnsFlotas.flota && (
                         <TableCell
@@ -1713,7 +1721,6 @@ const Billetera = () => {
                         )}
                         {visibleColumnsFlotas.saldo && (
                         <TableCell
-                          align="right"
                           sx={{
                             fontWeight: 700,
                             fontSize: "1.05rem",

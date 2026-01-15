@@ -73,47 +73,45 @@ export default function ModalIzquierdoConductor({ rowData }) {
           <Typography sx={{ wordBreak: "break-word", overflowWrap: "break-word" }}>
             <b>Flota:</b> {flotaNombre}
           </Typography>
-          {categorias.length > 0 && (
+          {(categorias.length > 0 || Object.keys(servicios).length > 0) && (
             <Box sx={{ mt: 1 }}>
               <Typography component="b" sx={{ color: "text.secondary" }}>
                 Categorías y Servicios:
               </Typography>
               <Box sx={{ mt: 0.5, pl: 1 }}>
-                {categorias.map((cat) => {
-                  // Normalizar la categoría: quitar tilde, pasar a minúscula
-                  const catNormalizada = cat
-                    .toLowerCase()
-                    .normalize('NFD')
-                    .replace(/[\u0300-\u036f]/g, '');
-                  const servicioRaw = servicios[catNormalizada] || servicios[cat.toLowerCase()] || null;
-                  
+                {Object.entries(servicios).map(([categoria, serviciosRaw]) => {
                   // Extraer los valores del servicio si es un objeto o array
                   let serviciosArray = [];
-                  if (Array.isArray(servicioRaw)) {
-                    serviciosArray = servicioRaw.map(s => {
-                      if (typeof s === 'object' && s?.valor) {
-                        return s.valor;
-                      }
-                      return s;
-                    });
-                  } else if (typeof servicioRaw === 'object' && servicioRaw?.valor) {
-                    serviciosArray = [servicioRaw.valor];
-                  } else if (servicioRaw && typeof servicioRaw === 'string') {
-                    serviciosArray = [servicioRaw];
+                  if (Array.isArray(serviciosRaw)) {
+                    serviciosArray = serviciosRaw
+                      .filter(s => s) // Filtrar valores vacíos/null
+                      .map(s => {
+                        if (typeof s === 'object' && s?.valor) {
+                          return s.valor;
+                        }
+                        return s;
+                      });
+                  } else if (typeof serviciosRaw === 'object' && serviciosRaw?.valor) {
+                    serviciosArray = [serviciosRaw.valor];
+                  } else if (serviciosRaw && typeof serviciosRaw === 'string') {
+                    serviciosArray = [serviciosRaw];
                   }
                   
+                  // Filtrar duplicados
+                  serviciosArray = [...new Set(serviciosArray)];
+                  
                   return serviciosArray.length > 0 ? (
-                    <Box key={cat}>
+                    <Box key={categoria}>
                       <Typography sx={{ fontSize: "0.9rem", fontWeight: 600, mb: 0.5 }}>
-                        {cat}:
+                        {categoria}:
                       </Typography>
                       {serviciosArray.map((s, idx) => {
                         // Quitar el prefijo de la categoría del servicio
                         let servicioLimpio = s;
                         
                         // Crear variantes del prefijo para comparación
-                        const prefijoGuion = cat.toLowerCase().replace(/\s+/g, '_') + '_';
-                        const prefijoEspacio = cat.toLowerCase() + ' ';
+                        const prefijoGuion = categoria.toLowerCase().replace(/\s+/g, '_') + '_';
+                        const prefijoEspacio = categoria.toLowerCase() + ' ';
                         
                         // Quitar el prefijo si existe (con guion bajo o espacio)
                         const servicioMinuscula = servicioLimpio.toLowerCase();
@@ -125,6 +123,12 @@ export default function ModalIzquierdoConductor({ rowData }) {
                         
                         // Reemplazar guiones bajos con espacios
                         servicioLimpio = servicioLimpio.replace(/_/g, ' ');
+                        
+                        // Capitalizar cada palabra
+                        servicioLimpio = servicioLimpio
+                          .split(' ')
+                          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                          .join(' ');
                         
                         return (
                           <Typography key={idx} sx={{ fontSize: "0.85rem", ml: 1, wordBreak: "break-word", overflowWrap: "break-word" }}>

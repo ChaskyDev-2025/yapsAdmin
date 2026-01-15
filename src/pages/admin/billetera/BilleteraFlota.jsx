@@ -1980,7 +1980,7 @@ const BilleteraFlota = () => {
                             )}
                           </Box>
                         </TableCell>
-                        <TableCell align="center">
+                        <TableCell align="flex-start">
                           <Tooltip title="Ver detalles">
                             <IconButton
                               size="small"

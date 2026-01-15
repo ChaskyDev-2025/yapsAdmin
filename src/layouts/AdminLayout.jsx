@@ -17,6 +17,7 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import MailIcon from "@mui/icons-material/Mail";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import GavelIcon from "@mui/icons-material/Gavel";
 import Navbar          from "../components/Navbar";
 import Footer          from "../components/Footer";
 import Sidebar         from "../components/Sidebar";
@@ -50,6 +51,7 @@ const AdminLayout = () => {
         { path: "/admin/documentos", label: "Documentos", icon: <ArticleIcon /> },
         { path: "/admin/banners", label: "Banners", icon: <PhotoLibraryIcon /> },
         { path: "/admin/referidos", label: "Referidos", icon: <CardGiftcardIcon /> },
+        { path: "/admin/politicas", label: "Políticas de Privacidad", icon: <GavelIcon /> },
         // { path: "/admin/bonos", label: "Bonos y Recompensas", icon: <CardGiftcardIcon /> },
         { path: "/admin/perfil", label: "Perfil", icon: <AccountCircleIcon /> },
       ];
