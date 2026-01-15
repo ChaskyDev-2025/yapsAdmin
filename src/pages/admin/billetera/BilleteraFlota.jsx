@@ -1310,6 +1310,8 @@ const BilleteraFlota = () => {
             background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
             borderRadius: 2,
             color: "#fff",
+            maxWidth: "500px",
+            width: "fit-content",
           }}
         >
           <Typography
@@ -1320,20 +1322,9 @@ const BilleteraFlota = () => {
           </Typography>
           <Typography
             variant="h3"
-            sx={{ fontWeight: 700, fontFamily: "Mulish, sans-serif" }}
+            sx={{ fontWeight: 700, fontFamily: "Mulish, sans-serif", color: "#fff" }}
           >
-            ${(typeof saldoActual === 'number' && saldoActual !== undefined ? saldoActual : 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
-          </Typography>
-          <Typography
-            variant="caption"
-            sx={{
-              opacity: 0.8,
-              mt: 1,
-              display: "block",
-              fontFamily: "Mulish, sans-serif",
-            }}
-          >
-            Se actualiza automáticamente con recargas y retiros
+            Bs. {(typeof saldoActual === 'number' && saldoActual !== undefined ? saldoActual : 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
           </Typography>
         </Paper>
 
@@ -1696,7 +1687,7 @@ const BilleteraFlota = () => {
                                   fontFamily: "Mulish, sans-serif",
                                 }}
                               >
-                                -
+                                Sin comprobante
                               </Typography>
                             )}
                           </TableCell>
@@ -2019,7 +2010,17 @@ const BilleteraFlota = () => {
                                 <ImageIcon />
                               </IconButton>
                             </Tooltip>
-                          ) : null}
+                          ) : (
+                            <Tooltip title="Sin comprobante adjunto">
+                              <IconButton
+                                size="small"
+                                disabled
+                                sx={{ color: "#ccc", mr: 1 }}
+                              >
+                                <ImageIcon />
+                              </IconButton>
+                            </Tooltip>
+                          )}
                           {solicitud.estado === "pendiente" && (
                             <>
                               <Tooltip title="Aprobar">

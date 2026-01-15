@@ -742,7 +742,7 @@ const Billetera = () => {
                   variant="h5"
                   sx={{ color: "#fff", fontWeight: 700, mt: 1 }}
                 >
-                  ${saldoTotalFormato}
+                  Bs. {saldoTotalFormato}
                 </Typography>
               </CardContent>
             </Card>

@@ -92,7 +92,7 @@ const SolicitudesTable = ({
                         {solicitud.estado !== "rechazada" && (
                           <IconButton
                             size="small"
-                            onClick={() => onRechazar(solicitud.id)}
+                            onClick={() => onRechazar(solicitud)}
                             sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcdd2" } }}
                             title="Rechazar"
                           >

@@ -12,6 +12,7 @@ import {
   Button,
   Select,
   MenuItem,
+  TextField,
 } from "@mui/material";
 import {
   collection,
@@ -23,6 +24,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 import { NotificationContext } from "../../../context/NotificationContext";
+import { useAuth } from "../../../auth/AuthContext";
 import { TableToolbar } from "../usuarios/components/TableToolbar";
 import DateFilterComponent from "../usuarios/components/DateFilterComponent";
 
@@ -35,6 +37,7 @@ import OfertaDialog from "./components/OfertaDialog";
 
 const Solicitudes = () => {
   const { addNotification, deleteNotification } = useContext(NotificationContext);
+  const { userRole } = useAuth();
   
   // Estilos para campos deshabilitados
   const disabledTextFieldStyles = {
@@ -59,6 +62,7 @@ const Solicitudes = () => {
   const [solicitudOferta, setSolicitudOferta] = useState(null);
   const [rechazarDialogOpen, setRechazarDialogOpen] = useState(false);
   const [solicitudParaRechazar, setSolicitudParaRechazar] = useState(null);
+  const [motivoRechazo, setMotivoRechazo] = useState("");
 
   // Estados para filtro de fecha
   const [dateFilterTypeSolicitudes, setDateFilterTypeSolicitudes] = useState("todos");
@@ -480,30 +484,59 @@ const Solicitudes = () => {
   };
 
   const handleConfirmarRechazo = async () => {
-    if (!solicitudParaRechazar) return;
+    if (!solicitudParaRechazar || !motivoRechazo.trim()) {
+      addNotification({
+        type: "warning",
+        title: "Motivo requerido",
+        message: "Por favor ingresa un motivo para rechazar la solicitud.",
+        duration: 2000,
+      });
+      return;
+    }
 
     try {
-      await updateDoc(doc(db, "solicitudes", solicitudParaRechazar.id), {
-        estado: "pendiente", // Vuelve a pendiente para poder reasignarla
+      // Determinar el nuevo estado según el rol del usuario
+      const nuevoEstado = userRole === "superadmin" ? "cancelado" : "pendiente";
+      const updateData = {
+        estado: nuevoEstado,
         fecha_rechazo: new Date(),
-        flota_asignada: null, // Limpia la asignación anterior
-        fecha_asignacion: null
-      });
+        motivo_rechazo: motivoRechazo,
+      };
+
+      // Si es un admin, limpiar la asignación anterior
+      if (userRole !== "superadmin") {
+        updateData.flota_asignada = null;
+        updateData.fecha_asignacion = null;
+      }
+
+      await updateDoc(doc(db, "solicitudes", solicitudParaRechazar.id), updateData);
 
       setSolicitudes(solicitudes.map(s =>
-        s.id === solicitudParaRechazar.id ? { ...s, estado: "pendiente", flota_asignada: null } : s
+        s.id === solicitudParaRechazar.id 
+          ? { 
+              ...s, 
+              estado: nuevoEstado, 
+              ...(userRole !== "superadmin" && { flota_asignada: null })
+            } 
+          : s
       ));
 
-      // Agregar notificación
+      // Agregar notificación según el rol
+      const mensaje = userRole === "superadmin" 
+        ? "La solicitud ha sido cancelada exitosamente."
+        : "La solicitud ha sido rechazada y vuelve a pendiente para reasignación.";
+      const titulo = userRole === "superadmin" ? "Solicitud Cancelada" : "Solicitud Rechazada";
+
       addNotification({
         type: "info",
-        title: "Solicitud Rechazada",
-        message: "La solicitud ha sido rechazada y vuelve a pendiente para reasignación.",
+        title: titulo,
+        message: mensaje,
         duration: 2000,
       });
 
       setRechazarDialogOpen(false);
       setSolicitudParaRechazar(null);
+      setMotivoRechazo("");
     } catch (error) {
       console.error("Error rechazando solicitud:", error);
       addNotification({
@@ -518,6 +551,7 @@ const Solicitudes = () => {
   const handleCancelarRechazo = () => {
     setRechazarDialogOpen(false);
     setSolicitudParaRechazar(null);
+    setMotivoRechazo("");
   };
 
   // Manejadores para filtro de fecha
@@ -854,6 +888,39 @@ const Solicitudes = () => {
                 </Typography>
               </Box>
             )}
+            <TextField
+              fullWidth
+              label="Motivo del rechazo"
+              placeholder="Ingresa el motivo por el cual rechazas esta solicitud..."
+              multiline
+              rows={3}
+              value={motivoRechazo}
+              onChange={(e) => setMotivoRechazo(e.target.value)}
+              variant="outlined"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': {
+                    borderColor: '#d7171a',
+                    borderWidth: 2
+                  },
+                  '&:hover fieldset': {
+                    borderColor: '#d7171a',
+                    borderWidth: 2
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#d7171a',
+                    borderWidth: 2
+                  }
+                },
+                '& .MuiInputLabel-root': {
+                  color: '#d7171a',
+                  fontWeight: 600,
+                  '&.Mui-focused': {
+                    color: '#d7171a'
+                  }
+                }
+              }}
+            />
             <Typography variant="body2" sx={{ color: "#999", fontStyle: "italic" }}>
               Esta acción no se puede deshacer. La solicitud volverá a estado pendiente y podrá ser reasignada.
             </Typography>
