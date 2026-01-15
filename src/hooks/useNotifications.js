@@ -59,6 +59,7 @@ export const useNotifications = () => {
   const { userRole } = useAuth();
   const unsubscribersRef = useRef([]);
   const setupDoneRef = useRef(false);
+  const shownNotificationsRef = useRef(new Set()); // Rastrear notificaciones ya mostradas
 
   useEffect(() => {
     if (userRole !== "superadmin") {
@@ -99,25 +100,38 @@ export const useNotifications = () => {
               
               // Notificar cuando llega una NUEVA solicitud pendiente
               const isPending = data.estado === "pendiente" || !data.estado;
+              const notificationKey = `solicitud_${change.doc.id}`; // Crear clave única para deduplicación
+              
               if (isPending && (change.type === "added" || change.type === "modified")) {
-                addNotification({
-                  type: "solicitud_servicio",
-                  title: "Nueva solicitud de servicio",
-                  message: `Solicitud de ${data.solicitud?.detalles?.servicio || "servicio"} - ${data.solicitud?.detalles?.ciudad || ""}`,
-                  data: { id: change.doc.id, ...data },
-                });
-                // playNotificationSoundWithDebounce(); // DESACTIVADO
-                // playNotificationSound(); // DESACTIVADO
+                // Solo mostrar notificación si NO la hemos mostrado antes
+                if (!shownNotificationsRef.current.has(notificationKey)) {
+                  shownNotificationsRef.current.add(notificationKey); // Marcar como mostrada
+                  addNotification({
+                    type: "solicitud_servicio",
+                    title: "Nueva solicitud de servicio",
+                    message: `Solicitud de ${data.solicitud?.detalles?.servicio || "servicio"} - ${data.solicitud?.detalles?.ciudad || ""}`,
+                    data: { id: change.doc.id, ...data },
+                  });
+                  // playNotificationSoundWithDebounce(); // DESACTIVADO
+                  // playNotificationSound(); // DESACTIVADO
+                }
+              } else if (isPending === false && change.type === "modified") {
+                // Si la solicitud ya NO está pendiente, remover de cache para permitir futuras notificaciones
+                shownNotificationsRef.current.delete(notificationKey);
               }
               
               // Notificar cuando una solicitud es RECHAZADA
               if (data.estado === "rechazada" && change.type === "modified") {
-                addNotification({
-                  type: "solicitud_rechazada",
-                  title: "Solicitud Rechazada",
-                  message: `${data.solicitud?.detalles?.servicio || "Solicitud"} - ${data.solicitud?.detalles?.ciudad || ""} fue rechazada por la flota`,
-                  data: { id: change.doc.id, ...data },
-                });
+                const notificationKeyRejected = `rechazada_${change.doc.id}`;
+                if (!shownNotificationsRef.current.has(notificationKeyRejected)) {
+                  shownNotificationsRef.current.add(notificationKeyRejected);
+                  addNotification({
+                    type: "solicitud_rechazada",
+                    title: "Solicitud Rechazada",
+                    message: `${data.solicitud?.detalles?.servicio || "Solicitud"} - ${data.solicitud?.detalles?.ciudad || ""} fue rechazada por la flota`,
+                    data: { id: change.doc.id, ...data },
+                  });
+                }
               }
             });
           },

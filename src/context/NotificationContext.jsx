@@ -302,6 +302,9 @@ export const NotificationProvider = ({ children }) => {
     };
   }, [userRole, userFlotaId, user, addNotification, deleteNotification, playNotificationSound]);
 
+  // Refs para rastrear últimos conteos mostrados (evitar duplicados)
+  const lastRecargaFlotaCountRef = useRef(null);
+  const lastRecargaConductorCountRef = useRef(null);
   const recargasFlotaCountRef = useRef({});
 
   // Listener de solicitudes de recarga de FLOTA para SuperAdmin y Admin
@@ -348,29 +351,34 @@ export const NotificationProvider = ({ children }) => {
                     // Calcular total
                     const totalRecargasPendientes = Object.values(recargasFlotaCountRef.current).reduce((sum, count) => sum + count, 0);
                     
-                    // Actualizar notificación inmediatamente
-                    if (totalRecargasPendientes > 0) {
-                      const message = `Hay ${totalRecargasPendientes} solicitud(es) de recarga pendiente(s)`;
+                    // Solo actualizar si el conteo cambió (evitar spam)
+                    if (totalRecargasPendientes !== lastRecargaFlotaCountRef.current) {
+                      lastRecargaFlotaCountRef.current = totalRecargasPendientes;
                       
-                      const existingId = persistentRecargaFlotaRef.current;
-                      if (existingId) {
-                        try { deleteNotification(existingId); } catch (e) {}
+                      // Actualizar notificación inmediatamente
+                      if (totalRecargasPendientes > 0) {
+                        const message = `Hay ${totalRecargasPendientes} solicitud(es) de recarga pendiente(s)`;
+                        
+                        const existingId = persistentRecargaFlotaRef.current;
+                        if (existingId) {
+                          try { deleteNotification(existingId); } catch (e) {}
+                        }
+                        
+                        const newId = addNotification({ message, type: 'solicitud_recarga', title: 'Recargas de Flota Pendientes' });
+                        persistentRecargaFlotaRef.current = newId;
+                        
+                        if (recargasFlotaInitializedRef.current) {
+                          playNotificationSound();
+                        }
+                        recargasFlotaInitializedRef.current = true;
+                      } else {
+                        const existingId = persistentRecargaFlotaRef.current;
+                        if (existingId) {
+                          try { deleteNotification(existingId); } catch (e) {}
+                          persistentRecargaFlotaRef.current = null;
+                        }
+                        recargasFlotaInitializedRef.current = true;
                       }
-                      
-                      const newId = addNotification({ message, type: 'solicitud_recarga', title: 'Recargas de Flota Pendientes' });
-                      persistentRecargaFlotaRef.current = newId;
-                      
-                      if (recargasFlotaInitializedRef.current) {
-                        playNotificationSound();
-                      }
-                      recargasFlotaInitializedRef.current = true;
-                    } else {
-                      const existingId = persistentRecargaFlotaRef.current;
-                      if (existingId) {
-                        try { deleteNotification(existingId); } catch (e) {}
-                        persistentRecargaFlotaRef.current = null;
-                      }
-                      recargasFlotaInitializedRef.current = true;
                     }
                   } catch (e) {
                     console.error('❌ Error procesando solicitudes de flota:', e);
@@ -411,29 +419,34 @@ export const NotificationProvider = ({ children }) => {
                 }
               });
 
-              // Notificación persistente: conteo de recargas pendientes
-              const existingId = persistentRecargaFlotaRef.current;
-              if (totalRecargasPendientes > 0) {
-                const message = `Hay ${totalRecargasPendientes} solicitud(es) de recarga pendiente(s)`;
+              // Solo actualizar si el conteo cambió (evitar spam)
+              if (totalRecargasPendientes !== lastRecargaFlotaCountRef.current) {
+                lastRecargaFlotaCountRef.current = totalRecargasPendientes;
                 
-                if (existingId) {
-                  try { deleteNotification(existingId); } catch (e) {}
+                // Notificación persistente: conteo de recargas pendientes
+                const existingId = persistentRecargaFlotaRef.current;
+                if (totalRecargasPendientes > 0) {
+                  const message = `Hay ${totalRecargasPendientes} solicitud(es) de recarga pendiente(s)`;
+                  
+                  if (existingId) {
+                    try { deleteNotification(existingId); } catch (e) {}
+                  }
+                  
+                  const newId = addNotification({ message, type: 'solicitud_recarga', title: 'Recargas de Flota Pendientes' });
+                  persistentRecargaFlotaRef.current = newId;
+                  
+                  // Solo reproducir sonido si no es la primera carga
+                  if (recargasFlotaInitializedRef.current) {
+                    playNotificationSound();
+                  }
+                  recargasFlotaInitializedRef.current = true;
+                } else {
+                  if (existingId) {
+                    try { deleteNotification(existingId); } catch (e) {}
+                    persistentRecargaFlotaRef.current = null;
+                  }
+                  recargasFlotaInitializedRef.current = true;
                 }
-                
-                const newId = addNotification({ message, type: 'solicitud_recarga', title: 'Recargas de Flota Pendientes' });
-                persistentRecargaFlotaRef.current = newId;
-                
-                // Solo reproducir sonido si no es la primera carga
-                if (recargasFlotaInitializedRef.current) {
-                  playNotificationSound();
-                }
-                recargasFlotaInitializedRef.current = true;
-              } else {
-                if (existingId) {
-                  try { deleteNotification(existingId); } catch (e) {}
-                  persistentRecargaFlotaRef.current = null;
-                }
-                recargasFlotaInitializedRef.current = true;
               }
             } catch (e) {
               console.error('❌ NotificationProvider - error processing recargas snapshot (admin)', e);
@@ -507,29 +520,34 @@ export const NotificationProvider = ({ children }) => {
                     // Calcular total
                     const totalRecargasConductores = Object.values(recargasCountRef.current).reduce((sum, count) => sum + count, 0);
                     
-                    // Actualizar notificación inmediatamente
-                    if (totalRecargasConductores > 0) {
-                      const message = `Hay ${totalRecargasConductores} solicitud(es) de recarga de conductor(es) pendiente(s)`;
+                    // Solo actualizar si el conteo cambió (evitar spam)
+                    if (totalRecargasConductores !== lastRecargaConductorCountRef.current) {
+                      lastRecargaConductorCountRef.current = totalRecargasConductores;
                       
-                      const existingId = persistentRecargaConductorRef.current;
-                      if (existingId) {
-                        try { deleteNotification(existingId); } catch (e) {}
+                      // Actualizar notificación inmediatamente
+                      if (totalRecargasConductores > 0) {
+                        const message = `Hay ${totalRecargasConductores} solicitud(es) de recarga de conductor(es) pendiente(s)`;
+                        
+                        const existingId = persistentRecargaConductorRef.current;
+                        if (existingId) {
+                          try { deleteNotification(existingId); } catch (e) {}
+                        }
+                        
+                        const newId = addNotification({ message, type: 'solicitud_recarga_conductores', title: 'Recargas de Conductores Pendientes' });
+                        persistentRecargaConductorRef.current = newId;
+                        
+                        if (recargasInitializedRef.current) {
+                          playNotificationSound();
+                        }
+                        recargasInitializedRef.current = true;
+                      } else {
+                        const existingId = persistentRecargaConductorRef.current;
+                        if (existingId) {
+                          try { deleteNotification(existingId); } catch (e) {}
+                          persistentRecargaConductorRef.current = null;
+                        }
+                        recargasInitializedRef.current = true;
                       }
-                      
-                      const newId = addNotification({ message, type: 'solicitud_recarga_conductores', title: 'Recargas de Conductores Pendientes' });
-                      persistentRecargaConductorRef.current = newId;
-                      
-                      if (recargasInitializedRef.current) {
-                        playNotificationSound();
-                      }
-                      recargasInitializedRef.current = true;
-                    } else {
-                      const existingId = persistentRecargaConductorRef.current;
-                      if (existingId) {
-                        try { deleteNotification(existingId); } catch (e) {}
-                        persistentRecargaConductorRef.current = null;
-                      }
-                      recargasInitializedRef.current = true;
                     }
                   } catch (e) {
                     console.error('❌ Error procesando historial de conductor:', e);
