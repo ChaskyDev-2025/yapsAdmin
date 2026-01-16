@@ -406,14 +406,14 @@ const Referidos = () => {
     <Box sx={{ p: 3 }}>
       <Paper elevation={6} sx={{ p: 3, borderRadius: 2, backgroundColor: "#f9f9f9" }}>
         {/* Encabezado */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0 }}>
           <div>
             <ReferidosHeader />
           </div>
         </Box>
 
       {/* Pestañas */}
-      <Box sx={{ borderBottom: 2, borderColor: "divider", mt: 4, mb: 2 }}>
+      <Box sx={{ borderBottom: 2, borderColor: "divider", mt: 0, mb: 2 }}>
         <Tabs 
           value={selectedTab} 
           onChange={(e, newValue) => setSelectedTab(newValue)}

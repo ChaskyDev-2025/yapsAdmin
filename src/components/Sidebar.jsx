@@ -97,6 +97,9 @@ const Sidebar = ({ logo, menuItems }) => {
                   "& .MuiListItemIcon-root": {
                     color: "#fff",
                   },
+                  "& .MuiListItemText-primary": {
+                    color: "#fff",
+                  },
                 },
                 transition: "background 0.3s, margin 0.3s, padding 0.3s",
                 justifyContent: expanded ? "flex-start" : "center",

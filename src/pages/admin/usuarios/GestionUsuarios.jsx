@@ -46,7 +46,8 @@ import WifiOffIcon from "@mui/icons-material/WifiOff";
 import { useAuth } from "../../../auth/AuthContext";
 
 import { getAllUsers, createAdminUser, updateUser, deleteUser, isSuperAdmin } from "../../../services/userService";
-import { collection, deleteDoc, doc, updateDoc, onSnapshot } from "firebase/firestore";
+import { deleteDocumentWithSubcollections } from "../../../services/deleteService";
+import { collection, doc, updateDoc, onSnapshot } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 import { TableToolbar } from "./components/TableToolbar";
 import ModalDetalleConductor from "./components/ModalDetalleConductor";
@@ -1012,10 +1013,10 @@ const GestionUsuarios = () => {
   const handleConfirmDeleteConductor = async () => {
     if (!conductorToDelete) return;
     try {
-      await deleteDoc(doc(db, "trabajadores", conductorToDelete.id));
+      await deleteDocumentWithSubcollections("trabajadores", conductorToDelete.id);
       setSnackbar({
         open: true,
-        message: "✅ Conductor eliminado correctamente",
+        message: "✅ Conductor y todas sus subcollecciones eliminados",
         severity: "success"
       });
     } catch (error) {
@@ -1042,10 +1043,10 @@ const GestionUsuarios = () => {
   const handleConfirmDeletePasajero = async () => {
     if (!pasajeroToDelete) return;
     try {
-      await deleteDoc(doc(db, "pasajeros", pasajeroToDelete.id));
+      await deleteDocumentWithSubcollections("pasajeros", pasajeroToDelete.id);
       setSnackbar({
         open: true,
-        message: "✅ Pasajero eliminado correctamente",
+        message: "✅ Pasajero y todas sus subcollecciones eliminados",
         severity: "success"
       });
     } catch (error) {

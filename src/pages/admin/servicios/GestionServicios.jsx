@@ -86,8 +86,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
       porKm: 0,
       porMin: 0,
       horaPicoExtra: 0,
-      nocturno: 0,
-      comision: 0
+      nocturno: 0
     },
     nombre_visible: '',
     categoria: 'transporte_pasajeros',
@@ -129,8 +128,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
           porKm: 0,
           porMin: 0,
           horaPicoExtra: 0,
-          nocturno: 0,
-          comision: 0
+          nocturno: 0
         },
         tarifasAeropuerto: [{ desdeKm: "10", precio: "40.00" }, { desdeKm: "20", precio: "60.00" }],
         horasPico: [{ desde: "07:00", hasta: "09:00" }, { desde: "18:00", hasta: "20:00" }],
@@ -164,7 +162,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
       } else {
         setFormData({
           activo: true,
-          tarifa_general: { tarifaBase: '', distanciaBase: '', porKm: '', porMin: '', horaPicoExtra: '', nocturno: '', comision: '' },
+          tarifa_general: { tarifaBase: '', distanciaBase: '', porKm: '', porMin: '', horaPicoExtra: '', nocturno: '' },
           tipo_calculo: 'distancia_tiempo',
           unidad_precio: 'Bs',
           tarifasAeropuerto: [{ desdeKm: "10", precio: "40.00" }, { desdeKm: "20", precio: "60.00" }],
@@ -255,8 +253,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
           porKm: String(service.reglas_tarifa?.porKm ?? service.reglas_tarifa?.costo_por_km ?? service.tarifa_general?.porKm ?? ''),
           porMin: String(service.reglas_tarifa?.porMin ?? service.reglas_tarifa?.costo_por_min ?? service.tarifa_general?.porMin ?? ''),
           horaPicoExtra: String(service.reglas_tarifa?.horaPicoExtra ?? service.reglas_tarifa?.recargo_nocturno ?? service.tarifa_general?.horaPicoExtra ?? ''),
-          nocturno: String(service.reglas_tarifa?.nocturno ?? service.reglas_tarifa?.recargo_nocturno ?? service.tarifa_general?.nocturno ?? ''),
-          comision: String(service.reglas_tarifa?.comision ?? service.tarifa_general?.comision ?? '')
+          nocturno: String(service.reglas_tarifa?.nocturno ?? service.reglas_tarifa?.recargo_nocturno ?? service.tarifa_general?.nocturno ?? '')
         },
         tipo_calculo: tipoCalculoFinal,
         tarifasAeropuerto: service.Tarifas_Aeropuerto?.tramos || [],
