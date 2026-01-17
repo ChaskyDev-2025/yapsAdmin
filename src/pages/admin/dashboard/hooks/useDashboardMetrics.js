@@ -61,7 +61,12 @@ export const useDashboardMetrics = () => {
     const conductorAsignado = solicitudesData.filter(doc => normalizarEstado(doc.estado) === "conductor asignado").length;
     const enCurso = solicitudesData.filter(doc => normalizarEstado(doc.estado) === "en curso").length;
     const finalizado = solicitudesData.filter(doc => normalizarEstado(doc.estado) === "finalizado").length;
-    const rechazado = solicitudesData.filter(doc => normalizarEstado(doc.estado) === "rechazado").length;
+    const rechazado = solicitudesData.filter(doc => 
+      normalizarEstado(doc.estado) === "rechazada" || 
+      normalizarEstado(doc.estado) === "rechazado" || 
+      normalizarEstado(doc.estado) === "cancelada" ||
+      normalizarEstado(doc.estado) === "cancelado"
+    ).length;
     const solicitado = solicitudesData.filter(doc => normalizarEstado(doc.estado) === "solicitado").length;
 
     // Procesar pasajeros y fechas

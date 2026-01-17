@@ -117,7 +117,8 @@ const SolicitudesAsignadas = () => {
         { label: "Conductor Asignado", value: "conductorAsignado" },
         { label: "En Curso", value: "en_curso" },
         { label: "Finalizado", value: "finalizado" },
-        { label: "Rechazado", value: "rechazado" }
+        { label: "Rechazada", value: "rechazada" },
+        { label: "Cancelado", value: "cancelado" }
       ]
     }
   ];
@@ -594,7 +595,20 @@ const SolicitudesAsignadas = () => {
 
     // Filtro por estado
     if (filterEstado !== "todas") {
-      resultado = resultado.filter(sol => sol.estado === filterEstado);
+      resultado = resultado.filter(sol => {
+        const estadoNormalizado = (sol.estado || "").toLowerCase();
+        const filtroNormalizado = filterEstado.toLowerCase();
+        
+        // Si es rechazada, incluir tanto "rechazada" como "cancelada"
+        if (filtroNormalizado === "rechazada") {
+          return estadoNormalizado === "rechazada" || estadoNormalizado === "cancelada";
+        }
+        // Si es cancelado, incluir tanto "cancelada" como "cancelado"
+        if (filtroNormalizado === "cancelado") {
+          return estadoNormalizado === "cancelada" || estadoNormalizado === "cancelado";
+        }
+        return estadoNormalizado === filtroNormalizado;
+      });
     }
 
     // Filtro por categoría

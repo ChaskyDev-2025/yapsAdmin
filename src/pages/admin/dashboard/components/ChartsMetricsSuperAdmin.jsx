@@ -48,7 +48,7 @@ export default function ChartsMetricsSuperAdmin({ metricas }) {
     { name: "Conductor Asignado", shortName: "Cond.", value: metricas.solicitudes?.conductorAsignado || 0 },
     { name: "En Curso", shortName: "Curso", value: metricas.solicitudes?.enCurso || 0 },
     { name: "Finalizado", shortName: "Final.", value: metricas.solicitudes?.finalizado || 0 },
-    { name: "Rechazado", shortName: "Rech.", value: metricas.solicitudes?.rechazado || 0 },
+    { name: "Rechazadas/Canceladas", shortName: "Rech.", value: metricas.solicitudes?.rechazado || 0 },
     { name: "Solicitado", shortName: "Solid.", value: metricas.solicitudes?.solicitado || 0 },
   ];
 
