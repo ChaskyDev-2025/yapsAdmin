@@ -9,6 +9,8 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  BarChart,
+  Bar,
   PieChart,
   Pie,
   Cell,
@@ -17,6 +19,7 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import { useTrendenciaTrabajadores } from "../hooks/useTrendenciaTrabajadores";
 
 const COLORS = ["#d7171a", "#FF8042", "#00C49F"];
+const COLORS_SOLICITUDES = ["#FF0000", "#FF6B00", "#00D084", "#0088FF", "#FF00FF", "#FFD700", "#FF1493", "#00CED1"];
 
 export default function ChartsMetrics({ metricas }) {
   const { trendData, loading: trendLoading } = useTrendenciaTrabajadores();
@@ -33,6 +36,18 @@ export default function ChartsMetrics({ metricas }) {
     { name: "Aprobados", value: metricas.documentos?.aprobados || 0 },
     { name: "Pendientes", value: metricas.documentos?.pendientes || 0 },
     { name: "Rechazados", value: metricas.documentos?.rechazados || 0 },
+  ];
+
+  // Datos para gráfico de pie (solicitudes - Desglosadas por estado)
+  const solicitudesData = [
+    { name: "Asignada", shortName: "Asign.", value: metricas.solicitudes?.asignada || 0 },
+    { name: "Ofertado", shortName: "Ofer.", value: metricas.solicitudes?.ofertado || 0 },
+    { name: "Aceptado", shortName: "Acept.", value: metricas.solicitudes?.aceptado || 0 },
+    { name: "Conductor Asignado", shortName: "Cond.", value: metricas.solicitudes?.conductorAsignado || 0 },
+    { name: "En Curso", shortName: "Curso", value: metricas.solicitudes?.enCurso || 0 },
+    { name: "Finalizado", shortName: "Final.", value: metricas.solicitudes?.finalizado || 0 },
+    { name: "Rechazado", shortName: "Rech.", value: metricas.solicitudes?.rechazado || 0 },
+    { name: "Solicitado", shortName: "Solid.", value: metricas.solicitudes?.solicitado || 0 },
   ];
 
   return (
@@ -163,6 +178,46 @@ export default function ChartsMetrics({ metricas }) {
               </Box>
             ))}
           </Box>
+        </Paper>
+
+        {/* Gráfico de Barras - Solicitudes */}
+        <Paper sx={{ p: 3, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)", gridColumn: "span 2" }}>
+          <Typography variant="h6" fontWeight={700} mb={2} sx={{ textAlign: "center" }}>
+            Estado de Solicitudes
+          </Typography>
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={solicitudesData} margin={{ top: 20, right: 30, left: 0, bottom: 70 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+              <XAxis 
+                dataKey="name" 
+                angle={-45} 
+                textAnchor="end" 
+                height={80}
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis stroke="#888" />
+              <Tooltip 
+                cursor={{ fill: "rgba(0,0,0,0.05)" }}
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <Box sx={{ backgroundColor: "#fff", border: "1px solid #ddd", p: 1, borderRadius: 1 }}>
+                        <Typography variant="body2">
+                          {payload[0].payload.name}: {payload[0].value}
+                        </Typography>
+                      </Box>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Bar dataKey="value" fill="#FF6B6B" radius={[8, 8, 0, 0]}>
+                {solicitudesData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS_SOLICITUDES[index]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </Paper>
       </div>
     </div>

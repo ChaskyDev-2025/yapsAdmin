@@ -49,10 +49,20 @@ export const useDashboardMetrics = () => {
       });
     });
 
-    // Procesar solicitudes
-    const completadas = solicitudesData.filter(doc => doc.estado === "completada" || doc.estado === "completado").length;
-    const canceladas = solicitudesData.filter(doc => doc.estado === "cancelada" || doc.estado === "cancelado").length;
-    const pendientesSolicitudes = solicitudesData.filter(doc => doc.estado === "pendiente").length;
+    // Procesar solicitudes - Desglosar por todos los estados
+    const normalizarEstado = (estado) => {
+      if (!estado) return "";
+      return estado.toLowerCase().trim();
+    };
+
+    const asignada = solicitudesData.filter(doc => normalizarEstado(doc.estado) === "asignada").length;
+    const ofertado = solicitudesData.filter(doc => normalizarEstado(doc.estado) === "ofertado").length;
+    const aceptado = solicitudesData.filter(doc => normalizarEstado(doc.estado) === "aceptado").length;
+    const conductorAsignado = solicitudesData.filter(doc => normalizarEstado(doc.estado) === "conductor asignado").length;
+    const enCurso = solicitudesData.filter(doc => normalizarEstado(doc.estado) === "en curso").length;
+    const finalizado = solicitudesData.filter(doc => normalizarEstado(doc.estado) === "finalizado").length;
+    const rechazado = solicitudesData.filter(doc => normalizarEstado(doc.estado) === "rechazado").length;
+    const solicitado = solicitudesData.filter(doc => normalizarEstado(doc.estado) === "solicitado").length;
 
     // Procesar pasajeros y fechas
     const hoy = new Date();
@@ -132,12 +142,13 @@ export const useDashboardMetrics = () => {
     const totalDonacionesAcumuladas = Object.values(donacionesPorDepartamento).reduce((sum, val) => sum + val, 0);
 
     // Calcular alertas
-    const alertas = pendientesSolicitudes + canceladas + documentosPendientes;
+    // Calcular alertas basadas en estados activos
+    const alertas = asignada + ofertado + aceptado + conductorAsignado + enCurso;
 
     return {
       radiotaxis: { total: totalTrabajadores, activos: activosTrabajadores, inactivos: inactivosTrabajadores },
       documentos: { pendientes: documentosPendientes, aprobados: documentosAprobados, rechazados: documentosRechazados, total: totalDocumentos },
-      solicitudes: { completadas, canceladas, total: solicitudesData.length, pendientes: pendientesSolicitudes },
+      solicitudes: { asignada, ofertado, aceptado, conductorAsignado, enCurso, finalizado, rechazado, solicitado, total: solicitudesData.length },
       usuarios: { totalPasajeros: pasajerosData.length, totalTrabajadores, nuevosHoy, nuevosEstaSemana },
       ordenes: { total: ordenesData.length, completadas: completadasOrdenes, canceladas: canceladasOrdenes, promedioCosto },
       donaciones: { totalAcumuladas: totalDonacionesAcumuladas, porDepartamento: donacionesPorDepartamento },
@@ -216,9 +227,10 @@ export const useDashboardMetrics = () => {
       unsubscribers.push(unsubOrdenes);
 
       // Listener para solicitudes
+      // FlotaAdmin ve todas las solicitudes asignadas a su flota
       const solicitudesQuery = isSuperAdmin
         ? collection(db, "solicitudes")
-        : query(collection(db, "solicitudes"), where("flotaId", "==", adminFlotaId));
+        : query(collection(db, "solicitudes"), where("flota_asignada", "==", adminFlotaId));
 
       const unsubSolicitudes = onSnapshot(solicitudesQuery, (snapshot) => {
         solicitudesData = snapshot.docs.map(doc => doc.data());

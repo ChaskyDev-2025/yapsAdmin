@@ -218,6 +218,12 @@ const SuperAdminDashboard = () => {
             icon={CancelOutlined}
             color="#d7171a"
           />
+          <StatCard
+            title="Total de Solicitudes"
+            value={metricas.solicitudes.total}
+            icon={LocalTaxi}
+            color="#d7171a"
+          />
         </CardGrid>
 
         {/* FILA 3: Documentos */}

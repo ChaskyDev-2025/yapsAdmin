@@ -56,7 +56,7 @@ const FlotaAdminDashboard = () => {
         <ChartsMetrics metricas={metricas} />
 
         {/* FILA 3: Órdenes */}
-        <CardGrid columns={3}>
+        <CardGrid columns={4}>
           <StatCard
             title="Total de Órdenes"
             value={metricas.ordenes.total}
@@ -73,6 +73,12 @@ const FlotaAdminDashboard = () => {
             title="Órdenes Canceladas"
             value={metricas.ordenes.canceladas}
             icon={CancelOutlined}
+            color="#d7171a"
+          />
+          <StatCard
+            title="Total de Solicitudes"
+            value={metricas.solicitudes.total}
+            icon={LocalTaxi}
             color="#d7171a"
           />
         </CardGrid>
