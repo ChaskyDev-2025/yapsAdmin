@@ -19,67 +19,112 @@ export const useTrendenciaTrabajadores = () => {
     // Determinar si es superadmin o admin de flota
     const isSuperAdmin = userRole === "superadmin";
     
-    // Construir query
+    // Construir query - SIN filtro de "modo" para obtener TODOS los trabajadores
     let q;
     if (isSuperAdmin) {
-      q = query(collection(db, "trabajadores"), where("modo", "==", "trabajador"));
+      q = collection(db, "trabajadores");
     } else {
       q = query(
         collection(db, "trabajadores"),
-        where("flotaId", "==", userFlotaId),
-        where("modo", "==", "trabajador")
+        where("flotaId", "==", userFlotaId)
       );
     }
 
     // Escuchar cambios en tiempo real
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const trabajadores = snapshot.docs.map(doc => doc.data());
+      const trabajadores = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
 
-      // Calcular últimos 7 días
-      const today = new Date();
+      // Contar trabajadores por fecha (TODOS, sin filtro de rango)
       const trendMap = {};
+      let minDate = new Date(); // Iniciar con hoy
+      let maxDate = new Date();
 
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        const dateStr = `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
-        trendMap[dateStr] = 0;
-      }
+      trabajadores.forEach((trabajador, index) => {
+        if (!trabajador.createdAt) {
+          return;
+        }
 
-      // Contar trabajadores por día (según createdAt en la raíz)
-      trabajadores.forEach(trabajador => {
-        if (trabajador.createdAt) {
-          let createdDate;
-          
-          // Convertir la fecha correctamente
-          if (trabajador.createdAt?.seconds) {
+        let createdDate;
+
+        try {
+          // Si tiene segundos (Timestamp de Firestore)
+          if (trabajador.createdAt?.seconds !== undefined) {
             createdDate = new Date(trabajador.createdAt.seconds * 1000);
-          } else if (typeof trabajador.createdAt === "string") {
-            createdDate = new Date(trabajador.createdAt);
-          } else if (trabajador.createdAt?.toDate) {
+          }
+          // Si tiene método toDate()
+          else if (typeof trabajador.createdAt?.toDate === "function") {
             createdDate = trabajador.createdAt.toDate();
-          } else if (trabajador.createdAt instanceof Date) {
+          }
+          // Si es string
+          else if (typeof trabajador.createdAt === "string") {
+            createdDate = new Date(trabajador.createdAt);
+          }
+          // Si es Date
+          else if (trabajador.createdAt instanceof Date) {
             createdDate = trabajador.createdAt;
           }
-          
-          if (createdDate && !isNaN(createdDate.getTime())) {
-            const dateStr = `${String(createdDate.getMonth() + 1).padStart(2, "0")}/${String(createdDate.getDate()).padStart(2, "0")}`;
-            if (trendMap.hasOwnProperty(dateStr)) {
-              trendMap[dateStr]++;
-            }
+          else {
+            return;
           }
+
+          // Validar fecha
+          if (!createdDate || isNaN(createdDate.getTime())) {
+            return;
+          }
+
+          // Normalizar a medianoche
+          createdDate.setHours(0, 0, 0, 0);
+
+          // Actualizar min y max
+          if (createdDate < minDate) {
+            minDate = new Date(createdDate);
+          }
+          if (createdDate > maxDate) {
+            maxDate = new Date(createdDate);
+          }
+
+          // Usar formato MM/DD como clave
+          const dateStr = `${String(createdDate.getMonth() + 1).padStart(2, "0")}/${String(createdDate.getDate()).padStart(2, "0")}`;
+
+          // Contar
+          if (!trendMap[dateStr]) {
+            trendMap[dateStr] = 0;
+          }
+          trendMap[dateStr]++;
+
+        } catch (error) {
+          // Silenciosamente ignorar errores
         }
       });
 
-      const newTrendData = Object.keys(trendMap).map(date => ({
-        name: date,
-        trabajadores: trendMap[date],
-      }));
+      // Generar todas las fechas entre minDate y maxDate (llenar huecos con 0)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      maxDate = maxDate > today ? maxDate : today; // No pasar de hoy
+
+      const allDatesMap = {};
+      const currentDate = new Date(minDate);
+
+      while (currentDate <= maxDate) {
+        const dateStr = `${String(currentDate.getMonth() + 1).padStart(2, "0")}/${String(currentDate.getDate()).padStart(2, "0")}`;
+        allDatesMap[dateStr] = trendMap[dateStr] || 0;
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      // Convertir a array y ordenar por fecha
+      const newTrendData = Object.entries(allDatesMap)
+        .map(([date, count]) => ({
+          name: date,
+          trabajadores: count,
+        }));
 
       setTrendData(newTrendData);
       setLoading(false);
     }, (error) => {
-      console.error("Error obteniendo tendencia:", error);
+      setTrendData([]);
       setLoading(false);
     });
 
