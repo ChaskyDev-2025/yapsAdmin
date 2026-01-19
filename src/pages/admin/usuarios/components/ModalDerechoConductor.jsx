@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "../../../../data/firebase/firebase";
+import { useHistorialConductor } from "../hooks/useHistorialConductor";
 
 export default function ModalDerechoConductor({ userId }) {
   const [viajes, setViajes] = useState([]);
@@ -22,6 +23,7 @@ export default function ModalDerechoConductor({ userId }) {
   const [cargando, setCargando] = useState(true);
   const [pasajerosMap, setPasajerosMap] = useState({});
   const [selectedTab, setSelectedTab] = useState(0);
+  const { solicitudes, cargando: cargandoSolicitudes, formatearFecha: formatearFechaSolicitud } = useHistorialConductor(userId);
 
   // Cargar datos del pasajero
   const cargarNombrePasajero = useCallback(async (uidUser) => {
@@ -176,7 +178,7 @@ export default function ModalDerechoConductor({ userId }) {
     return () => { cancel = true; };
   }, [userId, cargarNombrePasajero]);
 
-  if (cargando) {
+  if (cargando || cargandoSolicitudes) {
     return (
       <Box sx={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", minHeight: 400 }}>
         <CircularProgress sx={{ color: "#d7171a" }} />
@@ -187,18 +189,21 @@ export default function ModalDerechoConductor({ userId }) {
   // Determinar qué categorías tienen datos
   const tieneViajes = viajes.length > 0;
   const tieneEnvios = envios.length > 0;
-  const tieneAmbas = tieneViajes && tieneEnvios;
+  const tieneSolicitudes = solicitudes.length > 0;
 
   // Ajustar tab seleccionado si la categoría no está disponible
   let tabActual = selectedTab;
-  if (!tieneAmbas) {
-    tabActual = tieneViajes ? 0 : 1;
+  const categoriasConDatos = [tieneViajes, tieneEnvios, tieneSolicitudes].filter(Boolean).length;
+  if (categoriasConDatos === 1) {
+    if (tieneViajes) tabActual = 0;
+    else if (tieneEnvios) tabActual = 1;
+    else if (tieneSolicitudes) tabActual = 2;
   }
 
   return (
     <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Encabezado con pestañas - mostrar solo las categorías con datos */}
-      {(tieneViajes || tieneEnvios) && (
+      {(tieneViajes || tieneEnvios || tieneSolicitudes) && (
         <Box sx={{ px: 3, py: 1, borderBottom: "2px solid #e0e0e0" }}>
           <Tabs
             value={tabActual}
@@ -220,12 +225,13 @@ export default function ModalDerechoConductor({ userId }) {
           >
             {tieneViajes && <Tab label={`🚖 Viajes (${viajes.length})`} />}
             {tieneEnvios && <Tab label={`📦 Envios (${envios.length})`} />}
+            {tieneSolicitudes && <Tab label={`📋 Solicitudes (${solicitudes.length})`} />}
           </Tabs>
         </Box>
       )}
 
       {/* Tabla de Viajes - mostrar si hay viajes y (solo viajes o tab 0 seleccionado) */}
-      {tieneViajes && (tabActual === 0 || !tieneAmbas) ? (
+      {tieneViajes && (tabActual === 0 || categoriasConDatos === 1) ? (
         tieneViajes ? (
         <TableContainer sx={{ flex: 1, overflow: "auto" }}>
           <Table stickyHeader size="small">
@@ -345,7 +351,7 @@ export default function ModalDerechoConductor({ userId }) {
       ) : null}
 
       {/* Tabla de Envios - mostrar si hay envios y (solo envios o tab 1 seleccionado) */}
-      {tieneEnvios && (tabActual === 1 || !tieneAmbas) ? (
+      {tieneEnvios && (tabActual === 1 || categoriasConDatos === 1) ? (
         tieneEnvios ? (
           <TableContainer sx={{ flex: 1, overflow: "auto" }}>
             <Table stickyHeader size="small">
@@ -455,6 +461,102 @@ export default function ModalDerechoConductor({ userId }) {
           <Box sx={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
             <Typography sx={{ color: "#bdbdbd", fontFamily: "Mulish, sans-serif" }}>
               Sin envios registrados
+            </Typography>
+          </Box>
+        )
+      ) : null}
+
+      {/* Tabla de Solicitudes - mostrar si hay solicitudes y (solo solicitudes o tab 2 seleccionado) */}
+      {tieneSolicitudes && (tabActual === 2 || categoriasConDatos === 1) ? (
+        tieneSolicitudes ? (
+          <TableContainer sx={{ flex: 1, overflow: "auto" }}>
+            <Table stickyHeader size="small">
+              <TableHead>
+                <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                  <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }}>
+                    Fecha
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }}>
+                    Categoría
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }}>
+                    Origen
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }}>
+                    Destino
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }}>
+                    Descripción
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }} align="right">
+                    Precio
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }} align="center">
+                    Estado
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {solicitudes.map((solicitud) => {
+                  const estadoColor =
+                    solicitud.estado === "finalizado" ? "#4caf50" :
+                    solicitud.estado === "rechazada" || solicitud.estado === "cancelada" ? "#d7171a" :
+                    solicitud.estado === "en_curso" ? "#2196f3" :
+                    "#ff9800";
+
+                  const getUbicacion = (ubicacion) => {
+                    if (typeof ubicacion === "string") return ubicacion;
+                    if (ubicacion?.direccion) return ubicacion.direccion;
+                    if (ubicacion?.calle && ubicacion?.ciudad) {
+                      return `${ubicacion.calle}, ${ubicacion.ciudad}`;
+                    }
+                    if (ubicacion?.ciudad) return ubicacion.ciudad;
+                    if (ubicacion?.calle) return ubicacion.calle;
+                    return "-";
+                  };
+
+                  return (
+                    <TableRow key={solicitud.id} sx={{ "&:hover": { backgroundColor: "#f9f9f9" } }}>
+                      <TableCell sx={{ fontSize: "0.85rem", color: "#000000" }}>
+                        {formatearFechaSolicitud(solicitud.fechaCreacion)}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: "0.85rem", color: "#000000" }}>
+                        {solicitud.solicitud?.categoria || "-"}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: "0.85rem", color: "#484848" }}>
+                        {getUbicacion(solicitud.solicitud?.origen)}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: "0.85rem", color: "#484848" }}>
+                        {getUbicacion(solicitud.solicitud?.destino)}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: "0.85rem", color: "#000000" }}>
+                        {solicitud.solicitud?.descripcion || "-"}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: "0.85rem", color: "#d7171a", fontWeight: 700 }} align="right">
+                        Bs. {Number(solicitud.oferta?.costo || 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: "0.85rem" }} align="center">
+                        <Chip
+                          label={solicitud.estado || "pendiente"}
+                          size="small"
+                          sx={{
+                            bgcolor: estadoColor,
+                            color: "#FFFFFF",
+                            fontWeight: 700,
+                            textTransform: "capitalize",
+                          }}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        ) : (
+          <Box sx={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
+            <Typography sx={{ color: "#bdbdbd", fontFamily: "Mulish, sans-serif" }}>
+              Sin solicitudes registradas
             </Typography>
           </Box>
         )

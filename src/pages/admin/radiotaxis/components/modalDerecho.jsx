@@ -18,7 +18,7 @@ import { collection, query, where, getDocs, doc, getDoc } from "firebase/firesto
 import { db } from "../../../../data/firebase/firebase";
 import { useSolicitudesHistorial } from "../hooks/useSolicitudesHistorial";
 
-export default function ModalDerecho({ userId }) {
+export default function ModalDerecho({ userId, flotaId }) {
   const [viajes, setViajes] = useState([]);
   const [envios, setEnvios] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -179,7 +179,7 @@ export default function ModalDerecho({ userId }) {
     return () => { cancel = true; };
   }, [userId, cargarNombrePasajero]);
 
-  if (cargando || cargandoSolicitudes) {
+  if (cargando) {
     return (
       <Box sx={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", minHeight: 400 }}>
         <CircularProgress sx={{ color: "#d7171a" }} />
@@ -194,12 +194,11 @@ export default function ModalDerecho({ userId }) {
 
   // Ajustar tab seleccionado si la categoría no está disponible
   let tabActual = selectedTab;
-  if (tieneViajes && !tieneEnvios && !tieneSolicitudes) {
-    tabActual = 0;
-  } else if (!tieneViajes && tieneEnvios && !tieneSolicitudes) {
-    tabActual = 1;
-  } else if (!tieneViajes && !tieneEnvios && tieneSolicitudes) {
-    tabActual = 2;
+  const categoriasConDatos = [tieneViajes, tieneEnvios, tieneSolicitudes].filter(Boolean).length;
+  if (categoriasConDatos === 1) {
+    if (tieneViajes) tabActual = 0;
+    else if (tieneEnvios) tabActual = 1;
+    else if (tieneSolicitudes) tabActual = 2;
   }
 
   return (
@@ -233,7 +232,7 @@ export default function ModalDerecho({ userId }) {
       )}
 
       {/* Tabla de Viajes - mostrar si hay viajes y tab 0 seleccionado */}
-      {tieneViajes && tabActual === 0 ? (
+      {tieneViajes && (tabActual === 0 || categoriasConDatos === 1) ? (
         tieneViajes ? (
         <TableContainer sx={{ flex: 1, overflow: "auto" }}>
           <Table stickyHeader size="small">
@@ -352,8 +351,8 @@ export default function ModalDerecho({ userId }) {
         )
       ) : null}
 
-      {/* Tabla de Envios - mostrar si hay envios y tab 1 seleccionado */}
-      {tieneEnvios && tabActual === 1 ? (
+      {/* Tabla de Envios - mostrar si hay envios y tab 1 seleccionado o única categoría */}
+      {tieneEnvios && (tabActual === 1 || categoriasConDatos === 1) ? (
         tieneEnvios ? (
           <TableContainer sx={{ flex: 1, overflow: "auto" }}>
             <Table stickyHeader size="small">
@@ -468,9 +467,10 @@ export default function ModalDerecho({ userId }) {
         )
       ) : null}
 
-      {/* Tabla de Solicitudes - mostrar si hay solicitudes y tab 2 seleccionado */}
-      {tieneSolicitudes && tabActual === 2 && (
-        <TableContainer sx={{ flex: 1, overflow: "auto" }}>
+      {/* Tabla de Solicitudes - mostrar si hay solicitudes y tab 2 seleccionado o única categoría */}
+      {tieneSolicitudes && (tabActual === 2 || categoriasConDatos === 1) ? (
+        tieneSolicitudes ? (
+          <TableContainer sx={{ flex: 1, overflow: "auto" }}>
             <Table stickyHeader size="small">
               <TableHead>
                 <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
@@ -478,7 +478,7 @@ export default function ModalDerecho({ userId }) {
                     Fecha
                   </TableCell>
                   <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }}>
-                    Servicio
+                    Categoría
                   </TableCell>
                   <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }}>
                     Origen
@@ -487,69 +487,88 @@ export default function ModalDerecho({ userId }) {
                     Destino
                   </TableCell>
                   <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }}>
-                    Monto
+                    Descripción
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }}>
+                  <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }} align="right">
+                    Precio
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }} align="center">
                     Estado
                   </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {solicitudes.map((solicitud) => {
-                  const getEstadoColor = (estado) => {
-                    switch (estado) {
-                      case "finalizado":
-                        return { bg: "#000000", color: "#FFFFFF" };
-                      case "ofertado":
-                        return { bg: "#fff3e0", color: "#e65100" };
-                      case "en_progreso":
-                        return { bg: "#e3f2fd", color: "#1565c0" };
-                      case "cancelado":
-                        return { bg: "#d7171a", color: "#FFFFFF" };
-                      case "aceptado":
-                        return { bg: "#f3e5f5", color: "#6a1b9a" };
-                      default:
-                        return { bg: "#f5f5f5", color: "#616161" };
+                  const estadoColor =
+                    solicitud.estado === "finalizado" ? "#4caf50" :
+                    solicitud.estado === "rechazada" || solicitud.estado === "cancelada" ? "#d7171a" :
+                    solicitud.estado === "en_curso" ? "#2196f3" :
+                    "#ff9800";
+
+                  const getUbicacion = (ubicacion) => {
+                    if (typeof ubicacion === "string") return ubicacion;
+                    if (ubicacion?.direccion) return ubicacion.direccion;
+                    if (ubicacion?.calle && ubicacion?.ciudad) {
+                      return `${ubicacion.calle}, ${ubicacion.ciudad}`;
+                    }
+                    if (ubicacion?.ciudad) return ubicacion.ciudad;
+                    if (ubicacion?.calle) return ubicacion.calle;
+                    return "-";
+                  };
+
+                  const formatearFechaSolicitud = (timestamp) => {
+                    if (!timestamp) return "-";
+                    try {
+                      let fecha;
+                      if (timestamp.toDate && typeof timestamp.toDate === "function") {
+                        fecha = timestamp.toDate();
+                      } else if (timestamp instanceof Date) {
+                        fecha = timestamp;
+                      } else if (typeof timestamp === "string") {
+                        fecha = new Date(timestamp);
+                      } else if (typeof timestamp === "number") {
+                        fecha = new Date(timestamp);
+                      } else {
+                        return "-";
+                      }
+
+                      if (isNaN(fecha.getTime())) {
+                        return "-";
+                      }
+
+                      return fecha.toLocaleString("es-BO");
+                    } catch (e) {
+                      return "-";
                     }
                   };
 
-                  const estadoInfo = getEstadoColor(solicitud.estado);
-                  const fecha = solicitud.fechaCreacion?.toDate ? solicitud.fechaCreacion.toDate() : new Date(solicitud.fechaCreacion);
-                  const servicio = solicitud.solicitud?.datosEspecificos?.tipoContenido || solicitud.servicio || "Servicio";
-                  const monto = solicitud.oferta?.costo || solicitud.solicitud?.datosEspecificos?.precioEstimado || 0;
-                  const origen = solicitud.solicitud?.origen?.direccion || solicitud.origen?.direccion || "-";
-                  const destino = solicitud.solicitud?.destino?.direccion || solicitud.destino?.direccion || "-";
-
                   return (
-                    <TableRow key={solicitud.id}>
-                      <TableCell sx={{ fontSize: "0.85rem", color: "#484848" }}>
-                        {fecha.toLocaleDateString("es-ES", {
-                          year: "numeric",
-                          month: "2-digit",
-                          day: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                    <TableRow key={solicitud.id} sx={{ "&:hover": { backgroundColor: "#f9f9f9" } }}>
+                      <TableCell sx={{ fontSize: "0.85rem", color: "#000000" }}>
+                        {formatearFechaSolicitud(solicitud.fechaCreacion)}
+                      </TableCell>
+                      <TableCell sx={{ fontSize: "0.85rem", color: "#000000" }}>
+                        {solicitud.solicitud?.categoria || "-"}
                       </TableCell>
                       <TableCell sx={{ fontSize: "0.85rem", color: "#484848" }}>
-                        {servicio}
+                        {getUbicacion(solicitud.solicitud?.origen)}
                       </TableCell>
                       <TableCell sx={{ fontSize: "0.85rem", color: "#484848" }}>
-                        {origen}
+                        {getUbicacion(solicitud.solicitud?.destino)}
                       </TableCell>
-                      <TableCell sx={{ fontSize: "0.85rem", color: "#484848" }}>
-                        {destino}
+                      <TableCell sx={{ fontSize: "0.85rem", color: "#000000" }}>
+                        {solicitud.solicitud?.descripcion || "-"}
                       </TableCell>
-                      <TableCell sx={{ fontSize: "0.85rem", color: "#d7171a", fontWeight: 700 }}>
-                        Bs. {Number(monto).toFixed(2)}
+                      <TableCell sx={{ fontSize: "0.85rem", color: "#d7171a", fontWeight: 700 }} align="right">
+                        Bs. {Number(solicitud.oferta?.costo || 0).toFixed(2)}
                       </TableCell>
-                      <TableCell sx={{ fontSize: "0.85rem" }}>
+                      <TableCell sx={{ fontSize: "0.85rem" }} align="center">
                         <Chip
                           label={solicitud.estado || "pendiente"}
                           size="small"
                           sx={{
-                            bgcolor: estadoInfo.bg,
-                            color: estadoInfo.color,
+                            bgcolor: estadoColor,
+                            color: "#FFFFFF",
                             fontWeight: 700,
                             textTransform: "capitalize",
                           }}
@@ -561,7 +580,14 @@ export default function ModalDerecho({ userId }) {
               </TableBody>
             </Table>
           </TableContainer>
-        )}
+        ) : (
+          <Box sx={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
+            <Typography sx={{ color: "#bdbdbd", fontFamily: "Mulish, sans-serif" }}>
+              Sin solicitudes registradas
+            </Typography>
+          </Box>
+        )
+      ) : null}
     </Box>
   );
 }

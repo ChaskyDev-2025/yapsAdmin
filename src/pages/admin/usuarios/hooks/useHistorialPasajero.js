@@ -5,6 +5,7 @@ import { db } from "../../../../data/firebase/firebase";
 export const useHistorialPasajero = (userId) => {
   const [viajes, setViajes] = useState([]);
   const [envios, setEnvios] = useState([]);
+  const [solicitudes, setSolicitudes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [taxistasMap, setTaxistasMap] = useState({});
 
@@ -81,6 +82,11 @@ export const useHistorialPasajero = (userId) => {
         const ordenesCollection = collection(db, "ordenes");
         const q = query(ordenesCollection, where("uidUser", "==", userId));
         const snapshot = await getDocs(q);
+
+        // Cargar solicitudes del pasajero
+        const solicitudesCollection = collection(db, "solicitudes");
+        const qSolicitudes = query(solicitudesCollection, where("uidUser", "==", userId));
+        const snapshotSolicitudes = await getDocs(qSolicitudes);
 
         if (snapshot.docs.length > 0) {
           const todasLasOrdenes = snapshot.docs.map(doc => ({
@@ -174,11 +180,32 @@ export const useHistorialPasajero = (userId) => {
             setCargando(false);
           }
         }
+
+        // Procesar solicitudes
+        if (snapshotSolicitudes.docs.length > 0) {
+          const solicitudesData = snapshotSolicitudes.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })).sort((a, b) => {
+            const dateA = a.fechaCreacion?.toDate?.() || new Date(a.fechaCreacion);
+            const dateB = b.fechaCreacion?.toDate?.() || new Date(b.fechaCreacion);
+            return dateB - dateA;
+          });
+
+          if (!cancel) {
+            setSolicitudes(solicitudesData);
+          }
+        } else {
+          if (!cancel) {
+            setSolicitudes([]);
+          }
+        }
       } catch (error) {
         console.error("Error cargando historial:", error);
         if (!cancel) {
           setViajes([]);
           setEnvios([]);
+          setSolicitudes([]);
           setCargando(false);
         }
       }
@@ -191,8 +218,9 @@ export const useHistorialPasajero = (userId) => {
   return {
     viajes,
     envios,
+    solicitudes,
     cargando,
     formatearFecha,
-    totalOrdenes: viajes.length + envios.length
+    totalOrdenes: viajes.length + envios.length + solicitudes.length
   };
 };

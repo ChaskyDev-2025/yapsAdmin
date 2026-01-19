@@ -32,7 +32,7 @@ function TabPanel(props) {
 }
 
 export default function ModalDerechoPasajero({ userId }) {
-  const { viajes, envios, cargando, formatearFecha, totalOrdenes } = useHistorialPasajero(userId);
+  const { viajes, envios, solicitudes, cargando, formatearFecha, totalOrdenes } = useHistorialPasajero(userId);
   const [tabValue, setTabValue] = useState(0);
 
   const handleTabChange = (event, newValue) => {
@@ -96,6 +96,17 @@ export default function ModalDerechoPasajero({ userId }) {
                 sx={{
                   fontWeight: 600,
                   color: tabValue === 1 ? "#d7171a" : "#888",
+                  textTransform: "none",
+                  fontSize: "0.95rem",
+                }}
+              />
+              <Tab
+                label={`📋 Solicitudes (${solicitudes.length})`}
+                id="tab-2"
+                aria-controls="tabpanel-2"
+                sx={{
+                  fontWeight: 600,
+                  color: tabValue === 2 ? "#d7171a" : "#888",
                   textTransform: "none",
                   fontSize: "0.95rem",
                 }}
@@ -249,6 +260,89 @@ export default function ModalDerechoPasajero({ userId }) {
                           <TableCell sx={{ fontSize: "0.85rem" }} align="center">
                             <Chip
                               label={envio.estado || "pendiente"}
+                              size="small"
+                              sx={{
+                                bgcolor: estadoColor,
+                                color: "#FFFFFF",
+                                fontWeight: 700,
+                                textTransform: "capitalize",
+                              }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </TabPanel>
+
+          {/* Panel de Solicitudes */}
+          <TabPanel value={tabValue} index={2} sx={{ flex: 1 }}>
+            {solicitudes.length === 0 ? (
+              <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
+                <Typography sx={{ color: "#bdbdbd" }}>Sin solicitudes registradas</Typography>
+              </Box>
+            ) : (
+              <TableContainer sx={{ flex: 1, overflow: "auto" }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                      <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }}>
+                        Fecha
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }}>
+                        Categoría
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }}>
+                        Origen
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }}>
+                        Destino
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }}>
+                        Descripción
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }} align="right">
+                        Precio
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: "#000000", backgroundColor: "#f5f5f5", fontSize: "0.85rem" }} align="center">
+                        Estado
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {solicitudes.map((solicitud) => {
+                      const estadoColor = 
+                        solicitud.estado === "finalizado" ? "#4caf50" : 
+                        solicitud.estado === "rechazada" || solicitud.estado === "cancelada" ? "#d7171a" : 
+                        solicitud.estado === "en_curso" ? "#2196f3" : 
+                        "#ff9800";
+
+                      return (
+                        <TableRow key={solicitud.id} sx={{ "&:hover": { backgroundColor: "#f9f9f9" } }}>
+                          <TableCell sx={{ fontSize: "0.85rem", color: "#000000" }}>
+                            {formatearFecha(solicitud.fechaCreacion)}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: "0.85rem", color: "#000000" }}>
+                            {solicitud.solicitud?.categoria || "-"}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: "0.85rem", color: "#484848" }}>
+                            {getUbicacion(solicitud.solicitud?.origen)}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: "0.85rem", color: "#484848" }}>
+                            {getUbicacion(solicitud.solicitud?.destino)}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: "0.85rem", color: "#000000" }}>
+                            {solicitud.solicitud?.descripcion || "-"}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: "0.85rem", color: "#d7171a", fontWeight: 700 }} align="right">
+                            Bs. {Number(solicitud.oferta?.costo || 0).toFixed(2)}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: "0.85rem" }} align="center">
+                            <Chip
+                              label={solicitud.estado || "pendiente"}
                               size="small"
                               sx={{
                                 bgcolor: estadoColor,

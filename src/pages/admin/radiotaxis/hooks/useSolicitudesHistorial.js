@@ -1,6 +1,6 @@
 // Hook para obtener el historial de solicitudes de conductores desde Firebase
 import { useEffect, useState } from "react";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../../../../data/firebase/firebase";
 
 export const useSolicitudesHistorial = (conductorId) => {
@@ -18,12 +18,13 @@ export const useSolicitudesHistorial = (conductorId) => {
     setLoading(true);
     setError(null);
 
-    try {
-      // Buscar solicitudes donde conductor_asignado coincida con el conductorId
-      const solicitudesRef = collection(db, "solicitudes");
-      const q = query(solicitudesRef, where("conductor_asignado", "==", conductorId));
+    const loadSolicitudes = async () => {
+      try {
+        // Buscar solicitudes donde conductorAsignado coincida con el conductorId
+        const solicitudesRef = collection(db, "solicitudes");
+        const q = query(solicitudesRef, where("conductorAsignado", "==", conductorId));
+        const snapshot = await getDocs(q);
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
         const solicitudesData = [];
         
         snapshot.forEach((doc) => {
@@ -43,18 +44,15 @@ export const useSolicitudesHistorial = (conductorId) => {
 
         setSolicitudes(solicitudesData);
         setLoading(false);
-      }, (err) => {
+      } catch (err) {
         console.error("Error al obtener solicitudes:", err);
         setError(err.message);
+        setSolicitudes([]);
         setLoading(false);
-      });
+      }
+    };
 
-      return () => unsubscribe();
-    } catch (err) {
-      console.error("Error al obtener solicitudes:", err);
-      setError(err.message);
-      setLoading(false);
-    }
+    loadSolicitudes();
   }, [conductorId]);
 
   return { solicitudes, loading, error };

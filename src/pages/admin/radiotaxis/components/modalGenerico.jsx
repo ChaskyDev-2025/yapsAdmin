@@ -70,7 +70,8 @@ export default function DetalleModal({ open, onClose, rowData }) {
             <ModalIzquierdo rowData={rowData} />
             <Divider orientation="vertical" flexItem />
             <ModalDerecho
-              userId={rowData.firebaseId}   // 👈 importante
+              userId={rowData.firebaseId}
+              flotaId={rowData.flotaId}
             />
           </Box>
         </DialogContent>
