@@ -28,15 +28,32 @@ export const useUsuarios = (flotaId = null) => {
       const usuariosPromises = usersSnapshot.docs.map(async (docSnapshot) => {
         const usuario = docSnapshot.data();
         
-        // Formatear fecha si existe
+        // Formatear fecha si existe (createdAt es un string ISO)
         let fechaRegistro = "Sin fecha";
         if (usuario.createdAt) {
-          const date = usuario.createdAt.toDate?.() || new Date(usuario.createdAt);
-          fechaRegistro = date.toLocaleDateString("es-ES", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          });
+          try {
+            let date;
+            if (typeof usuario.createdAt === 'string') {
+              date = new Date(usuario.createdAt);
+            } else if (usuario.createdAt.toDate && typeof usuario.createdAt.toDate === 'function') {
+              date = usuario.createdAt.toDate();
+            } else if (usuario.createdAt instanceof Date) {
+              date = usuario.createdAt;
+            } else {
+              date = new Date(usuario.createdAt);
+            }
+            
+            if (!isNaN(date.getTime())) {
+              fechaRegistro = date.toLocaleDateString("es-ES", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+              });
+            }
+          } catch (error) {
+            console.error("Error formateando fecha:", error);
+            fechaRegistro = "Sin fecha";
+          }
         }
 
         // Obtener nombre de empresa usando flotaId

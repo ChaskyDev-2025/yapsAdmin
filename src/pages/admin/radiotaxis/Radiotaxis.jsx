@@ -91,12 +91,14 @@ const Radiotaxis = () => {
   const [periodFilterRadiotaxis, setPeriodFilterRadiotaxis] = useState("todos");
   const [filterConectadoRadiotaxis, setFilterConectadoRadiotaxis] = useState("todos"); // todos, en linea, desconectados
   const [visibleColumnsRadiotaxis, setVisibleColumnsRadiotaxis] = useState({
+    foto: true,
     nombre: true,
     email: true,
     telefono: true,
     documentos: true,
-    estado: true,
-    online: true,
+    conectado: true,
+    contactar: true,
+    fecha: true,
     acciones: true,
   });
   const { user, userRole } = useAuth();
@@ -519,39 +521,57 @@ const Radiotaxis = () => {
             <Table>
               <TableHead sx={{ backgroundColor: "#000000" }}>
                 <TableRow>
-                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                    Foto
-                  </TableCell>
-                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                    Nombre
-                  </TableCell>
-                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                    Email
-                  </TableCell>
-                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                    Teléfono
-                  </TableCell>
-                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                    Documentos
-                  </TableCell>
-                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                    Conectado
-                  </TableCell>
-                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                    Contactar
-                  </TableCell>
-                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                    Fecha Registro
-                  </TableCell>
-                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
-                    Acciones
-                  </TableCell>
+                  {visibleColumnsRadiotaxis.foto && (
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                      Foto
+                    </TableCell>
+                  )}
+                  {visibleColumnsRadiotaxis.nombre && (
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                      Nombre
+                    </TableCell>
+                  )}
+                  {visibleColumnsRadiotaxis.email && (
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                      Email
+                    </TableCell>
+                  )}
+                  {visibleColumnsRadiotaxis.telefono && (
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                      Teléfono
+                    </TableCell>
+                  )}
+                  {visibleColumnsRadiotaxis.documentos && (
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                      Documentos
+                    </TableCell>
+                  )}
+                  {visibleColumnsRadiotaxis.conectado && (
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                      Conectado
+                    </TableCell>
+                  )}
+                  {visibleColumnsRadiotaxis.contactar && (
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                      Contactar
+                    </TableCell>
+                  )}
+                  {visibleColumnsRadiotaxis.fecha && (
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                      Fecha Registro
+                    </TableCell>
+                  )}
+                  {visibleColumnsRadiotaxis.acciones && (
+                    <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>
+                      Acciones
+                    </TableCell>
+                  )}
                 </TableRow>
               </TableHead>
               <TableBody>
                 {radiotaxisPaginados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center">
+                    <TableCell colSpan={9} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                         No hay conductores registrados
                       </Typography>
@@ -560,134 +580,152 @@ const Radiotaxis = () => {
                 ) : (
                   radiotaxisPaginados.map((radio) => (
                     <TableRow key={radio.firebaseId} hover sx={{ borderBottom: "1px solid #d0d0d0" }}>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", textAlign: "center" }}>
-                        <Avatar
-                          src={obtenerFotoRadiotaxis(radio)}
-                          alt={radio.nombreEmpresa}
-                          sx={{
-                            width: 50,
-                            height: 50,
-                            bgcolor: "#d7171a",
-                            border: "2px solid #d7171a",
-                            margin: "0 auto",
-                            fontWeight: 700,
-                            fontSize: "1.2rem"
-                          }}
-                        >
-                          {radio.nombreEmpresa?.[0] || "?"}
-                        </Avatar>
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                        {capitalizarNombre(radio.nombreEmpresa || "-")}
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        {radio.email || "-"}
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <span>{radio.telefono || "-"}</span>
-                          <Tooltip title={radio.phoneVerified ? "Teléfono verificado" : "Teléfono sin verificar"}>
-                            <Box
-                              sx={{
-                                display: "inline-block",
-                                width: 8,
-                                height: 8,
-                                borderRadius: "50%",
-                                backgroundColor: radio.phoneVerified ? "#4caf50" : "#f44336",
-                                flexShrink: 0,
-                              }}
-                            />
-                          </Tooltip>
-                        </Box>
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        <Typography
-                          sx={{
-                            color: radio.documentos_aprobados ? "#d7171a" : "#bdbdbd",
-                            fontWeight: 600,
-                            fontFamily: "Mulish, sans-serif"
-                          }}
-                        >
-                          {radio.documentos_aprobados ? "Sí" : "No"}
-                        </Typography>
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        <Chip
-                          icon={radio.online === true ? <WifiIcon /> : <WifiOffIcon />}
-                          label={radio.online === true ? "En línea" : "Desconectado"}
-                          size="small"
-                          sx={{
-                            color: radio.online === true ? "#2e7d32" : "#616161",
-                            backgroundColor: radio.online === true ? "#e8f5e9" : "#f5f5f5",
-                            fontWeight: 600,
-                            fontFamily: "Mulish, sans-serif",
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", textAlign: "center" }}>
-                        {radio.telefono ? (
-                          <Tooltip title="Contactar por WhatsApp">
-                            <IconButton
-                              size="small"
-                              onClick={() => sendWhatsApp(radio.telefono || radio.phoneNumber || radio.representante || radio.representanteTelefono, radio.nombreEmpresa)}
-                              sx={{ bgcolor: "#e6f7ea", color: "#25D366", "&:hover": { bgcolor: "#d9f0df" } }}
-                            >
-                              <WhatsAppIcon />
-                            </IconButton>
-                          </Tooltip>
-                        ) : (
-                          <Typography sx={{ color: "#9e9e9e" }}>-</Typography>
-                        )}
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontSize: "0.9rem" }}>
-                        {radio.createdAt
-                          ? (() => {
-                              let date;
-                              if (radio.createdAt?.toDate && typeof radio.createdAt.toDate === 'function') {
-                                date = radio.createdAt.toDate();
-                              } else if (typeof radio.createdAt === 'string') {
-                                date = new Date(radio.createdAt);
-                              } else if (radio.createdAt instanceof Date) {
-                                date = radio.createdAt;
-                              } else {
-                                return "-";
-                              }
-                              return date.toLocaleDateString("es-ES");
-                            })()
-                          : "-"}
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        <Box sx={{ display: "flex", gap: 1 }}>
-                          <Tooltip title="Ver detalles">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleVer(radio)}
-                              sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffebee" } }}
-                            >
-                              <VisibilityIcon />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Editar">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleEdit(radio)}
-                              sx={{ bgcolor: "#e3f2fd", color: "#1976d2", "&:hover": { bgcolor: "#bbdefb" } }}
-                            >
-                              <EditIcon />
-                            </IconButton>
-                          </Tooltip>
-                        
-                          <Tooltip title="Eliminar">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleDelete(radio)}
-                              sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcdd2" } }}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                      </TableCell>
+                      {visibleColumnsRadiotaxis.foto && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", textAlign: "center" }}>
+                          <Avatar
+                            src={obtenerFotoRadiotaxis(radio)}
+                            alt={radio.nombreEmpresa}
+                            sx={{
+                              width: 50,
+                              height: 50,
+                              bgcolor: "#d7171a",
+                              border: "2px solid #d7171a",
+                              margin: "0 auto",
+                              fontWeight: 700,
+                              fontSize: "1.2rem"
+                            }}
+                          >
+                            {radio.nombreEmpresa?.[0] || "?"}
+                          </Avatar>
+                        </TableCell>
+                      )}
+                      {visibleColumnsRadiotaxis.nombre && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                          {capitalizarNombre(radio.nombreEmpresa || "-")}
+                        </TableCell>
+                      )}
+                      {visibleColumnsRadiotaxis.email && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          {radio.email || "-"}
+                        </TableCell>
+                      )}
+                      {visibleColumnsRadiotaxis.telefono && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <span>{radio.telefono || "-"}</span>
+                            <Tooltip title={radio.phoneVerified ? "Teléfono verificado" : "Teléfono sin verificar"}>
+                              <Box
+                                sx={{
+                                  display: "inline-block",
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: "50%",
+                                  backgroundColor: radio.phoneVerified ? "#4caf50" : "#f44336",
+                                  flexShrink: 0,
+                                }}
+                              />
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      )}
+                      {visibleColumnsRadiotaxis.documentos && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          <Typography
+                            sx={{
+                              color: radio.documentos_aprobados ? "#d7171a" : "#bdbdbd",
+                              fontWeight: 600,
+                              fontFamily: "Mulish, sans-serif"
+                            }}
+                          >
+                            {radio.documentos_aprobados ? "Sí" : "No"}
+                          </Typography>
+                        </TableCell>
+                      )}
+                      {visibleColumnsRadiotaxis.conectado && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          <Chip
+                            icon={radio.online === true ? <WifiIcon /> : <WifiOffIcon />}
+                            label={radio.online === true ? "En línea" : "Desconectado"}
+                            size="small"
+                            sx={{
+                              color: radio.online === true ? "#2e7d32" : "#616161",
+                              backgroundColor: radio.online === true ? "#e8f5e9" : "#f5f5f5",
+                              fontWeight: 600,
+                              fontFamily: "Mulish, sans-serif",
+                            }}
+                          />
+                        </TableCell>
+                      )}
+                      {visibleColumnsRadiotaxis.contactar && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", textAlign: "center" }}>
+                          {radio.telefono ? (
+                            <Tooltip title="Contactar por WhatsApp">
+                              <IconButton
+                                size="small"
+                                onClick={() => sendWhatsApp(radio.telefono || radio.phoneNumber || radio.representante || radio.representanteTelefono, radio.nombreEmpresa)}
+                                sx={{ bgcolor: "#e6f7ea", color: "#25D366", "&:hover": { bgcolor: "#d9f0df" } }}
+                              >
+                                <WhatsAppIcon />
+                              </IconButton>
+                            </Tooltip>
+                          ) : (
+                            <Typography sx={{ color: "#9e9e9e" }}>-</Typography>
+                          )}
+                        </TableCell>
+                      )}
+                      {visibleColumnsRadiotaxis.fecha && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontSize: "0.9rem" }}>
+                          {radio.createdAt
+                            ? (() => {
+                                let date;
+                                if (radio.createdAt?.toDate && typeof radio.createdAt.toDate === 'function') {
+                                  date = radio.createdAt.toDate();
+                                } else if (typeof radio.createdAt === 'string') {
+                                  date = new Date(radio.createdAt);
+                                } else if (radio.createdAt instanceof Date) {
+                                  date = radio.createdAt;
+                                } else {
+                                  return "-";
+                                }
+                                return date.toLocaleDateString("es-ES");
+                              })()
+                            : "-"}
+                        </TableCell>
+                      )}
+                      {visibleColumnsRadiotaxis.acciones && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          <Box sx={{ display: "flex", gap: 1 }}>
+                            <Tooltip title="Ver detalles">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleVer(radio)}
+                                sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffebee" } }}
+                              >
+                                <VisibilityIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Editar">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleEdit(radio)}
+                                sx={{ bgcolor: "#e3f2fd", color: "#1976d2", "&:hover": { bgcolor: "#bbdefb" } }}
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            </Tooltip>
+                          
+                            <Tooltip title="Eliminar">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDelete(radio)}
+                                sx={{ bgcolor: "#ffebee", color: "#d7171a", "&:hover": { bgcolor: "#ffcdd2" } }}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}

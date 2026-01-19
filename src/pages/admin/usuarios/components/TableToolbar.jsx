@@ -182,19 +182,22 @@ export const TableToolbar = ({
               {Object.entries(visibleColumns).map(([col, visible]) => (
                 <MenuItem
                   key={col}
-                  onClick={() => onColumnChange(col, !visible)}
                   sx={{ display: "block" }}
                 >
                   <FormControlLabel
                     control={
                       <Checkbox
                         checked={visible}
-                        onChange={(e) => onColumnChange(col, e.target.checked)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          onColumnChange(col, e.target.checked);
+                        }}
                         size="small"
                       />
                     }
                     label={col.charAt(0).toUpperCase() + col.slice(1).replace(/([A-Z])/g, " $1")}
                     sx={{ width: "100%", m: 0 }}
+                    onClick={(e) => e.stopPropagation()}
                   />
                 </MenuItem>
               ))}

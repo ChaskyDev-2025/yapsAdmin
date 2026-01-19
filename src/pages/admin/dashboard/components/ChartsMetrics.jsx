@@ -19,7 +19,7 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import { useTrendenciaTrabajadores } from "../hooks/useTrendenciaTrabajadores";
 
 const COLORS = ["#d7171a", "#FF8042", "#00C49F"];
-const COLORS_SOLICITUDES = ["#FF0000", "#FF6B00", "#00D084", "#0088FF", "#FF00FF", "#FFD700", "#FF1493", "#00CED1"];
+const COLORS_SOLICITUDES = ["#1a1a1a", "#d7171a", "#1a1a1a", "#d7171a", "#1a1a1a", "#d7171a", "#1a1a1a", "#d7171a"];
 
 export default function ChartsMetrics({ metricas }) {
   const { trendData, loading: trendLoading } = useTrendenciaTrabajadores();

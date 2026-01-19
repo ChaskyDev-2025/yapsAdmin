@@ -281,43 +281,53 @@ const DocumentosPendientes = () => {
                 <Table>
                   <TableHead sx={{ backgroundColor: "#000000" }}>
                     <TableRow>
-                      <TableCell sx={{ 
-                        backgroundColor: "#000000", 
-                        color: "white", 
-                        fontWeight: 700, 
-                        fontFamily: "Mulish, sans-serif", 
-                        fontSize: "0.95rem"
-                      }}>Foto</TableCell>
-                      <TableCell sx={{ 
-                        backgroundColor: "#000000", 
-                        color: "white", 
-                        fontWeight: 700, 
-                        fontFamily: "Mulish, sans-serif", 
-                        fontSize: "0.95rem"
-                      }}>Nombre</TableCell>
-                      <TableCell sx={{ 
-                        backgroundColor: "#000000", 
-                        color: "white", 
-                        fontWeight: 700, 
-                        fontFamily: "Mulish, sans-serif", 
-                        fontSize: "0.95rem"
-                      }}>Email</TableCell>
-                      <TableCell sx={{ 
-                        backgroundColor: "#000000", 
-                        color: "white", 
-                        fontWeight: 700, 
-                        fontFamily: "Mulish, sans-serif", 
-                        fontSize: "0.95rem",
-                        textAlign: "center"
-                      }}>Documentos Pendientes</TableCell>
-                      <TableCell sx={{ 
-                        backgroundColor: "#000000", 
-                        color: "white", 
-                        fontWeight: 700, 
-                        fontFamily: "Mulish, sans-serif", 
-                        fontSize: "0.95rem",
-                        textAlign: "center"
-                      }}>Acciones</TableCell>
+                      {visibleColumnsDocumentos.foto && (
+                        <TableCell sx={{ 
+                          backgroundColor: "#000000", 
+                          color: "white", 
+                          fontWeight: 700, 
+                          fontFamily: "Mulish, sans-serif", 
+                          fontSize: "0.95rem"
+                        }}>Foto</TableCell>
+                      )}
+                      {visibleColumnsDocumentos.nombre && (
+                        <TableCell sx={{ 
+                          backgroundColor: "#000000", 
+                          color: "white", 
+                          fontWeight: 700, 
+                          fontFamily: "Mulish, sans-serif", 
+                          fontSize: "0.95rem"
+                        }}>Nombre</TableCell>
+                      )}
+                      {visibleColumnsDocumentos.email && (
+                        <TableCell sx={{ 
+                          backgroundColor: "#000000", 
+                          color: "white", 
+                          fontWeight: 700, 
+                          fontFamily: "Mulish, sans-serif", 
+                          fontSize: "0.95rem"
+                        }}>Email</TableCell>
+                      )}
+                      {visibleColumnsDocumentos.documentosPendientes && (
+                        <TableCell sx={{ 
+                          backgroundColor: "#000000", 
+                          color: "white", 
+                          fontWeight: 700, 
+                          fontFamily: "Mulish, sans-serif", 
+                          fontSize: "0.95rem",
+                          textAlign: "center"
+                        }}>Documentos Pendientes</TableCell>
+                      )}
+                      {visibleColumnsDocumentos.acciones && (
+                        <TableCell sx={{ 
+                          backgroundColor: "#000000", 
+                          color: "white", 
+                          fontWeight: 700, 
+                          fontFamily: "Mulish, sans-serif", 
+                          fontSize: "0.95rem",
+                          textAlign: "center"
+                        }}>Acciones</TableCell>
+                      )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -336,56 +346,66 @@ const DocumentosPendientes = () => {
                             "&:hover": { backgroundColor: "#f9f9f9" }
                           }}
                         >
-                          <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                            <Avatar
-                              src={obtenerFotoTrabajador(trabajador)}
-                              alt={trabajador.perfil?.nombre || trabajador.perfil?.name}
-                              sx={{ width: 40, height: 40, bgcolor: "#d7171a" }}
-                            >
-                              {((trabajador.perfil?.nombre || trabajador.perfil?.name) || "?")?.charAt(0).toUpperCase()}
-                            </Avatar>
-                          </TableCell>
-                          <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                            {capitalizarNombre(trabajador.perfil?.nombre || trabajador.perfil?.name || "Sin nombre")}
-                          </TableCell>
-                          <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                            {trabajador.perfil?.email || "-"}
-                          </TableCell>
-                          <TableCell sx={{ textAlign: "center" }}>
-                            {getDocumentosPendientes(trabajador.documentos).length > 0 ? (
-                              <Chip
-                                label={`${getDocumentosPendientes(trabajador.documentos).length} pendiente${getDocumentosPendientes(trabajador.documentos).length !== 1 ? "s" : ""}`}
-                                sx={{
-                                  backgroundColor: "#fff3cd",
-                                  color: "#856404",
-                                  fontWeight: 600,
-                                  fontFamily: "Mulish, sans-serif",
-                                }}
+                          {visibleColumnsDocumentos.foto && (
+                            <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                              <Avatar
+                                src={obtenerFotoTrabajador(trabajador)}
+                                alt={trabajador.perfil?.nombre || trabajador.perfil?.name}
+                                sx={{ width: 40, height: 40, bgcolor: "#d7171a" }}
+                              >
+                                {((trabajador.perfil?.nombre || trabajador.perfil?.name) || "?")?.charAt(0).toUpperCase()}
+                              </Avatar>
+                            </TableCell>
+                          )}
+                          {visibleColumnsDocumentos.nombre && (
+                            <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                              {capitalizarNombre(trabajador.perfil?.nombre || trabajador.perfil?.name || "Sin nombre")}
+                            </TableCell>
+                          )}
+                          {visibleColumnsDocumentos.email && (
+                            <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                              {trabajador.perfil?.email || "-"}
+                            </TableCell>
+                          )}
+                          {visibleColumnsDocumentos.documentosPendientes && (
+                            <TableCell sx={{ textAlign: "center" }}>
+                              {getDocumentosPendientes(trabajador.documentos).length > 0 ? (
+                                <Chip
+                                  label={`${getDocumentosPendientes(trabajador.documentos).length} pendiente${getDocumentosPendientes(trabajador.documentos).length !== 1 ? "s" : ""}`}
+                                  sx={{
+                                    backgroundColor: "#fff3cd",
+                                    color: "#856404",
+                                    fontWeight: 600,
+                                    fontFamily: "Mulish, sans-serif",
+                                  }}
+                                  size="small"
+                                />
+                              ) : (
+                                <Chip
+                                  label="Documentos Aprobados"
+                                  sx={{
+                                    backgroundColor: "#d4edda",
+                                    color: "#155724",
+                                    fontWeight: 600,
+                                    fontFamily: "Mulish, sans-serif",
+                                  }}
+                                  size="small"
+                                />
+                              )}
+                            </TableCell>
+                          )}
+                          {visibleColumnsDocumentos.acciones && (
+                            <TableCell sx={{ textAlign: "center" }}>
+                              <IconButton
                                 size="small"
-                              />
-                            ) : (
-                              <Chip
-                                label="Documentos Aprobados"
-                                sx={{
-                                  backgroundColor: "#d4edda",
-                                  color: "#155724",
-                                  fontWeight: 600,
-                                  fontFamily: "Mulish, sans-serif",
-                                }}
-                                size="small"
-                              />
-                            )}
-                          </TableCell>
-                          <TableCell sx={{ textAlign: "center" }}>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleOpenDialog(trabajador)}
-                              title="Ver documentos"
-                              sx={{ color: "#d7171a" }}
-                            >
-                              <FileCopyIcon />
-                            </IconButton>
-                          </TableCell>
+                                onClick={() => handleOpenDialog(trabajador)}
+                                title="Ver documentos"
+                                sx={{ color: "#d7171a" }}
+                              >
+                                <FileCopyIcon />
+                              </IconButton>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))
                     ) : (

@@ -703,6 +703,56 @@ const Solicitudes = () => {
     return "Cargando...";
   };
 
+  // Enviar mensaje por WhatsApp al usuario
+  const sendWhatsApp = (phone, name, servicio = "") => {
+    try {
+      if (!phone) {
+        addNotification({
+          type: "warning",
+          title: "Validación",
+          message: "No hay número de teléfono disponible para este usuario.",
+          duration: 2000,
+        });
+        return;
+      }
+
+      const cleaned = String(phone).replace(/[^0-9+]/g, "");
+      const digits = cleaned.startsWith("+") ? cleaned.slice(1) : cleaned;
+
+      if (!digits || digits.length < 6) {
+        addNotification({
+          type: "warning",
+          title: "Validación",
+          message: `Número de teléfono inválido para WhatsApp: ${phone}`,
+          duration: 2000,
+        });
+        return;
+      }
+
+      // Construir mensaje personalizado
+      let mensaje = `Hola ${name || "amigo"}, te escribo desde la plataforma YAAPS`;
+      
+      if (servicio) {
+        mensaje += ` del servicio de ${servicio}`;
+      }
+      
+      mensaje += ` que solicitó.`;
+
+      // Codificar el mensaje para URL
+      const mensajeEncodificado = encodeURIComponent(mensaje);
+      
+      window.open(`https://wa.me/${digits}?text=${mensajeEncodificado}`, "_blank");
+    } catch (error) {
+      console.error("Error al abrir WhatsApp:", error);
+      addNotification({
+        type: "error",
+        title: "Error",
+        message: "No se pudo abrir WhatsApp.",
+        duration: 2000,
+      });
+    }
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <Paper elevation={6} sx={{ p: 3, borderRadius: 2, backgroundColor: "#f9f9f9" }}>
@@ -853,6 +903,8 @@ const Solicitudes = () => {
         formatearFecha={formatearFecha}
         disabledTextFieldStyles={disabledTextFieldStyles}
         obtenerNombreUsuario={obtenerNombreUsuario}
+        sendWhatsApp={sendWhatsApp}
+        pasajeros={[]}
       />
 
       <OfertaDialog

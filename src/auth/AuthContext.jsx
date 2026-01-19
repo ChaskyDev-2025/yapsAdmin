@@ -15,10 +15,8 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
-      setUser(u || null);
-      
       if (u) {
-        // Obtener el rol y flotaId del usuario desde Firestore
+        // Obtener el rol, flotaId y datos adicionales del usuario desde Firestore
         try {
           const userDoc = await getDoc(doc(db, "users", u.uid));
           
@@ -37,19 +35,28 @@ export function AuthProvider({ children }) {
               return;
             }
             
+            // Combinar datos de Auth con datos de Firestore
+            setUser({
+              ...u,
+              ...userData,
+              fotoUrl: userData.fotoUrl || null,
+            });
             setUserRole(userData.role || "admin");
             setUserFlotaId(userData.flotaId || null);
           } else {
             console.warn("⚠️ AuthContext - Documento de usuario NO existe");
+            setUser(u);
             setUserRole("admin"); // Rol por defecto
             setUserFlotaId(null);
           }
         } catch (error) {
           console.error("❌ AuthContext - Error obteniendo rol:", error);
+          setUser(u);
           setUserRole("admin"); // Rol por defecto en caso de error
           setUserFlotaId(null);
         }
       } else {
+        setUser(null);
         setUserRole(null);
         setUserFlotaId(null);
       }

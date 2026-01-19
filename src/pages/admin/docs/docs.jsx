@@ -32,6 +32,13 @@ const Documentos = () => {
   // Estados para búsqueda y ordenamiento
   const [searchDocumentos, setSearchDocumentos] = useState("");
   const [sortByDocumentos, setSortByDocumentos] = useState("titulo-asc");
+  const [visibleColumnsDocumentos, setVisibleColumnsDocumentos] = useState({
+    id: true,
+    titulo: true,
+    departamento: true,
+    activo: true,
+    acciones: true,
+  });
   
   // Estados para paginación
   const ITEMS_PER_PAGE = 10;
@@ -305,8 +312,8 @@ const Documentos = () => {
               sortValue={sortByDocumentos}
               onSortChange={setSortByDocumentos}
               filterOptions={[]}
-              visibleColumns={{}}
-              onColumnChange={() => {}}
+              visibleColumns={visibleColumnsDocumentos}
+              onColumnChange={(col, visible) => setVisibleColumnsDocumentos(prev => ({ ...prev, [col]: visible }))}
               showClearButton={true}
             />
           </Box>
@@ -323,11 +330,21 @@ const Documentos = () => {
           <Table stickyHeader>
             <TableHead sx={{ backgroundColor: "#000000" }}>
               <TableRow>
-                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>ID</TableCell>
-                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Título</TableCell>
-                <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Departamento</TableCell>
-                <TableCell align="center" sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Activo</TableCell>
-                <TableCell align="center" sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Acciones</TableCell>
+                {visibleColumnsDocumentos.id && (
+                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>ID</TableCell>
+                )}
+                {visibleColumnsDocumentos.titulo && (
+                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Título</TableCell>
+                )}
+                {visibleColumnsDocumentos.departamento && (
+                  <TableCell sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Departamento</TableCell>
+                )}
+                {visibleColumnsDocumentos.activo && (
+                  <TableCell align="center" sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Activo</TableCell>
+                )}
+                {visibleColumnsDocumentos.acciones && (
+                  <TableCell align="center" sx={{ backgroundColor: "#000000", color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif", fontSize: "0.95rem" }}>Acciones</TableCell>
+                )}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -338,27 +355,36 @@ const Documentos = () => {
                   onClick={() => handleRowClick({ row: doc })}
                   sx={{ cursor: "pointer", borderBottom: "1px solid #d0d0d0" }}
                 >
-                  <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{doc.numero || "-"}</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontFamily: "Mulish, sans-serif" }}>{doc.titulo}</TableCell>
-                  <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{doc.ciudad}</TableCell>
-                  <TableCell align="center">
-                    <Switch
-                      checked={!!doc.activo}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        handleToggleActivo(doc.firebaseId, e.target.checked);
-                      }}
-                      sx={{
-                        '& .MuiSwitch-switchBase.Mui-checked': {
-                          color: '#d7171a',
-                        },
-                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                          backgroundColor: '#d7171a',
-                        },
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell align="center">
+                  {visibleColumnsDocumentos.id && (
+                    <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{doc.numero || "-"}</TableCell>
+                  )}
+                  {visibleColumnsDocumentos.titulo && (
+                    <TableCell sx={{ fontWeight: 600, fontFamily: "Mulish, sans-serif" }}>{doc.titulo}</TableCell>
+                  )}
+                  {visibleColumnsDocumentos.departamento && (
+                    <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{doc.ciudad}</TableCell>
+                  )}
+                  {visibleColumnsDocumentos.activo && (
+                    <TableCell align="center">
+                      <Switch
+                        checked={!!doc.activo}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleToggleActivo(doc.firebaseId, e.target.checked);
+                        }}
+                        sx={{
+                          '& .MuiSwitch-switchBase.Mui-checked': {
+                            color: '#d7171a',
+                          },
+                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                            backgroundColor: '#d7171a',
+                          },
+                        }}
+                      />
+                    </TableCell>
+                  )}
+                  {visibleColumnsDocumentos.acciones && (
+                    <TableCell align="center">
                     <Tooltip title={doc.esDocumentoSistema ? "Documento del sistema - No se puede editar" : "Editar"}>
                       <span>
                         <IconButton
@@ -391,7 +417,8 @@ const Documentos = () => {
                         </IconButton>
                       </span>
                     </Tooltip>
-                  </TableCell>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

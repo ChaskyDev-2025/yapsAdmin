@@ -85,7 +85,13 @@ const Navbar = ({ onMenuClick }) => {
           aria-haspopup="true"
           aria-expanded={open ? 'true' : undefined}
         >
-          <Avatar src="/usuario.jpg" alt="Usuario" sx={{ width: 32, height: 32 }} />
+          <Avatar 
+            src={user?.fotoUrl || ""} 
+            alt="Usuario" 
+            sx={{ width: 32, height: 32 }}
+          >
+            {!user?.fotoUrl && <PersonIcon sx={{ fontSize: 20 }} />}
+          </Avatar>
           <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
               {user?.email?.split('@')[0] || "Admin"}

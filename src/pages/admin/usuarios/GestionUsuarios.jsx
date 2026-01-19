@@ -167,10 +167,11 @@ const GestionUsuarios = () => {
     foto: true,
     nombre: true,
     email: true,
-    rol: true,
+    telefono: true,
     flota: true,
     fecha: true,
-    estado: true,
+    documentos: true,
+    conectado: true,
     acciones: true,
   });
 
@@ -1622,39 +1623,57 @@ const GestionUsuarios = () => {
                 <Table>
                   <TableHead sx={{ bgcolor: "#000000" }}>
                     <TableRow>
-                      <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                        Foto
-                      </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Nombre
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Email
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Teléfono
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Flota
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Fecha Registro
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Documentos
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Conectado
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
-                    Acciones
-                  </TableCell>
-                </TableRow>
-              </TableHead>
+                      {visibleColumnsConductores.foto && (
+                        <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                          Foto
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.nombre && (
+                        <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                          Nombre
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.email && (
+                        <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                          Email
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.telefono && (
+                        <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                          Teléfono
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.flota && (
+                        <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                          Flota
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.fecha && (
+                        <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                          Fecha Registro
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.documentos && (
+                        <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                          Documentos
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.conectado && (
+                        <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                          Conectado
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.acciones && (
+                        <TableCell sx={{ color: "white", fontWeight: 700, fontFamily: "Mulish, sans-serif" }}>
+                          Acciones
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  </TableHead>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={9} align="center">
+                    <TableCell colSpan={Object.values(visibleColumnsConductores).filter(Boolean).length} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                         Cargando trabajadores...
                       </Typography>
@@ -1662,7 +1681,7 @@ const GestionUsuarios = () => {
                   </TableRow>
                 ) : conductoresFiltrados.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} align="center">
+                    <TableCell colSpan={Object.values(visibleColumnsConductores).filter(Boolean).length} align="center">
                       <Typography sx={{ py: 3, color: "#484848", fontFamily: "Mulish, sans-serif" }}>
                         {trabajadores.length === 0 ? "No hay trabajadores registrados" : "No hay resultados para la búsqueda"}
                       </Typography>
@@ -1671,111 +1690,129 @@ const GestionUsuarios = () => {
                 ) : (
                   conductoresPaginados.map((trabajador) => (
                     <TableRow key={trabajador.id} hover>
-                      <TableCell>
-                        <Avatar
-                          src={trabajador.perfil?.foto || trabajador.perfil?.fotoUrl || trabajador.fotoUrl}
-                          alt={trabajador.nombre || trabajador.perfil?.nombre || trabajador.perfil?.name || trabajador.name || trabajador.email}
-                          sx={{ width: 40, height: 40, bgcolor: "#d7171a" }}
-                        >
-                          {(trabajador.nombre || trabajador.perfil?.nombre || trabajador.perfil?.name || trabajador.name || trabajador.email || "?")?.charAt(0).toUpperCase()}
-                        </Avatar>
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                        {capitalizarNombre(trabajador.nombre || trabajador.perfil?.nombre || trabajador.perfil?.name || trabajador.name || trabajador.email || "Sin nombre")}
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        {trabajador.email || "-"}
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <span>{trabajador.telefono || trabajador.phoneNumber || "-"}</span>
-                          <Tooltip title={trabajador.phoneVerified ? "Teléfono verificado" : "Teléfono sin verificar"}>
-                            <Box
-                              sx={{
-                                display: "inline-block",
-                                width: 8,
-                                height: 8,
-                                borderRadius: "50%",
-                                backgroundColor: trabajador.phoneVerified ? "#4caf50" : "#f44336",
-                                flexShrink: 0,
+                      {visibleColumnsConductores.foto && (
+                        <TableCell>
+                          <Avatar
+                            src={trabajador.perfil?.foto || trabajador.perfil?.fotoUrl || trabajador.fotoUrl}
+                            alt={trabajador.nombre || trabajador.perfil?.nombre || trabajador.perfil?.name || trabajador.name || trabajador.email}
+                            sx={{ width: 40, height: 40, bgcolor: "#d7171a" }}
+                          >
+                            {(trabajador.nombre || trabajador.perfil?.nombre || trabajador.perfil?.name || trabajador.name || trabajador.email || "?")?.charAt(0).toUpperCase()}
+                          </Avatar>
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.nombre && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                          {capitalizarNombre(trabajador.nombre || trabajador.perfil?.nombre || trabajador.perfil?.name || trabajador.name || trabajador.email || "Sin nombre")}
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.email && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          {trabajador.email || "-"}
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.telefono && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <span>{trabajador.telefono || trabajador.phoneNumber || "-"}</span>
+                            <Tooltip title={trabajador.phoneVerified ? "Teléfono verificado" : "Teléfono sin verificar"}>
+                              <Box
+                                sx={{
+                                  display: "inline-block",
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: "50%",
+                                  backgroundColor: trabajador.phoneVerified ? "#4caf50" : "#f44336",
+                                  flexShrink: 0,
+                                }}
+                              />
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.flota && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          {trabajador.flotaId 
+                            ? flotas.find(f => f.id === trabajador.flotaId)?.nombre || "Flota no encontrada"
+                            : "-"}
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.fecha && (
+                        <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                          {formatearFecha(trabajador.createdAt)}
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.documentos && (
+                        <TableCell>
+                          <Typography sx={{color: trabajador.documentos_aprobados ? "#d7171a" : "#bdbdbd", fontWeight: 600}}>
+                            {trabajador.documentos_aprobados ? "Sí" : "No"}
+                          </Typography>
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.conectado && (
+                        <TableCell>
+                          <Chip
+                            icon={trabajador.online === true ? <WifiIcon /> : <WifiOffIcon />}
+                            label={trabajador.online === true ? "En línea" : "Desconectado"}
+                            size="small"
+                            sx={{
+                              color: trabajador.online === true ? "#2e7d32" : "#616161",
+                              backgroundColor: trabajador.online === true ? "#e8f5e9" : "#f5f5f5",
+                              fontWeight: 600,
+                              fontFamily: "Mulish, sans-serif",
+                            }}
+                          />
+                        </TableCell>
+                      )}
+                      {visibleColumnsConductores.acciones && (
+                        <TableCell>
+                          <Tooltip title="Ver Detalles">
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                setConductorDetalles({
+                                  ...trabajador,
+                                  firebaseId: trabajador.id
+                                });
+                                setDetallesConductorModalOpen(true);
                               }}
-                            />
+                              sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffebee" }, mr: 1 }}
+                            >
+                              <VisibilityIcon />
+                            </IconButton>
                           </Tooltip>
-                        </Box>
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        {trabajador.flotaId 
-                          ? flotas.find(f => f.id === trabajador.flotaId)?.nombre || "Flota no encontrada"
-                          : "-"}
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                        {formatearFecha(trabajador.createdAt)}
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{color: trabajador.documentos_aprobados ? "#d7171a" : "#bdbdbd", fontWeight: 600}}>
-                          {trabajador.documentos_aprobados ? "Sí" : "No"}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          icon={trabajador.online === true ? <WifiIcon /> : <WifiOffIcon />}
-                          label={trabajador.online === true ? "En línea" : "Desconectado"}
-                          size="small"
-                          sx={{
-                            color: trabajador.online === true ? "#2e7d32" : "#616161",
-                            backgroundColor: trabajador.online === true ? "#e8f5e9" : "#f5f5f5",
-                            fontWeight: 600,
-                            fontFamily: "Mulish, sans-serif",
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Tooltip title="Ver Detalles">
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              setConductorDetalles({
-                                ...trabajador,
-                                firebaseId: trabajador.id
-                              });
-                              setDetallesConductorModalOpen(true);
-                            }}
-                            sx={{ bgcolor: "#ffe0e0", color: "#d7171a", "&:hover": { bgcolor: "#ffebee" }, mr: 1 }}
-                          >
-                            <VisibilityIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Ver Documentos">
-                          <IconButton
-                            size="small"
-                            onClick={() => {
-                              setConductorDocumentosSeleccionado(trabajador);
-                              setDocumentosConductorModalOpen(true);
-                            }}
-                            sx={{ color: "#1976d2", mr: 1 }}
-                          >
-                            <DescriptionIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Editar">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleOpenDialog(trabajador)}
-                            sx={{ color: "#444444ff", mr: 1 }}
-                          >
-                            <EditIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Eliminar">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleOpenDeleteConductorDialog(trabajador)}
-                            sx={{ color: "#d7171a" }}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </TableCell>
+                          <Tooltip title="Ver Documentos">
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                setConductorDocumentosSeleccionado(trabajador);
+                                setDocumentosConductorModalOpen(true);
+                              }}
+                              sx={{ color: "#1976d2", mr: 1 }}
+                            >
+                              <DescriptionIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Editar">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenDialog(trabajador)}
+                              sx={{ color: "#444444ff", mr: 1 }}
+                            >
+                              <EditIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Eliminar">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenDeleteConductorDialog(trabajador)}
+                              sx={{ color: "#d7171a" }}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}

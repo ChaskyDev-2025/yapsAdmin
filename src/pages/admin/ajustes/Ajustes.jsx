@@ -22,7 +22,7 @@ import {
   Pagination,
 } from "@mui/material";
 import BusinessIcon from "@mui/icons-material/Business";
-import EditIcon from "@mui/icons-material/Edit";
+import MoreIcon from "@mui/icons-material/MoreVert";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DetalleModal from "./components/ModalUsuario";
 import { useUsuarios } from "./hooks/useUsuarios";
@@ -214,56 +214,70 @@ const Ajustes = () => {
           <Table>
             <TableHead sx={{ backgroundColor: "#000000" }}>
               <TableRow>
-                <TableCell sx={{
-                  backgroundColor: "#000000",
-                  color: "white",
-                  fontWeight: 700,
-                  fontFamily: "Mulish, sans-serif",
-                  fontSize: "0.95rem"
-                }}>ID</TableCell>
-                <TableCell sx={{
-                  backgroundColor: "#000000",
-                  color: "white",
-                  fontWeight: 700,
-                  fontFamily: "Mulish, sans-serif",
-                  fontSize: "0.95rem"
-                }}>Nombre Usuario</TableCell>
-                <TableCell sx={{
-                  backgroundColor: "#000000",
-                  color: "white",
-                  fontWeight: 700,
-                  fontFamily: "Mulish, sans-serif",
-                  fontSize: "0.95rem"
-                }}>Teléfono</TableCell>
-                <TableCell sx={{
-                  backgroundColor: "#000000",
-                  color: "white",
-                  fontWeight: 700,
-                  fontFamily: "Mulish, sans-serif",
-                  fontSize: "0.95rem"
-                }}>Email</TableCell>
-                <TableCell sx={{
-                  backgroundColor: "#000000",
-                  color: "white",
-                  fontWeight: 700,
-                  fontFamily: "Mulish, sans-serif",
-                  fontSize: "0.95rem"
-                }}>Rol</TableCell>
-                <TableCell sx={{
-                  backgroundColor: "#000000",
-                  color: "white",
-                  fontWeight: 700,
-                  fontFamily: "Mulish, sans-serif",
-                  fontSize: "0.95rem"
-                }}>Fecha de Registro</TableCell>
-                <TableCell sx={{
-                  backgroundColor: "#000000",
-                  color: "white",
-                  fontWeight: 700,
-                  fontFamily: "Mulish, sans-serif",
-                  fontSize: "0.95rem",
-                  textAlign: "center"
-                }}>Acciones</TableCell>
+                {visibleColumnsAjustes.id && (
+                  <TableCell sx={{
+                    backgroundColor: "#000000",
+                    color: "white",
+                    fontWeight: 700,
+                    fontFamily: "Mulish, sans-serif",
+                    fontSize: "0.95rem"
+                  }}>ID</TableCell>
+                )}
+                {visibleColumnsAjustes.nombre && (
+                  <TableCell sx={{
+                    backgroundColor: "#000000",
+                    color: "white",
+                    fontWeight: 700,
+                    fontFamily: "Mulish, sans-serif",
+                    fontSize: "0.95rem"
+                  }}>Nombre Usuario</TableCell>
+                )}
+                {visibleColumnsAjustes.telefono && (
+                  <TableCell sx={{
+                    backgroundColor: "#000000",
+                    color: "white",
+                    fontWeight: 700,
+                    fontFamily: "Mulish, sans-serif",
+                    fontSize: "0.95rem"
+                  }}>Teléfono</TableCell>
+                )}
+                {visibleColumnsAjustes.email && (
+                  <TableCell sx={{
+                    backgroundColor: "#000000",
+                    color: "white",
+                    fontWeight: 700,
+                    fontFamily: "Mulish, sans-serif",
+                    fontSize: "0.95rem"
+                  }}>Email</TableCell>
+                )}
+                {visibleColumnsAjustes.rol && (
+                  <TableCell sx={{
+                    backgroundColor: "#000000",
+                    color: "white",
+                    fontWeight: 700,
+                    fontFamily: "Mulish, sans-serif",
+                    fontSize: "0.95rem"
+                  }}>Rol</TableCell>
+                )}
+                {visibleColumnsAjustes.fechaRegistro && (
+                  <TableCell sx={{
+                    backgroundColor: "#000000",
+                    color: "white",
+                    fontWeight: 700,
+                    fontFamily: "Mulish, sans-serif",
+                    fontSize: "0.95rem"
+                  }}>Fecha de Registro</TableCell>
+                )}
+                {visibleColumnsAjustes.acciones && (
+                  <TableCell sx={{
+                    backgroundColor: "#000000",
+                    color: "white",
+                    fontWeight: 700,
+                    fontFamily: "Mulish, sans-serif",
+                    fontSize: "0.95rem",
+                    textAlign: "center"
+                  }}>Acciones</TableCell>
+                )}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -284,57 +298,71 @@ const Ajustes = () => {
                     }}
                     onClick={() => handleVer(row)}
                   >
-                    <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                      {row.nro || "-"}
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
-                      {row.nombreUsuario || "-"}
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                      {row.telefono || "Sin teléfono"}
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                      {row.email || "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={row.rol || "Usuario"}
-                        sx={{
-                          backgroundColor: row.rol === "Admin" ? "#d7171a" : "#e0e0e0",
-                          color: row.rol === "Admin" ? "white" : "#333",
-                          fontWeight: 600,
-                          fontFamily: "Mulish, sans-serif"
-                        }}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
-                      {row.fechaRegistro ? new Date(row.fechaRegistro).toLocaleDateString("es-ES") : "Sin fecha"}
-                    </TableCell>
-                    <TableCell sx={{ textAlign: "center" }}>
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditar(row);
-                        }}
-                        title="Editar"
-                        sx={{ color: "#d7171a" }}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEliminar(row);
-                        }}
-                        title="Eliminar"
-                        sx={{ color: "#f44336" }}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
+                    {visibleColumnsAjustes.id && (
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                        {row.nro || "-"}
+                      </TableCell>
+                    )}
+                    {visibleColumnsAjustes.nombre && (
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 600 }}>
+                        {row.nombreUsuario || "-"}
+                      </TableCell>
+                    )}
+                    {visibleColumnsAjustes.telefono && (
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        {row.telefono || "Sin teléfono"}
+                      </TableCell>
+                    )}
+                    {visibleColumnsAjustes.email && (
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        {row.email || "-"}
+                      </TableCell>
+                    )}
+                    {visibleColumnsAjustes.rol && (
+                      <TableCell>
+                        <Chip
+                          label={row.rol || "Usuario"}
+                          sx={{
+                            backgroundColor: row.rol === "Admin" ? "#d7171a" : "#e0e0e0",
+                            color: row.rol === "Admin" ? "white" : "#333",
+                            fontWeight: 600,
+                            fontFamily: "Mulish, sans-serif"
+                          }}
+                          size="small"
+                        />
+                      </TableCell>
+                    )}
+                    {visibleColumnsAjustes.fechaRegistro && (
+                      <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>
+                        {row.fechaRegistro || "Sin fecha"}
+                      </TableCell>
+                    )}
+                    {visibleColumnsAjustes.acciones && (
+                      <TableCell sx={{ textAlign: "center" }}>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditar(row);
+                          }}
+                          title="Ver más"
+                          sx={{ color: "#d7171a" }}
+                        >
+                          <MoreIcon />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEliminar(row);
+                          }}
+                          title="Eliminar"
+                          sx={{ color: "#f44336" }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               ) : (

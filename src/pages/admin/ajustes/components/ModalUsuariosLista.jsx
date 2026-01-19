@@ -1,7 +1,7 @@
 // src/pages/admin/ajustes/components/ModalUsuariosLista.jsx
 import { Box, Typography, List, ListItem, ListItemText, ListItemAvatar, Avatar, Chip, IconButton, Divider, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from "@mui/material";
 import PersonIcon from "@mui/icons-material/Person";
-import EditIcon from "@mui/icons-material/Edit";
+import MoreIcon from "@mui/icons-material/MoreVert";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
@@ -64,6 +64,7 @@ export default function ModalUsuariosLista({ userId }) {
             telefono: trabajador.perfil?.phone || trabajador.perfil?.telefono || trabajador.telefono || "Sin teléfono",
             rol: "Trabajador",
             cargo: "Conductor",
+            foto: trabajador.perfil?.foto || trabajador.perfil?.fotoUrl || null,
             ...trabajador,
           };
         });
@@ -177,11 +178,12 @@ export default function ModalUsuariosLista({ userId }) {
                   <Box>
                     <IconButton
                       edge="end"
-                      aria-label="edit"
+                      aria-label="ver-mas"
                       onClick={() => handleEditar(usuario)}
                       sx={{ mr: 1 }}
+                      title="Ver más"
                     >
-                      <EditIcon fontSize="small" color="primary" />
+                      <MoreIcon fontSize="small" color="primary" />
                     </IconButton>
                     <IconButton
                       edge="end"
@@ -194,8 +196,11 @@ export default function ModalUsuariosLista({ userId }) {
                 }
               >
                 <ListItemAvatar>
-                  <Avatar sx={{ bgcolor: "primary.main" }}>
-                    <PersonIcon />
+                  <Avatar 
+                    src={usuario.foto || ""} 
+                    sx={{ bgcolor: "primary.main" }}
+                  >
+                    {!usuario.foto && <PersonIcon />}
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
@@ -241,7 +246,7 @@ export default function ModalUsuariosLista({ userId }) {
       )}
 
       <Dialog open={openEditDialog} onClose={() => setOpenEditDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Editar Trabajador</DialogTitle>
+        <DialogTitle>Detalles del Trabajador</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
           <TextField
             fullWidth

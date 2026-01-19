@@ -12,10 +12,10 @@ export const useAdministradores = (flotas = []) => {
       setLoading(true);
       const usersCollection = collection(db, "users");
       
-      // Obtener usuarios que tengan role de "admin" o "superadmin"
+      // Obtener usuarios que tengan role de "admin"
       const adminQuery = query(
         usersCollection,
-        where("role", "in", ["admin", "superadmin"])
+        where("role", "==", "admin")
       );
       
       const adminSnapshot = await getDocs(adminQuery);

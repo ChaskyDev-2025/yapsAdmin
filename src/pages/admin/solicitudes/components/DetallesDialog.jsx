@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogTitle, DialogContent, Box, Typography, Grid, TextField, IconButton, Modal, Tooltip } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
+import { getDoc, doc } from "firebase/firestore";
+import { db } from "../../../../data/firebase/firebase";
 
 const DetallesDialog = ({
   open,
@@ -15,6 +17,55 @@ const DetallesDialog = ({
   pasajeros,
 }) => {
   const [imagenExpandida, setImagenExpandida] = useState(null);
+  const [userPhoneNumber, setUserPhoneNumber] = useState(null);
+
+  // Cargar teléfono del usuario desde Firestore si no existe en la solicitud
+  useEffect(() => {
+    if (!open || !solicitudSeleccionada) return;
+
+    const loadUserPhone = async () => {
+      try {
+        const uidUser = solicitudSeleccionada.uidUser || solicitudSeleccionada.solicitud?.uidUser || "";
+        
+        // Primero buscar en la raíz
+        if (solicitudSeleccionada.phone) {
+          setUserPhoneNumber(solicitudSeleccionada.phone);
+          return;
+        }
+        if (solicitudSeleccionada.solicitud?.phone) {
+          setUserPhoneNumber(solicitudSeleccionada.solicitud.phone);
+          return;
+        }
+        
+        // Luego en pasajero
+        if (solicitudSeleccionada.pasajero?.perfil?.phone) {
+          setUserPhoneNumber(solicitudSeleccionada.pasajero.perfil.phone);
+          return;
+        }
+        if (solicitudSeleccionada.solicitud?.pasajero?.perfil?.phone) {
+          setUserPhoneNumber(solicitudSeleccionada.solicitud.pasajero.perfil.phone);
+          return;
+        }
+
+        // Si no encontramos, buscar en Firestore
+        if (uidUser) {
+          const userDocRef = doc(db, "pasajeros", uidUser);
+          const userDocSnap = await getDoc(userDocRef);
+          
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            const phone = userData.phone || userData.perfil?.phone || userData.phoneNumber || null;
+            setUserPhoneNumber(phone);
+            console.log("DetallesDialog - Teléfono cargado desde Firestore:", phone);
+          }
+        }
+      } catch (error) {
+        console.error("Error cargando teléfono del usuario:", error);
+      }
+    };
+
+    loadUserPhone();
+  }, [open, solicitudSeleccionada]);
 
   if (!solicitudSeleccionada) return null;
 
@@ -38,16 +89,43 @@ const DetallesDialog = ({
 
   // Obtener teléfono del pasajero
   const getPhoneNumber = () => {
+    // Primero retornar el que cargamos desde Firestore
+    if (userPhoneNumber) {
+      return userPhoneNumber;
+    }
+    
+    // Buscar en la raíz primero
+    if (solicitudSeleccionada.phone) {
+      return solicitudSeleccionada.phone;
+    }
+    if (solicitudSeleccionada.solicitud?.phone) {
+      return solicitudSeleccionada.solicitud.phone;
+    }
+    
+    // Buscar en los datos del pasajero de la solicitud
+    if (solicitudSeleccionada.pasajero?.perfil?.phone) {
+      return solicitudSeleccionada.pasajero.perfil.phone;
+    }
+    if (solicitudSeleccionada.solicitud?.pasajero?.perfil?.phone) {
+      return solicitudSeleccionada.solicitud.pasajero.perfil.phone;
+    }
+    
+    // Buscar en el array de pasajeros
     if (pasajeros && uidUser) {
       const pasajero = pasajeros.find(p => p.id === uidUser);
-      if (pasajero && pasajero.phone) {
-        return pasajero.phone;
+      if (pasajero) {
+        return pasajero.phone || pasajero.perfil?.phone || pasajero.phoneNumber || null;
       }
     }
+    
     return null;
   };
 
   const phoneNumber = getPhoneNumber();
+
+  console.log("DetallesDialog - solicitudSeleccionada:", solicitudSeleccionada);
+  console.log("DetallesDialog - phoneNumber:", phoneNumber);
+  console.log("DetallesDialog - sendWhatsApp:", sendWhatsApp);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -559,20 +637,29 @@ const DetallesDialog = ({
                       size="small"
                       sx={disabledTextFieldStyles}
                     />
-                    {phoneNumber && sendWhatsApp && (
-                      <Tooltip title="Contactar por WhatsApp">
-                        <IconButton
-                          size="small"
-                          onClick={() => sendWhatsApp(phoneNumber, passengerName || (obtenerNombreUsuario ? obtenerNombreUsuario(uidUser) : uidUser))}
-                          sx={{
-                            color: "#25D366",
-                            "&:hover": {
-                              backgroundColor: "rgba(37, 211, 102, 0.1)",
-                            },
-                          }}
-                        >
-                          <WhatsAppIcon />
-                        </IconButton>
+                    {sendWhatsApp && (
+                      <Tooltip title={phoneNumber ? "Contactar por WhatsApp" : "Sin teléfono disponible"}>
+                        <span>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              if (phoneNumber) {
+                                const nombreUsuario = passengerName || (obtenerNombreUsuario ? obtenerNombreUsuario(uidUser) : uidUser);
+                                const tipoServicio = s.servicio || s.categoria || "";
+                                sendWhatsApp(phoneNumber, nombreUsuario, tipoServicio);
+                              }
+                            }}
+                            disabled={!phoneNumber}
+                            sx={{
+                              color: phoneNumber ? "#25D366" : "#bdbdbd",
+                              "&:hover": {
+                                backgroundColor: phoneNumber ? "rgba(37, 211, 102, 0.1)" : "transparent",
+                              },
+                            }}
+                          >
+                            <WhatsAppIcon />
+                          </IconButton>
+                        </span>
                       </Tooltip>
                     )}
                   </Box>
