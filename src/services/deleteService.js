@@ -5,13 +5,17 @@ import { db } from "../data/firebase/firebase";
  * Elimina un documento y TODAS sus subcollecciones recursivamente
  * @param {string} collectionName - Nombre de la colección (ej: "trabajadores", "pasajeros")
  * @param {string} docId - ID del documento a eliminar
+ * @param {array} subcollectionsToDelete - (Opcional) Lista específica de subcollecciones a eliminar
  */
-export async function deleteDocumentWithSubcollections(collectionName, docId) {
+export async function deleteDocumentWithSubcollections(collectionName, docId, subcollectionsToDelete = null) {
   try {
     const docRef = doc(db, collectionName, docId);
     
-    // 1. Obtener todas las subcollecciones
-    const subcollections = await getSubcollections(docRef);
+    // 1. Obtener subcollecciones a eliminar
+    let subcollections = subcollectionsToDelete;
+    if (!subcollections) {
+      subcollections = await getSubcollections(docRef, collectionName);
+    }
     
     // 2. Eliminar todas las subcollecciones recursivamente
     for (const subcollectionName of subcollections) {
@@ -30,24 +34,20 @@ export async function deleteDocumentWithSubcollections(collectionName, docId) {
 }
 
 /**
- * Obtiene los nombres de todas las subcollecciones de un documento
+ * Obtiene los nombres de subcollecciones específicas según el tipo de colección
  */
-async function getSubcollections(docRef) {
+async function getSubcollections(docRef, collectionName) {
   try {
-    // Nota: Firestore no tiene una forma nativa de listar subcollecciones desde el cliente
-    // Así que hacemos una lista de las más comunes
-    const commonSubcollections = [
-      "documentos",
-      "solicitudes_recarga",
-      "historial",
-      "fotos",
-      "referencias",
-      "billetera",
-      "historial-billetera",
-      "tiempos_online",
-    ];
+    // Define subcollecciones específicas por tipo de colección
+    const subcollectionMap = {
+      trabajadores: ["documentos", "billetera", "historial-billetera", "tiempos_online"],
+      pasajeros: ["billetera", "historial-billetera"],
+      usuarios: ["billetera", "historial-billetera"],
+      flotas: ["solicitudes_recarga", "historial"],
+    };
     
-    return commonSubcollections;
+    // Retornar las subcollecciones específicas o una lista vacía si no se define
+    return subcollectionMap[collectionName] || [];
   } catch (error) {
     return [];
   }
@@ -67,21 +67,11 @@ async function deleteSubcollectionRecursively(parentRef, subcollectionName) {
     
     const batch = writeBatch(db);
     let batchCount = 0;
-    const MAX_BATCH_SIZE = 500; // Firestore limite de 500 operaciones por batch
+    const MAX_BATCH_SIZE = 500; // Firestore límite de 500 operaciones por batch
     
-    for (const doc of snapshot.docs) {
-      // Eliminar subcollecciones anidadas si existen
-      const nestedSubcollections = ["historial", "fotos", "solicitudes_recarga"];
-      for (const nestedName of nestedSubcollections) {
-        try {
-          await deleteSubcollectionRecursively(doc.ref, nestedName);
-        } catch (e) {
-          // Ignorar si no existe la subcollección anidada
-        }
-      }
-      
+    for (const docSnap of snapshot.docs) {
       // Agregar el documento al batch para eliminación
-      batch.delete(doc.ref);
+      batch.delete(docSnap.ref);
       batchCount++;
       
       // Ejecutar batch cuando alcanza el límite

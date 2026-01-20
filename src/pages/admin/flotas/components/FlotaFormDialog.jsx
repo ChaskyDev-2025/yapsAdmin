@@ -271,17 +271,32 @@ export const FlotaFormDialog = ({
 
           {/* SECCIÓN 4: PROPIETARIOS */}
           <Paper sx={{ p: 2.5, bgcolor: "white", borderRadius: 2 }}>
-            <Typography
-              sx={{
-                fontFamily: "Mulish, sans-serif",
-                fontWeight: 800,
-                color: "#d7171a",
-                mb: 2,
-                fontSize: "1rem",
-              }}
-            >
-              👥 Administradores
-            </Typography>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+              <Typography
+                sx={{
+                  fontFamily: "Mulish, sans-serif",
+                  fontWeight: 800,
+                  color: "#d7171a",
+                  fontSize: "1rem",
+                }}
+              >
+                👥 Administradores
+              </Typography>
+              <Typography
+                sx={{
+                  fontFamily: "Mulish, sans-serif",
+                  fontWeight: 500,
+                  color: "#ff9800",
+                  fontSize: "0.85rem",
+                  bgcolor: "#fff3e0",
+                  px: 1.5,
+                  py: 0.5,
+                  borderRadius: 1,
+                }}
+              >
+                ℹ️ Opcional
+              </Typography>
+            </Box>
             <FormControl fullWidth size="small">
               <InputLabel>Seleccionar Administradores</InputLabel>
               <Select
@@ -320,6 +335,17 @@ export const FlotaFormDialog = ({
                   ))
                 )}
               </Select>
+              <Typography
+                sx={{
+                  fontFamily: "Mulish, sans-serif",
+                  fontWeight: 500,
+                  color: "#666",
+                  fontSize: "0.85rem",
+                  mt: 1,
+                }}
+              >
+                💡 Puedes crear la flota sin asignar administradores y agregarlos después desde la edición
+              </Typography>
             </FormControl>
           </Paper>
 

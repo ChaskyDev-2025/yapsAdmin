@@ -96,8 +96,34 @@ export const useFlotas = () => {
   };
 
   const deleteFlota = async (flotaId) => {
-    await deleteDoc(doc(db, "flotas", flotaId));
-    await fetchFlotas();
+    try {
+      // 1. Obtener la flota para conocer los admins asignados
+      const flotaRef = doc(db, "flotas", flotaId);
+      const flotaSnapshot = await getDoc(flotaRef);
+      
+      if (flotaSnapshot.exists()) {
+        const uidPropietarios = flotaSnapshot.data().uidPropietarios || [];
+        
+        // 2. Limpiar flotaId de todos los admins asignados
+        for (const uid of uidPropietarios) {
+          try {
+            await updateDoc(doc(db, "users", uid), { 
+              flotaId: null,
+              updatedAt: serverTimestamp()
+            });
+          } catch (error) {
+            console.warn(`⚠️ No se pudo limpiar flotaId del usuario ${uid}:`, error);
+          }
+        }
+      }
+      
+      // 3. Eliminar la flota
+      await deleteDoc(flotaRef);
+      await fetchFlotas();
+    } catch (error) {
+      console.error("Error al eliminar flota:", error);
+      throw error;
+    }
   };
 
   const toggleHabilitado = async (flotaId, currentState) => {

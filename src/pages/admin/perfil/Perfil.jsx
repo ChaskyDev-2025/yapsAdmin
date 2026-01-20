@@ -25,6 +25,7 @@ const Perfil = () => {
     nombre,
     setNombre,
     correo,
+    setCorreo,
     telefono,
     setTelefono,
     cargando,
@@ -94,6 +95,7 @@ const Perfil = () => {
             nombre={nombre}
             onNombreChange={setNombre}
             correo={correo}
+            onCorreoChange={setCorreo}
             telefono={telefono}
             onTelefonoChange={setTelefono}
             guardando={perfilData.guardando}

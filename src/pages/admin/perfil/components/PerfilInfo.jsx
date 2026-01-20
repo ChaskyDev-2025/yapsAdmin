@@ -10,6 +10,7 @@ const PerfilInfo = ({
   nombre,
   onNombreChange,
   correo,
+  onCorreoChange,
   telefono,
   onTelefonoChange,
   guardando,
@@ -30,8 +31,8 @@ const PerfilInfo = ({
         fullWidth
         type="email"
         value={correo}
-        disabled
-        helperText="El correo no se puede cambiar"
+        onChange={(e) => onCorreoChange(e.target.value)}
+        placeholder="Tu correo electrónico"
       />
 
       <TextField

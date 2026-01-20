@@ -82,7 +82,8 @@ export const usePerfilData = (user) => {
       await updateDoc(userRef, {
         nombre: nombre,
         email: correo,
-        telefono: telefono,
+        telefono: telefono || "",
+        phoneNumber: telefono || "",
         fotoUrl: nuevoFotoUrl,
         actualizadoEn: new Date().toISOString(),
       });

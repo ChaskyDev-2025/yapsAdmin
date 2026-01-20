@@ -350,10 +350,6 @@ const GestionFlotas = () => {
       showSnackbar("El NIT es obligatorio", "error");
       return;
     }
-    if (!formData.uidPropietarios || formData.uidPropietarios.length === 0) {
-      showSnackbar("Debe seleccionar al menos un administrador", "error");
-      return;
-    }
 
     setIsSaving(true);
 
@@ -364,22 +360,24 @@ const GestionFlotas = () => {
         imageUrl = await uploadImageToStorage(imageFile, idForImage);
       }
 
-      const primerAdminUid = formData.uidPropietarios[0];
-      const adminSeleccionado = administradores.find((a) => a.uid === primerAdminUid);
-
-      if (!adminSeleccionado) {
-        showSnackbar("No se encontró el administrador seleccionado", "error");
-        setIsSaving(false);
-        return;
-      }
-
-      const perfilFlota = {
+      // Si hay administradores seleccionados, usar el primero para el perfil
+      let perfilFlota = {
         nombreFlota: formData.nombre,
         representanteLegal: formData.representanteLegal,
         telefono: formData.telefono,
-        correo: adminSeleccionado.email || adminSeleccionado.correo || "",
-        contrasena: adminSeleccionado.password || adminSeleccionado.contrasena || "",
+        correo: "",
+        contrasena: "",
       };
+
+      if (formData.uidPropietarios && formData.uidPropietarios.length > 0) {
+        const primerAdminUid = formData.uidPropietarios[0];
+        const adminSeleccionado = administradores.find((a) => a.uid === primerAdminUid);
+
+        if (adminSeleccionado) {
+          perfilFlota.correo = adminSeleccionado.email || adminSeleccionado.correo || "";
+          perfilFlota.contrasena = adminSeleccionado.password || adminSeleccionado.contrasena || "";
+        }
+      }
 
       const flotaData = {
         nombre: formData.nombre,
@@ -406,14 +404,18 @@ const GestionFlotas = () => {
         // Obtener los UIDs anteriores de los administradores
         const adminsAnteriores = currentFlota.uidPropietarios || [];
         
-        // Actualizar flotaId en usuarios seleccionados
-        for (const uid of formData.uidPropietarios) {
-          const userRef = doc(db, "users", uid);
-          await updateDoc(userRef, { flotaId: currentFlota.id, updatedAt: serverTimestamp() });
+        // Actualizar flotaId en usuarios seleccionados (solo si hay administradores)
+        if (formData.uidPropietarios && formData.uidPropietarios.length > 0) {
+          for (const uid of formData.uidPropietarios) {
+            const userRef = doc(db, "users", uid);
+            await updateDoc(userRef, { flotaId: currentFlota.id, updatedAt: serverTimestamp() });
+          }
         }
         
         // Remover flotaId de los administradores que fueron desasignados
-        const adminsDesasignados = adminsAnteriores.filter(uid => !formData.uidPropietarios.includes(uid));
+        const adminsDesasignados = adminsAnteriores.filter(uid => 
+          !formData.uidPropietarios || !formData.uidPropietarios.includes(uid)
+        );
         for (const uid of adminsDesasignados) {
           const userRef = doc(db, "users", uid);
           await updateDoc(userRef, { flotaId: null, updatedAt: serverTimestamp() });
@@ -422,10 +424,12 @@ const GestionFlotas = () => {
         showSnackbar("Flota actualizada exitosamente", "success");
       } else {
         const nuevaFlotaId = await createFlota(flotaData);
-        // Actualizar flotaId en usuarios
-        for (const uid of formData.uidPropietarios) {
-          const userRef = doc(db, "users", uid);
-          await updateDoc(userRef, { flotaId: nuevaFlotaId, updatedAt: serverTimestamp() });
+        // Actualizar flotaId en usuarios (solo si hay administradores)
+        if (formData.uidPropietarios && formData.uidPropietarios.length > 0) {
+          for (const uid of formData.uidPropietarios) {
+            const userRef = doc(db, "users", uid);
+            await updateDoc(userRef, { flotaId: nuevaFlotaId, updatedAt: serverTimestamp() });
+          }
         }
         showSnackbar("Flota creada exitosamente", "success");
       }

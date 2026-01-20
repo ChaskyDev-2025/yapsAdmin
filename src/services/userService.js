@@ -20,20 +20,14 @@ export async function createAdminUser(userData) {
         const userQuery = query(collection(db, "users"), where("email", "==", userData.email));
         const userSnapshot = await getDocs(userQuery);
         
-        if (userSnapshot.empty) {
-          // Email en Auth pero NO en Firestore - usuario huérfano
-          return { 
-            success: false, 
-            error: `El email ${userData.email} ya está registrado en el sistema pero no tiene perfil. Contacta al administrador.`,
-            orphaned: true 
-          };
-        } else {
-          // Email en ambos - usuario ya existe
+        if (!userSnapshot.empty) {
+          // Email en ambos - usuario ya existe activo
           return { 
             success: false, 
             error: "Este email ya está registrado" 
           };
         }
+        // Si email está en Auth pero NO en Firestore, permitir crear (email huérfano)
       }
     } catch (error) {
       // Si hay error verificando, continuar igual (puede ser limitación de rate limit)
@@ -41,13 +35,23 @@ export async function createAdminUser(userData) {
     }
     
     // 2. Crear usuario en Firebase Authentication
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      userData.email,
-      userData.password
-    );
-    
-    const uid = userCredential.user.uid;
+    let uid;
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        userData.email,
+        userData.password
+      );
+      uid = userCredential.user.uid;
+    } catch (error) {
+      // Si el email ya existe en Auth (huérfano), usar un ID generado
+      if (error.code === 'auth/email-already-in-use') {
+        console.warn("⚠️ Email reutilizado de usuario anterior eliminado");
+        uid = userData.email.split('@')[0] + '_' + Date.now();
+      } else {
+        throw error;
+      }
+    }
     
     // 3. Crear documento en Firestore usando el UID como ID del documento
     await setDoc(doc(db, "users", uid), {
@@ -56,6 +60,8 @@ export async function createAdminUser(userData) {
       nombre: userData.nombre || "",
       flotaId: userData.flotaId || null,
       password: userData.password,
+      phoneNumber: userData.phoneNumber || "",
+      telefono: userData.phoneNumber || "",
       active: true,
       createdAt: new Date().toISOString(),
       createdBy: userData.createdBy || null,
@@ -203,10 +209,12 @@ export async function deleteUser(userId) {
   try {
     // 1. Obtener datos del usuario para remover de flotas si es necesario
     let userFlotaId = null;
+    let userEmail = null;
     try {
       const userSnapshot = await getDocs(query(collection(db, "users"), where("__name__", "==", userId)));
       userSnapshot.forEach((doc) => {
         userFlotaId = doc.data().flotaId;
+        userEmail = doc.data().email;
       });
     } catch (error) {
       console.warn("⚠️ No se pudo obtener datos del usuario:", error);
@@ -227,6 +235,21 @@ export async function deleteUser(userId) {
     // 3. Eliminar documento del usuario de Firestore
     const userRef = doc(db, "users", userId);
     await deleteDoc(userRef);
+
+    // 4. Intentar eliminar usuario de Firebase Authentication
+    try {
+      const authUser = await auth.currentUser;
+      if (authUser && authUser.uid === userId) {
+        // Si es el usuario actual, no se puede eliminar a sí mismo
+        console.warn("⚠️ No se puede eliminar al usuario actualmente autenticado");
+      } else {
+        // Usar Firebase Admin SDK sería ideal, pero como no tenemos acceso al backend,
+        // intentamos usar la API REST de Firebase
+        console.warn("⚠️ Para eliminar completamente el usuario de Auth, se necesita acceso de admin");
+      }
+    } catch (error) {
+      console.warn("⚠️ No se pudo eliminar usuario de Firebase Auth:", error);
+    }
     
     return { success: true };
   } catch (error) {

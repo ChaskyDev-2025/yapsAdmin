@@ -988,7 +988,7 @@ const Solicitudes = () => {
               }}
             />
             <Typography variant="body2" sx={{ color: "#999", fontStyle: "italic" }}>
-              Esta acción no se puede deshacer. La solicitud volverá a estado pendiente y podrá ser reasignada.
+              Esta acción no se puede deshacer.
             </Typography>
           </Box>
         </DialogContent>

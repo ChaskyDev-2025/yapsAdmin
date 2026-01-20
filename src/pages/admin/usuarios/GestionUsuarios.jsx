@@ -47,18 +47,13 @@ import { useAuth } from "../../../auth/AuthContext";
 
 import { getAllUsers, createAdminUser, updateUser, deleteUser, isSuperAdmin } from "../../../services/userService";
 import { deleteDocumentWithSubcollections } from "../../../services/deleteService";
-import { collection, doc, updateDoc, onSnapshot } from "firebase/firestore";
+import { collection, doc, updateDoc, onSnapshot, getDoc } from "firebase/firestore";
 import { db } from "../../../data/firebase/firebase";
 import { TableToolbar } from "./components/TableToolbar";
 import ModalDetalleConductor from "./components/ModalDetalleConductor";
 import ModalDetallePasajero from "./components/ModalDetallePasajero";
 import DocumentosConductoresViewModal from "./components/DocumentosConductoresViewModal";
 import DateFilterComponent from "./components/DateFilterComponent";
-
-const DEPARTAMENTOS = [
-  "La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", 
-  "Oruro", "Potosí", "Tarija", "Pando", "Beni"
-];
 
 const GestionUsuarios = () => {
   const { userRole, user } = useAuth();
@@ -186,22 +181,10 @@ const GestionUsuarios = () => {
     nombre: "",
     role: "admin",
     password: "",
-    departamentoActual: "",
-    codigoReferido: "",
     metodoPagoEfectivo: false,
     metodoPagoQr: false,
-    ciudad: "",
-    departamento: "",
-    servicio: "",
-    categoria: "",
     activo: true,
     telefono: "",
-    numerolicencia: "",
-    placavehiculo: "",
-    marcavehiculo: "",
-    modelovehiculo: "",
-    colorvehiculo: "",
-    anosexperiencia: "",
   });
 
   // Función para formatear fechas de Firestore
@@ -578,7 +561,7 @@ const GestionUsuarios = () => {
     }
     
     return sorted;
-  }, [trabajadores, searchConductores, sortByConductores, filterConectadoConductores, dateFilterTypeConductores, customStartDateConductores, customEndDateConductores]);
+  }, [trabajadores, searchConductores, sortByConductores, filterConectadoConductores, dateFilterTypeConductores, customStartDateConductores, customEndDateConductores, flotas]);
 
   // Datos paginados para Administradores
   const usuariosPaginados = useMemo(() => {
@@ -621,6 +604,7 @@ const GestionUsuarios = () => {
           return {
             id: doc.id,
             ...data,
+            _tipo: "trabajador", // Marcar explícitamente como trabajador
             // Mapeo de nueva estructura
             nombre: data.nombre || data.perfil?.nombre || data.perfil?.name || data.name || "Sin nombre",
             email: data.email || data.perfil?.email || "",
@@ -656,6 +640,7 @@ const GestionUsuarios = () => {
         const pasajerosList = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
+          _tipo: "pasajero", // Marcar explícitamente como pasajero
         }));
         setPasajeros(pasajerosList);
       },
@@ -755,22 +740,39 @@ const GestionUsuarios = () => {
 
   const loadUsers = async () => {
     setLoading(true);
-    const users = await getAllUsers();
-    setUsuarios(users);
+    try {
+      const users = await getAllUsers();
+      // Agregar _tipo a cada usuario para mejor identificación
+      const usersConTipo = users.map(u => ({
+        ...u,
+        _tipo: "admin", // Los usuarios de getAllUsers son siempre admins
+      }));
+      setUsuarios(usersConTipo);
+    } catch (error) {
+      console.error("Error cargando usuarios:", error);
+      setUsuarios([]);
+    }
     setLoading(false);
   };
 
   const handleOpenDialog = (usuario = null) => {
     if (usuario) {
-      // Detectar tipo de usuario
-      const isPasajero = usuario.modo === "pasajero" || (usuario.perfil && usuario.name === undefined && usuario.email === undefined);
-      const isTrabajador = usuario.perfil && usuario.role;
-      const isConductor = usuario.role === "driver" || (usuario.servicio && usuario.categoria);
+      // Detectar tipo de usuario de múltiples formas:
+      // 1. Por el campo "modo" (pasajero/trabajador)
+      // 2. Por el campo "_tipo" que agregamos en loadUsers
+      // 3. Por defecto es admin
+      const isPasajero = usuario.modo === "pasajero" || usuario._tipo === "pasajero";
+      const isTrabajador = usuario.modo === "trabajador" || usuario._tipo === "trabajador";
       
-      // Agregar tipo para mejor identificación en el componente
+      // Determinar tipo final
+      let tipoFinal = "admin"; // Default
+      if (isPasajero) tipoFinal = "pasajero";
+      else if (isTrabajador) tipoFinal = "trabajador";
+      
+      // Agregar tipo para identificación en handleSaveUser
       const usuarioConTipo = {
         ...usuario,
-        _tipo: isConductor ? "conductor" : isPasajero ? "pasajero" : "admin"
+        _tipo: tipoFinal
       };
       
       setEditingUser(usuarioConTipo);
@@ -785,9 +787,9 @@ const GestionUsuarios = () => {
         emailFinal = usuario.email || usuario.perfil?.email || "";
         telefonoFinal = usuario.phone || usuario.perfil?.phone || usuario.phoneNumber || "";
       } else if (isTrabajador) {
-        nombreFinal = usuario.perfil?.name || "";
-        emailFinal = usuario.perfil?.email || "";
-        telefonoFinal = usuario.perfil?.phone || "";
+        nombreFinal = usuario.nombre || usuario.perfil?.name || usuario.name || "";
+        emailFinal = usuario.perfil?.email || usuario.email || "";
+        telefonoFinal = usuario.perfil?.phone || usuario.celular || usuario.phone || usuario.phoneNumber || "";
       } else {
         nombreFinal = usuario.nombre || "";
         emailFinal = usuario.email || "";
@@ -807,22 +809,10 @@ const GestionUsuarios = () => {
         nombre: nombreFinal,
         role: rolFinal,
         password: "",
-        departamentoActual: usuario.departamentoActual || "",
-        codigoReferido: usuario.codigoReferido || "",
         metodoPagoEfectivo: usuario.metodos_pago?.efectivo || false,
         metodoPagoQr: usuario.metodos_pago?.qr || false,
-        ciudad: usuario.ciudad || "",
-        departamento: usuario.departamento || "",
-        servicio: usuario.servicio || "",
-        categoria: usuario.categoria || "",
         activo: usuario.activo !== false,
         telefono: telefonoFinal,
-        numerolicencia: usuario.numerolicencia || "",
-        placavehiculo: usuario.placavehiculo || "",
-        marcavehiculo: usuario.marcavehiculo || "",
-        modelovehiculo: usuario.modelovehiculo || "",
-        colorvehiculo: usuario.colorvehiculo || "",
-        anosexperiencia: usuario.anosexperiencia || "",
       });
     } else {
       setEditingUser(null);
@@ -831,22 +821,10 @@ const GestionUsuarios = () => {
         nombre: "",
         role: "admin",
         password: "",
-        departamentoActual: "",
-        codigoReferido: "",
         metodoPagoEfectivo: false,
         metodoPagoQr: false,
-        ciudad: "",
-        departamento: "",
-        servicio: "",
-        categoria: "",
         activo: true,
         telefono: "",
-        numerolicencia: "",
-        placavehiculo: "",
-        marcavehiculo: "",
-        modelovehiculo: "",
-        colorvehiculo: "",
-        anosexperiencia: "",
       });
     }
     setOpenDialog(true);
@@ -864,30 +842,47 @@ const GestionUsuarios = () => {
     setError("");
     setSuccess("");
 
-    if (!formData.email || !formData.nombre) {
-      setError("Email y nombre son obligatorios");
+    if (!formData.nombre) {
+      setError("El nombre es obligatorio");
       return;
     }
 
     if (editingUser) {
-      // Verificar qué tipo de usuario es
-      const isPasajero = editingUser.modo === "pasajero"; // Los pasajeros tienen modo: "pasajero"
-      const isTrabajador = editingUser.perfil && editingUser.role; // Los trabajadores tienen perfil y role
+      // Usar el tipo detectado anteriormente para mayor precisión
+      const isPasajero = editingUser._tipo === "pasajero";
+      const isTrabajador = editingUser._tipo === "trabajador";
 
       if (isPasajero) {
         // Actualizar pasajero en colección "pasajeros"
         try {
-          await updateDoc(doc(db, "pasajeros", editingUser.id), {
-            name: formData.nombre || editingUser.name,
-            email: formData.email || editingUser.email,
-            perfil: {
+          // Verificar que el documento existe antes de actualizar
+          const pasajeroRef = doc(db, "pasajeros", editingUser.id);
+          const pasajeroSnap = await getDoc(pasajeroRef);
+          
+          if (!pasajeroSnap.exists()) {
+            setError("El pasajero no existe en la base de datos");
+            return;
+          }
+
+          // Construir objeto de actualización filtrando undefined
+          const updateData = {};
+          
+          if (formData.nombre) updateData.name = formData.nombre;
+          if (formData.email) updateData.email = formData.email;
+          if (formData.telefono) updateData.phone = formData.telefono;
+          
+          // Actualizar perfil solo si hay cambios
+          if (formData.nombre || formData.email) {
+            updateData.perfil = {
               ...editingUser.perfil,
-              name: formData.nombre || editingUser.perfil?.name,
-              email: formData.email || editingUser.perfil?.email,
-            },
-            departamentoActual: formData.departamentoActual || editingUser.departamentoActual,
-          });
+              ...(formData.nombre && { name: formData.nombre }),
+              ...(formData.email && { email: formData.email }),
+            };
+          }
+
+          await updateDoc(pasajeroRef, updateData);
           setSuccess("Pasajero actualizado correctamente");
+          loadUsers();
           setTimeout(() => handleCloseDialog(), 1500);
         } catch (error) {
           console.error("Error al actualizar pasajero:", error);
@@ -896,21 +891,40 @@ const GestionUsuarios = () => {
       } else if (isTrabajador) {
         // Actualizar trabajador en colección "trabajadores"
         try {
-          await updateDoc(doc(db, "trabajadores", editingUser.id), {
-            flotaId: formData.flotaId || null,
+          // Verificar que el documento existe antes de actualizar
+          const trabajadorRef = doc(db, "trabajadores", editingUser.id);
+          const trabajadorSnap = await getDoc(trabajadorRef);
+          
+          if (!trabajadorSnap.exists()) {
+            console.error("Trabajador no encontrado con ID:", editingUser.id);
+            console.error("Datos del editingUser:", editingUser);
+            setError("El conductor no existe en la base de datos. ID: " + editingUser.id);
+            return;
+          }
+
+          // Construir objeto de actualización filtrando undefined
+          const updateData = {
             perfil: {
               ...editingUser.perfil,
-              name: formData.nombre,
-              email: formData.email,
+              ...(formData.nombre && { name: formData.nombre }),
+              ...(formData.email && { email: formData.email }),
+              ...(formData.telefono && { phone: formData.telefono }),
             },
-            role: formData.role,
-            ciudad: formData.ciudad,
-            departamento: formData.departamento,
-            servicio: formData.servicio,
-            categoria: formData.categoria,
-            activo: formData.activo,
-          });
+            activo: formData.activo !== undefined ? formData.activo : editingUser.activo,
+          };
+          
+          // Agregar campos de nivel superior
+          if (formData.nombre) updateData.nombre = formData.nombre;
+          if (formData.email) updateData.email = formData.email;
+          if (formData.telefono) {
+            updateData.celular = formData.telefono;
+            updateData.telefono = formData.telefono;
+            updateData.phoneNumber = formData.telefono;
+          }
+
+          await updateDoc(trabajadorRef, updateData);
           setSuccess("Conductor actualizado correctamente");
+          loadUsers();
           setTimeout(() => handleCloseDialog(), 1500);
         } catch (error) {
           console.error("Error al actualizar conductor:", error);
@@ -918,19 +932,26 @@ const GestionUsuarios = () => {
         }
       } else {
         // Actualizar admin en colección "users"
-        const result = await updateUser(editingUser.id, {
-          email: formData.email,
-          nombre: formData.nombre,
-          role: formData.role,
-          flotaId: formData.flotaId || null,
-        });
+        try {
+          const result = await updateUser(editingUser.id, {
+            email: formData.email,
+            nombre: formData.nombre,
+            role: formData.role,
+            flotaId: formData.flotaId || null,
+            telefono: formData.telefono,
+            phoneNumber: formData.telefono,
+          });
 
-        if (result.success) {
-          setSuccess("Usuario actualizado correctamente");
-          loadUsers();
-          setTimeout(() => handleCloseDialog(), 1500);
-        } else {
-          setError(result.error || "Error al actualizar usuario");
+          if (result.success) {
+            setSuccess("Usuario actualizado correctamente");
+            loadUsers();
+            setTimeout(() => handleCloseDialog(), 1500);
+          } else {
+            setError(result.error || "Error al actualizar usuario");
+          }
+        } catch (error) {
+          console.error("Error al actualizar admin:", error);
+          setError("Error al actualizar usuario: " + error.message);
         }
       }
     } else {
@@ -947,6 +968,7 @@ const GestionUsuarios = () => {
         password: formData.password,
         flotaId: formData.flotaId || null,
         createdBy: user.uid,
+        phoneNumber: formData.telefono,
       });
 
       if (result.success) {
@@ -976,8 +998,15 @@ const GestionUsuarios = () => {
   const handleConfirmDeleteAdmin = async () => {
     if (!adminToDelete) return;
     try {
+      setSnackbar({
+        open: true,
+        message: "🔄 Eliminando admin...",
+        severity: "info"
+      });
+      
       const result = await deleteUser(adminToDelete.id);
       if (result.success) {
+        handleCloseDeleteAdminDialog();
         setSnackbar({
           open: true,
           message: "✅ Admin eliminado correctamente",
@@ -998,7 +1027,6 @@ const GestionUsuarios = () => {
         severity: "error"
       });
     }
-    handleCloseDeleteAdminDialog();
   };
 
   const handleOpenDeleteConductorDialog = (conductor) => {
@@ -1013,22 +1041,33 @@ const GestionUsuarios = () => {
 
   const handleConfirmDeleteConductor = async () => {
     if (!conductorToDelete) return;
+    
     try {
-      await deleteDocumentWithSubcollections("trabajadores", conductorToDelete.id);
+      // Iniciar el proceso de eliminación
       setSnackbar({
         open: true,
-        message: "✅ Conductor y todas sus subcollecciones eliminados",
+        message: "🔄 Eliminando conductor...",
+        severity: "info"
+      });
+      
+      await deleteDocumentWithSubcollections("trabajadores", conductorToDelete.id);
+      
+      // Cerrar el diálogo después de eliminación
+      handleCloseDeleteConductorDialog();
+      
+      setSnackbar({
+        open: true,
+        message: "✅ Conductor eliminado correctamente",
         severity: "success"
       });
     } catch (error) {
       console.error("Error al eliminar conductor:", error);
       setSnackbar({
         open: true,
-        message: "❌ Error al eliminar conductor",
+        message: "❌ Error al eliminar conductor: " + error.message,
         severity: "error"
       });
     }
-    handleCloseDeleteConductorDialog();
   };
 
   const handleOpenDeletePasajeroDialog = (pasajero) => {
@@ -1043,22 +1082,30 @@ const GestionUsuarios = () => {
 
   const handleConfirmDeletePasajero = async () => {
     if (!pasajeroToDelete) return;
+    
     try {
-      await deleteDocumentWithSubcollections("pasajeros", pasajeroToDelete.id);
       setSnackbar({
         open: true,
-        message: "✅ Pasajero y todas sus subcollecciones eliminados",
+        message: "🔄 Eliminando pasajero...",
+        severity: "info"
+      });
+      
+      await deleteDocumentWithSubcollections("pasajeros", pasajeroToDelete.id);
+      
+      handleCloseDeletePasajeroDialog();
+      setSnackbar({
+        open: true,
+        message: "✅ Pasajero eliminado correctamente",
         severity: "success"
       });
     } catch (error) {
       console.error("Error al eliminar pasajero:", error);
       setSnackbar({
         open: true,
-        message: "❌ Error al eliminar pasajero",
+        message: "❌ Error al eliminar pasajero: " + error.message,
         severity: "error"
       });
     }
-    handleCloseDeletePasajeroDialog();
   };
 
   const handleToggleActivo = async (userId, activo) => {
@@ -1860,7 +1907,7 @@ const GestionUsuarios = () => {
             </Alert>
           )}
 
-          {(editingUser?._tipo === "pasajero" || editingUser?._tipo === "conductor") && (
+          {(editingUser?._tipo === "pasajero" || editingUser?._tipo === "trabajador") && (
             <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
               <Avatar
                 src={editingUser.perfil?.foto || editingUser.perfil?.fotoUrl || editingUser.perfil?.photoUrl || editingUser.perfil?.photoURL || editingUser.photoURL || editingUser.photoUrl || editingUser.fotoUrl || editingUser.foto}
@@ -1884,9 +1931,8 @@ const GestionUsuarios = () => {
                 fullWidth
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                disabled={editingUser !== null}
-                error={editingUser === null && !formData.email}
-                helperText={editingUser === null && !formData.email ? "Email requerido" : ""}
+                error={!formData.email}
+                helperText={!formData.email ? "Email requerido" : ""}
                 sx={{ mb: 2 }}
               />
               <TextField
@@ -1950,7 +1996,7 @@ const GestionUsuarios = () => {
                     <Select
                       value={formData.role}
                       label="Rol"
-                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                      disabled
                     >
                       <MenuItem value="admin">Admin</MenuItem>
                       <MenuItem value="superadmin">Super Admin</MenuItem>
@@ -1962,138 +2008,22 @@ const GestionUsuarios = () => {
 
             {editingUser?.modo === "pasajero" && (
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#000", mb: 1.5, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
-                  Ubicación
-                </Typography>
-                <TextField
-                  label="Departamento Actual"
-                  fullWidth
-                  value={formData.departamentoActual}
-                  onChange={(e) => setFormData({ ...formData, departamentoActual: e.target.value })}
-                  sx={{ mb: 2 }}
-                />
-                <TextField
-                  label="Código de Referido"
-                  fullWidth
-                  value={formData.codigoReferido}
-                  onChange={(e) => setFormData({ ...formData, codigoReferido: e.target.value })}
-                />
               </Box>
             )}
 
-            {editingUser?._tipo === "conductor" && (
-              <>
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#000", mb: 1.5, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
-                    Información del Conductor
-                  </Typography>
-                  <FormControl fullWidth sx={{ mb: 2 }}>
-                    <InputLabel>Departamento/Ciudad</InputLabel>
-                    <Select
-                      value={formData.departamento}
-                      label="Departamento/Ciudad"
-                      onChange={(e) => setFormData({ ...formData, departamento: e.target.value, ciudad: e.target.value })}
-                    >
-                      <MenuItem value="">
-                        <em>Seleccionar</em>
-                      </MenuItem>
-                      {DEPARTAMENTOS.map((dept) => (
-                        <MenuItem key={dept} value={dept}>
-                          {dept}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <TextField
-                    label="Servicio"
-                    fullWidth
-                    value={formData.servicio}
-                    disabled
-                    inputProps={{ readOnly: true }}
-                    sx={{ mb: 2 }}
-                  />
-                  <TextField
-                    label="Categoría"
-                    fullWidth
-                    value={formData.categoria}
-                    disabled
-                    inputProps={{ readOnly: true }}
-                    sx={{ mb: 2 }}
-                  />
-                  <TextField
-                    label="Años de Experiencia"
-                    type="number"
-                    fullWidth
-                    value={formData.anosexperiencia}
-                    onChange={(e) => setFormData({ ...formData, anosexperiencia: e.target.value })}
-                    inputProps={{ min: 0 }}
-                  />
-                </Box>
-
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#000", mb: 1.5, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
-                    Documentos
-                  </Typography>
-                  <TextField
-                    label="Número de Licencia"
-                    fullWidth
-                    value={formData.numerolicencia}
-                    onChange={(e) => setFormData({ ...formData, numerolicencia: e.target.value })}
-                    placeholder="Ej: 123456789"
-                    sx={{ mb: 2 }}
-                  />
-                </Box>
-
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#000", mb: 1.5, textTransform: "uppercase", fontSize: "0.75rem", letterSpacing: "0.5px" }}>
-                    Datos del Vehículo
-                  </Typography>
-                  <TextField
-                    label="Placa del Vehículo"
-                    fullWidth
-                    value={formData.placavehiculo}
-                    onChange={(e) => setFormData({ ...formData, placavehiculo: e.target.value })}
-                    placeholder="Ej: XYZ-1234"
-                    sx={{ mb: 2 }}
-                  />
-                  <TextField
-                    label="Marca del Vehículo"
-                    fullWidth
-                    value={formData.marcavehiculo}
-                    onChange={(e) => setFormData({ ...formData, marcavehiculo: e.target.value })}
-                    placeholder="Ej: Toyota"
-                    sx={{ mb: 2 }}
-                  />
-                  <TextField
-                    label="Modelo del Vehículo"
-                    fullWidth
-                    value={formData.modelovehiculo}
-                    onChange={(e) => setFormData({ ...formData, modelovehiculo: e.target.value })}
-                    placeholder="Ej: Prius 2020"
-                    sx={{ mb: 2 }}
-                  />
-                  <TextField
-                    label="Color del Vehículo"
-                    fullWidth
-                    value={formData.colorvehiculo}
-                    onChange={(e) => setFormData({ ...formData, colorvehiculo: e.target.value })}
-                    placeholder="Ej: Negro"
-                  />
-                </Box>
-
-                <Box sx={{ p: 2, bgcolor: "#f5f5f5", borderRadius: 1 }}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={formData.activo}
-                        onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
-                      />
-                    }
-                    label={formData.activo ? "Conductor Activo" : "Conductor Inactivo"}
-                    sx={{ fontWeight: 600 }}
-                  />
-                </Box>
-              </>
+            {editingUser?._tipo === "trabajador" && (
+              <Box sx={{ p: 2, bgcolor: "#f5f5f5", borderRadius: 1 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.activo}
+                      onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
+                    />
+                  }
+                  label={formData.activo ? "Conductor Activo" : "Conductor Inactivo"}
+                  sx={{ fontWeight: 600 }}
+                />
+              </Box>
             )}
           </Box>
         </DialogContent>
@@ -2107,7 +2037,7 @@ const GestionUsuarios = () => {
           <Button
             onClick={handleSaveUser}
             variant="contained"
-            disabled={!formData.nombre || !formData.email || (editingUser === null && !formData.password)}
+            disabled={!formData.nombre || (editingUser === null && !formData.password)}
             sx={{
               bgcolor: "#d7171a",
               fontWeight: 600,

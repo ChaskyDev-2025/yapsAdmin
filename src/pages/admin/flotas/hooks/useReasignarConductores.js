@@ -1,4 +1,4 @@
-import { updateDoc, doc, deleteDoc } from "firebase/firestore";
+import { updateDoc, doc, deleteDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../../../data/firebase/firebase";
 
 export const useReasignarConductores = () => {
@@ -18,8 +18,28 @@ export const useReasignarConductores = () => {
         }
       }
 
+      // Obtener la flota para conocer los admins asignados
+      const flotaRef = doc(db, "flotas", flotaId);
+      const flotaSnapshot = await getDoc(flotaRef);
+      
+      if (flotaSnapshot.exists()) {
+        const uidPropietarios = flotaSnapshot.data().uidPropietarios || [];
+        
+        // Limpiar flotaId de todos los admins asignados
+        for (const uid of uidPropietarios) {
+          try {
+            await updateDoc(doc(db, "users", uid), { 
+              flotaId: null,
+              updatedAt: serverTimestamp()
+            });
+          } catch (error) {
+            console.warn(`⚠️ No se pudo limpiar flotaId del admin ${uid}:`, error);
+          }
+        }
+      }
+
       // Eliminar la flota
-      await deleteDoc(doc(db, "flotas", flotaId));
+      await deleteDoc(flotaRef);
 
       return {
         success: true,
