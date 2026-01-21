@@ -205,7 +205,7 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
         {codigoData ? "✏️ Editar Código" : "🎟️ Nuevo Código"}
       </DialogTitle>
 
-      <DialogContent sx={{ pt: 4, pb: 3 }}>
+      <DialogContent sx={{ pt: 4, pb: 3, overflow: 'visible' }}>
         {error && (
           <Box 
             sx={{ 
@@ -222,15 +222,24 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
           </Box>
         )}
 
-        <Box>
+        <Box sx={{ position: 'relative', zIndex: 1000 }}>
           {/* Sección 1: Información General */}
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)", backgroundClip: "text", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", mb: 2.5, fontSize: "0.95rem" }}>
-            📋 Información General
-          </Typography>
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)", backgroundClip: "text", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", mb: 2.5, fontSize: "0.95rem" }}>
+              📋 Información General
+            </Typography>
 
-          <Grid container spacing={2.5} sx={{ mb: 3.5 }}>
-            <Grid item xs={12}>
-              <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: 2.5,
+              p: 0,
+              bgcolor: 'transparent',
+              borderRadius: 2,
+              border: 'none'
+            }}>
+              {/* Código Promocional con botón Generar */}
+              <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
                 <TextField
                   fullWidth
                   label="Código Promocional"
@@ -253,11 +262,11 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
                   onClick={generarCodigoAleatorio}
                   disabled={!!codigoData}
                   sx={{
-                    mt: 0.5,
                     textTransform: "none",
                     borderColor: "#d7171a",
                     color: "#d7171a",
                     whiteSpace: "nowrap",
+                    height: 40,
                     "&:hover": {
                       borderColor: "#d7171a",
                       bgcolor: "#ffe0e0",
@@ -271,9 +280,8 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
                   🎲 Generar
                 </Button>
               </Box>
-            </Grid>
 
-            <Grid item xs={12} sm={6}>
+              {/* Departamento */}
               <TextField
                 fullWidth
                 select
@@ -295,9 +303,8 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
                   </MenuItem>
                 ))}
               </TextField>
-            </Grid>
 
-            <Grid item xs={12}>
+              {/* Descripción */}
               <TextField
                 fullWidth
                 label="Descripción"
@@ -315,8 +322,8 @@ const ModalCodigoPromo = ({ open, onClose, codigoData, onSaved, onDeleted }) => 
                   }
                 }}
               />
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
 
           {/* Sección 1b: Información de Fechas (solo en edición) */}
           {codigoData && (
