@@ -1,34 +1,14 @@
 import React, { useState, useEffect, useContext } from "react";
-import {
-  Box,
-  Paper,
-  Typography,
-  TextField,
-  CircularProgress,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Chip,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Tabs,
-  Tab,
-  Pagination,
-} from "@mui/material";
-import { doc, setDoc, collection, getDocs, getDoc } from "firebase/firestore";
+import { Box } from "@mui/material";
+import { doc, setDoc, collection, getDocs, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../../../../data/firebase/firebase";
 import { NotificationContext } from "../../../../context/NotificationContext";
+import SorteosHeader from "./sorteos/SorteosHeader";
+import SorteosList from "./sorteos/SorteosList";
+import SorteoDetail from "./sorteos/SorteoDetail";
+import CrearSorteoModal from "./sorteos/CrearSorteoModal";
+import EditSorteoModal from "./sorteos/EditSorteoModal";
 
 const DEPARTAMENTOS = [
   "La Paz", "Santa Cruz", "Cochabamba", "Chuquisaca", 
@@ -68,6 +48,12 @@ const SorteosTab = () => {
     imagenUrl: "",
   });
   const [categoriasDisponibles, setCategoriasDisponibles] = useState([]);
+
+  // Edición
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [sorteoEdicion, setSorteoEdicion] = useState(null);
+  const [imagenPreviewEdicion, setImagenPreviewEdicion] = useState(null);
+  const [imagenSubiendoEdicion, setImagenSubiendoEdicion] = useState(false);
 
   useEffect(() => {
     cargarSorteos();
@@ -340,708 +326,169 @@ const SorteosTab = () => {
     }
   };
 
+  const handleToggleEstado = async (sorteo, nuevoEstado) => {
+    try {
+      await updateDoc(doc(db, "sorteos", sorteo.id), { estado: nuevoEstado });
+
+      setSorteos((prev) =>
+        prev.map((item) => (item.id === sorteo.id ? { ...item, estado: nuevoEstado } : item))
+      );
+
+      setSorteoSeleccionado((prev) =>
+        prev && prev.id === sorteo.id ? { ...prev, estado: nuevoEstado } : prev
+      );
+
+      addNotification({
+        message: `Sorteo ${nuevoEstado === "activo" ? "activado" : "inactivado"} correctamente`,
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error actualizando estado del sorteo:", error);
+      addNotification({
+        message: "No se pudo actualizar el estado del sorteo",
+        type: "error",
+      });
+    }
+  };
+
+  const toDateTimeLocal = (timestamp) => {
+    if (!timestamp) return "";
+    if (timestamp.seconds) {
+      return new Date(timestamp.seconds * 1000).toISOString().slice(0, 16);
+    }
+    return timestamp;
+  };
+
+  const handleAbrirEdicion = (sorteo) => {
+    setSorteoEdicion({
+      ...sorteo,
+      fechaInicio: toDateTimeLocal(sorteo.fechaInicio),
+      fechaFin: toDateTimeLocal(sorteo.fechaFin),
+    });
+    setImagenPreviewEdicion(sorteo.imagenUrl || null);
+    setEditModalOpen(true);
+  };
+
+  const handleCerrarEdicion = () => {
+    setEditModalOpen(false);
+    setImagenPreviewEdicion(null);
+    setSorteoEdicion(null);
+  };
+
+  const handleImagenChangeEdicion = async (e) => {
+    const archivo = e.target.files?.[0];
+    if (!archivo) return;
+
+    if (!archivo.type.startsWith("image/")) {
+      addNotification({ message: "Por favor selecciona una imagen válida", type: "error" });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => setImagenPreviewEdicion(ev.target.result);
+    reader.readAsDataURL(archivo);
+
+    try {
+      setImagenSubiendoEdicion(true);
+      const timestamp = Date.now();
+      const storageRef = ref(storage, `sorteos/${timestamp}_${archivo.name}`);
+      await uploadBytes(storageRef, archivo);
+      const url = await getDownloadURL(storageRef);
+      setSorteoEdicion((prev) => ({ ...prev, imagenUrl: url }));
+      addNotification({ message: "Imagen subida exitosamente", type: "success" });
+    } catch (error) {
+      console.error("Error subiendo imagen:", error);
+      addNotification({ message: "Error al subir la imagen", type: "error" });
+    } finally {
+      setImagenSubiendoEdicion(false);
+    }
+  };
+
+  const handleEditarSorteo = async () => {
+    if (!sorteoEdicion || !sorteoEdicion.id) return;
+
+    try {
+      const payload = {
+        descripcion: sorteoEdicion.descripcion,
+        modo: sorteoEdicion.modo || "pasajero",
+        fechaInicio: sorteoEdicion.fechaInicio ? new Date(sorteoEdicion.fechaInicio) : null,
+        fechaFin: sorteoEdicion.fechaFin ? new Date(sorteoEdicion.fechaFin) : null,
+        departamentos: sorteoEdicion.departamentos || [],
+        categorias: sorteoEdicion.categorias || [],
+        imagenUrl: sorteoEdicion.imagenUrl || "",
+        estado: sorteoEdicion.estado || "inactivo",
+      };
+
+      await updateDoc(doc(db, "sorteos", sorteoEdicion.id), payload);
+
+      setSorteos((prev) =>
+        prev.map((item) => (item.id === sorteoEdicion.id ? { ...item, ...payload } : item))
+      );
+
+      setSorteoSeleccionado((prev) =>
+        prev && prev.id === sorteoEdicion.id ? { ...prev, ...payload } : prev
+      );
+
+      addNotification({ message: "Sorteo actualizado", type: "success" });
+      handleCerrarEdicion();
+    } catch (error) {
+      console.error("Error actualizando sorteo:", error);
+      addNotification({ message: "No se pudo actualizar el sorteo", type: "error" });
+    }
+  };
+
   return (
     <Box>
-      {/* Encabezado con botón de crear nuevo sorteo */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, gap: 2, flexWrap: "wrap" }}>
-        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-          🎲 Gestión de Sorteos
-        </Typography>
-        <Button
-          variant="contained"
-          sx={{
-            background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
-            "&:hover": {
-              background: "linear-gradient(135deg, #b01217 0%, #a01012 100%)",
-            },
-            fontWeight: 600,
-          }}
-          onClick={() => setModalOpen(true)}
-        >
-          + Nuevo Sorteo
-        </Button>
-      </Box>
+      <SorteosHeader onOpenModal={() => setModalOpen(true)} />
 
-      {/* Vista de detalle del sorteo seleccionado */}
       {sorteoSeleccionado ? (
-        <Box>
-          {/* Encabezado del detalle */}
-          <Paper sx={{ p: 2, mb: 3, backgroundColor: "#f9f9f9" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-              <Button
-                variant="outlined"
-                onClick={handleVolverListado}
-                sx={{ borderColor: "#d7171a", color: "#d7171a" }}
-              >
-                ← Volver
-              </Button>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                {sorteoSeleccionado.id}
-              </Typography>
-              <Chip
-                label={sorteoSeleccionado.estado === "activo" ? "Activo" : "Inactivo"}
-                color={sorteoSeleccionado.estado === "activo" ? "success" : "default"}
-              />
-              <Chip
-                label={sorteoSeleccionado.modo === "trabajador" ? "🚗 Trabajador" : "👤 Pasajero"}
-                sx={{
-                  backgroundColor: sorteoSeleccionado.modo === "trabajador" ? "#ff9800" : "#2196f3",
-                  color: "white",
-                }}
-              />
-            </Box>
-            {sorteoSeleccionado.descripcion && (
-              <Typography variant="body2" color="textSecondary">
-                {sorteoSeleccionado.descripcion}
-              </Typography>
-            )}
-          </Paper>
-
-          {/* Filtros de búsqueda */}
-          {sorteoSeleccionado.modo === "pasajero" && (
-            <Paper sx={{ p: 2, mb: 3, backgroundColor: "#fafafa" }}>
-              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 2 }}>
-                <TextField
-                  label="Buscar por nombre o N° rifa"
-                  placeholder="Ej: Juan Pérez o 000123"
-                  size="small"
-                  value={busqueda}
-                  onChange={(e) => {
-                    setBusqueda(e.target.value.toLowerCase());
-                    setPaginaActual(1);
-                  }}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      backgroundColor: "#fff",
-                    }
-                  }}
-                />
-                <TextField
-                  label="Fecha inicio"
-                  type="date"
-                  size="small"
-                  value={fechaInicioBusqueda}
-                  onChange={(e) => {
-                    setFechaInicioBusqueda(e.target.value);
-                    setPaginaActual(1);
-                  }}
-                  InputLabelProps={{ shrink: true }}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      backgroundColor: "#fff",
-                    }
-                  }}
-                />
-                <TextField
-                  label="Fecha fin"
-                  type="date"
-                  size="small"
-                  value={fechaFinBusqueda}
-                  onChange={(e) => {
-                    setFechaFinBusqueda(e.target.value);
-                    setPaginaActual(1);
-                  }}
-                  InputLabelProps={{ shrink: true }}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      backgroundColor: "#fff",
-                    }
-                  }}
-                />
-              </Box>
-            </Paper>
-          )}
-
-          {/* Datos organizados por departamento */}
-          {loadingDatos ? (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
-              <CircularProgress sx={{ color: "#d7171a" }} />
-            </Box>
-          ) : datosSorteo.length === 0 ? (
-            <Paper sx={{ p: 4, textAlign: "center" }}>
-              <Typography variant="body1" color="textSecondary">
-                No hay {sorteoSeleccionado.modo === "trabajador" ? "participantes" : "cupones"} en este sorteo todavía.
-              </Typography>
-            </Paper>
-          ) : (() => {
-            // Aplicar filtros de búsqueda y período para pasajeros
-            let datosFiltrados = datosSorteo;
-            
-            if (sorteoSeleccionado.modo === "pasajero") {
-              datosFiltrados = datosSorteo.filter(item => {
-                // Filtro de búsqueda por nombre o rifa
-                const nombreCumple = !busqueda || 
-                  (item.nombreUsuario && item.nombreUsuario.toLowerCase().includes(busqueda)) ||
-                  (item.numeroRifa && String(item.numeroRifa).includes(busqueda)) ||
-                  (item.NumeroRifa && String(item.NumeroRifa).includes(busqueda));
-
-                // Filtro de período
-                if (!nombreCumple) return false;
-                
-                if (!fechaInicioBusqueda && !fechaFinBusqueda) return true;
-                
-                let fechaCupon;
-                if (item.creadoEn && item.creadoEn.seconds) {
-                  fechaCupon = new Date(item.creadoEn.seconds * 1000);
-                } else {
-                  return true;
-                }
-
-                if (fechaInicioBusqueda) {
-                  const fechaInicio = new Date(fechaInicioBusqueda);
-                  fechaInicio.setHours(0, 0, 0, 0);
-                  if (fechaCupon < fechaInicio) return false;
-                }
-
-                if (fechaFinBusqueda) {
-                  const fechaFin = new Date(fechaFinBusqueda);
-                  fechaFin.setHours(23, 59, 59, 999);
-                  if (fechaCupon > fechaFin) return false;
-                }
-
-                return true;
-              });
-            }
-
-            // Organizar por departamento
-            const departamentosUnicos = [...new Set(
-              datosFiltrados.map(item => item.departamento || item.Departamento).filter(Boolean)
-            )];
-
-            if (departamentosUnicos.length === 0) {
-              return (
-                <Paper sx={{ p: 4, textAlign: "center" }}>
-                  <Typography variant="body1" color="textSecondary">
-                    No hay datos con departamento definido.
-                  </Typography>
-                </Paper>
-              );
-            }
-
-            const datosPorDepartamento = datosFiltrados.filter(
-              item => (item.departamento || item.Departamento) === departamentosUnicos[departamentoSeleccionado]
-            );
-
-            // Ordenar trabajadores por CantidadViajes
-            const datosOrdenados = sorteoSeleccionado.modo === "trabajador"
-              ? [...datosPorDepartamento].sort((a, b) => {
-                  const cantidadA = a.CantidadViajes || a.cantidadViajes || 0;
-                  const cantidadB = b.CantidadViajes || b.cantidadViajes || 0;
-                  return Number(cantidadB) - Number(cantidadA);
-                })
-              : datosPorDepartamento;
-
-            return (
-              <Box>
-                {/* Tabs por departamento */}
-                <Tabs
-                  value={departamentoSeleccionado}
-                  onChange={(e, newValue) => {
-                    setDepartamentoSeleccionado(newValue);
-                    setPaginaActual(1);
-                  }}
-                  sx={{
-                    borderBottom: 2,
-                    borderColor: "divider",
-                    backgroundColor: "#fafafa",
-                    mb: 2,
-                    "& .MuiTabs-indicator": {
-                      backgroundColor: "#d7171a",
-                      height: "4px"
-                    }
-                  }}
-                >
-                  {departamentosUnicos.map((dept, idx) => {
-                    const count = datosFiltrados.filter(
-                      item => (item.departamento || item.Departamento) === dept
-                    ).length;
-                    return (
-                      <Tab
-                        key={idx}
-                        label={`${dept} (${count})`}
-                        sx={{
-                          fontWeight: 600,
-                          fontSize: "0.95rem",
-                          color: departamentoSeleccionado === idx ? "#d7171a" : "#666",
-                          textTransform: "none",
-                          "&:hover": {
-                            color: "#d7171a",
-                            backgroundColor: "rgba(215, 23, 26, 0.05)"
-                          }
-                        }}
-                      />
-                    );
-                  })}
-                </Tabs>
-
-                {/* Tabla con formato especial para trabajadores */}
-                {sorteoSeleccionado.modo === "trabajador" ? (
-                  <>
-                  <TableContainer component={Paper}>
-                    <Table>
-                      <TableHead sx={{ backgroundColor: "#1a1a1a" }}>
-                        <TableRow>
-                          <TableCell sx={{ color: "#fff", fontWeight: 700 }}>Ranking</TableCell>
-                          <TableCell sx={{ color: "#fff", fontWeight: 700 }}>Nombre</TableCell>
-                          <TableCell sx={{ color: "#fff", fontWeight: 700, textAlign: "center" }}>Viajes</TableCell>
-                          <TableCell sx={{ color: "#fff", fontWeight: 700 }}>Departamento</TableCell>
-                          <TableCell sx={{ color: "#fff", fontWeight: 700 }}>Actualizado</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {datosOrdenados
-                          .slice((paginaActual - 1) * ITEMS_PER_PAGE, paginaActual * ITEMS_PER_PAGE)
-                          .map((fila, index) => {
-                          const bgColor = index === 0 ? "#fff8f0" : index === 1 ? "#f5f5f5" : index === 2 ? "#fafafa" : "#fff";
-                          const badgeBg = index === 0 ? "#d7171a" : index === 1 ? "#ff9800" : index === 2 ? "#2196f3" : "#999";
-                          
-                          return (
-                            <TableRow
-                              key={fila.id}
-                              sx={{
-                                backgroundColor: bgColor,
-                                borderLeft: index < 3 ? `5px solid ${badgeBg}` : "5px solid transparent",
-                                "&:hover": { 
-                                  backgroundColor: index < 3 ? bgColor : "#f0f0f0",
-                                  transform: "scale(1.01)",
-                                  transition: "all 0.2s ease"
-                                },
-                              }}
-                            >
-                              <TableCell sx={{ textAlign: "center" }}>
-                                <Box
-                                  sx={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    width: 40,
-                                    height: 40,
-                                    borderRadius: "50%",
-                                    backgroundColor: badgeBg,
-                                    color: "#fff",
-                                    fontWeight: 800,
-                                  }}
-                                >
-                                  {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`}
-                                </Box>
-                              </TableCell>
-                              <TableCell sx={{ fontWeight: 600 }}>
-                                {fila.Nombre || fila.nombre || "N/A"}
-                              </TableCell>
-                              <TableCell sx={{ textAlign: "center" }}>
-                                <Box
-                                  sx={{
-                                    display: "inline-block",
-                                    backgroundColor: badgeBg,
-                                    color: "#fff",
-                                    padding: "8px 16px",
-                                    borderRadius: "8px",
-                                    fontWeight: 800,
-                                    fontSize: "1.1rem",
-                                  }}
-                                >
-                                  {fila.CantidadViajes || fila.cantidadViajes || 0}
-                                </Box>
-                              </TableCell>
-                              <TableCell>{fila.Departamento || fila.departamento || "N/A"}</TableCell>
-                              <TableCell sx={{ fontSize: "0.85rem", color: "#999" }}>
-                                {fila.UpdatedAt && fila.UpdatedAt.seconds
-                                  ? new Date(fila.UpdatedAt.seconds * 1000).toLocaleDateString("es-ES")
-                                  : "N/A"}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                  <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 2, mt: 3 }}>
-                    <Typography variant="body2" sx={{ color: "#666", fontWeight: 500 }}>
-                      Mostrando {datosOrdenados.length > 0 ? (paginaActual - 1) * ITEMS_PER_PAGE + 1 : 0} - {Math.min(paginaActual * ITEMS_PER_PAGE, datosOrdenados.length)} de {datosOrdenados.length}
-                    </Typography>
-                    <Pagination
-                      count={Math.ceil(datosOrdenados.length / ITEMS_PER_PAGE)}
-                      page={paginaActual}
-                      onChange={(e, page) => setPaginaActual(page)}
-                      color="standard"
-                      size="small"
-                    />
-                  </Box>
-                  </>
-                ) : (
-                  <>
-                  <TableContainer component={Paper}>
-                    <Table>
-                      <TableHead sx={{ backgroundColor: "#1a1a1a" }}>
-                        <TableRow>
-                          <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Usuario</TableCell>
-                          <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Fecha</TableCell>
-                          <TableCell sx={{ color: "#fff", fontWeight: 600 }}>N° Rifa</TableCell>
-                          <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Departamento</TableCell>
-                          <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Tipo Origen</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {datosOrdenados
-                          .slice((paginaActual - 1) * ITEMS_PER_PAGE, paginaActual * ITEMS_PER_PAGE)
-                          .map((fila, index) => {
-                          // Formatear fecha
-                          let fechaFormateada = "N/A";
-                          if (fila.creadoEn && fila.creadoEn.seconds) {
-                            const fecha = new Date(fila.creadoEn.seconds * 1000);
-                            fechaFormateada = fecha.toLocaleDateString("es-ES");
-                          }
-
-                          return (
-                            <TableRow
-                              key={fila.id}
-                              sx={{
-                                backgroundColor: index % 2 === 0 ? "#fafafa" : "#fff",
-                                "&:hover": { backgroundColor: "#f0f0f0" },
-                              }}
-                            >
-                              <TableCell sx={{ fontSize: "0.85rem", fontWeight: 600, color: "#000" }}>
-                                {fila.nombreUsuario || "N/A"}
-                              </TableCell>
-                              <TableCell sx={{ fontSize: "0.85rem" }}>
-                                {fechaFormateada}
-                              </TableCell>
-                              <TableCell sx={{ fontSize: "1rem", fontWeight: 800 }}>
-                                <Box
-                                  sx={{
-                                    display: "inline-block",
-                                    backgroundColor: "#d7171a",
-                                    color: "#fff",
-                                    padding: "8px 16px",
-                                    borderRadius: "8px",
-                                    fontFamily: "monospace",
-                                    fontWeight: 900,
-                                    fontSize: "1.1rem",
-                                    boxShadow: "0 2px 8px rgba(215, 23, 26, 0.3)",
-                                  }}
-                                >
-                                  {fila.numeroRifa || fila.NumeroRifa || "N/A"}
-                                </Box>
-                              </TableCell>
-                              <TableCell sx={{ fontSize: "0.85rem" }}>
-                                {fila.departamento || fila.Departamento || "N/A"}
-                              </TableCell>
-                              <TableCell sx={{ fontSize: "0.85rem" }}>
-                                {fila.tipoOrigen || fila.TipoOrigen || "N/A"}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-
-                  <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 2, mt: 3 }}>
-                    <Typography variant="body2" sx={{ color: "#666", fontWeight: 500 }}>
-                      Mostrando {datosOrdenados.length > 0 ? (paginaActual - 1) * ITEMS_PER_PAGE + 1 : 0} - {Math.min(paginaActual * ITEMS_PER_PAGE, datosOrdenados.length)} de {datosOrdenados.length}
-                    </Typography>
-                    <Pagination
-                      count={Math.ceil(datosOrdenados.length / ITEMS_PER_PAGE)}
-                      page={paginaActual}
-                      onChange={(e, page) => setPaginaActual(page)}
-                      color="standard"
-                      size="small"
-                    />
-                  </Box>
-                  </>
-                )}
-              </Box>
-            );
-          })()}
-        </Box>
+        <SorteoDetail
+          sorteo={sorteoSeleccionado}
+          datosSorteo={datosSorteo}
+          loadingDatos={loadingDatos}
+          busqueda={busqueda}
+          onBusquedaChange={setBusqueda}
+          fechaInicioBusqueda={fechaInicioBusqueda}
+          onFechaInicioChange={setFechaInicioBusqueda}
+          fechaFinBusqueda={fechaFinBusqueda}
+          onFechaFinChange={setFechaFinBusqueda}
+          departamentoSeleccionado={departamentoSeleccionado}
+          onDepartamentoChange={setDepartamentoSeleccionado}
+          paginaActual={paginaActual}
+          onPageChange={setPaginaActual}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onVolver={handleVolverListado}
+          onToggleEstado={handleToggleEstado}
+        />
       ) : (
-        /* Listado de sorteos */
-        loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
-          <CircularProgress sx={{ color: "#d7171a" }} />
-        </Box>
-      ) : sorteos.length === 0 ? (
-        <Paper sx={{ p: 4, textAlign: "center", backgroundColor: "#f9f9f9" }}>
-          <Typography variant="body1" color="textSecondary">
-            No hay sorteos creados todavía.
-          </Typography>
-          <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-            Crea tu primer sorteo usando el botón de arriba.
-          </Typography>
-        </Paper>
-      ) : (
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr", lg: "1fr 1fr 1fr" }, gap: 3 }}>
-          {sorteos.map((sorteo) => (
-            <Paper
-              key={sorteo.id}
-              onClick={() => handleSeleccionarSorteo(sorteo)}
-              sx={{
-                p: 3,
-                borderRadius: 2,
-                border: "1px solid #e0e0e0",
-                transition: "all 0.3s ease",
-                cursor: "pointer",
-                "&:hover": {
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                  transform: "translateY(-2px)",
-                  borderColor: "#d7171a",
-                },
-              }}
-            >
-              {/* Imagen del sorteo */}
-              {sorteo.imagenUrl && (
-                <Box
-                  sx={{
-                    width: "100%",
-                    height: 180,
-                    borderRadius: 2,
-                    mb: 2,
-                    backgroundImage: `url(${sorteo.imagenUrl})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  }}
-                />
-              )}
-
-              {/* Información del sorteo */}
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  {sorteo.id}
-                </Typography>
-                <Box
-                  sx={{
-                    px: 1.5,
-                    py: 0.5,
-                    borderRadius: 1,
-                    backgroundColor: sorteo.estado === "activo" ? "#4caf50" : "#999",
-                    color: "white",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  {sorteo.estado === "activo" ? "Activo" : "Inactivo"}
-                </Box>
-              </Box>
-
-              {sorteo.descripcion && (
-                <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                  {sorteo.descripcion}
-                </Typography>
-              )}
-
-              <Box sx={{ display: "flex", gap: 1, mb: 1.5, flexWrap: "wrap" }}>
-                <Box
-                  sx={{
-                    px: 1.5,
-                    py: 0.5,
-                    borderRadius: 1,
-                    backgroundColor: sorteo.modo === "trabajador" ? "#ff9800" : "#2196f3",
-                    color: "white",
-                    fontSize: "0.75rem",
-                    fontWeight: 500,
-                  }}
-                >
-                  {sorteo.modo === "trabajador" ? "👷 Trabajador" : "👤 Pasajero"}
-                </Box>
-              </Box>
-
-              {sorteo.departamentos && sorteo.departamentos.length > 0 && (
-                <Box sx={{ mb: 1.5 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 600, color: "#666", display: "block", mb: 0.5 }}>
-                    Departamentos:
-                  </Typography>
-                  <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-                    {sorteo.departamentos.slice(0, 3).map((dept) => (
-                      <Box
-                        key={dept}
-                        sx={{
-                          px: 1,
-                          py: 0.25,
-                          borderRadius: 0.5,
-                          backgroundColor: "#e3f2fd",
-                          color: "#1976d2",
-                          fontSize: "0.7rem",
-                        }}
-                      >
-                        {dept}
-                      </Box>
-                    ))}
-                    {sorteo.departamentos.length > 3 && (
-                      <Box
-                        sx={{
-                          px: 1,
-                          py: 0.25,
-                          borderRadius: 0.5,
-                          backgroundColor: "#f5f5f5",
-                          color: "#666",
-                          fontSize: "0.7rem",
-                        }}
-                      >
-                        +{sorteo.departamentos.length - 3}
-                      </Box>
-                    )}
-                  </Box>
-                </Box>
-              )}
-
-              {sorteo.fechaInicio && (
-                <Typography variant="caption" color="textSecondary" sx={{ display: "block" }}>
-                  📅 Inicio: {new Date(sorteo.fechaInicio.seconds * 1000).toLocaleDateString("es-ES")}
-                </Typography>
-              )}
-              {sorteo.fechaFin && (
-                <Typography variant="caption" color="textSecondary" sx={{ display: "block" }}>
-                  📅 Fin: {new Date(sorteo.fechaFin.seconds * 1000).toLocaleDateString("es-ES")}
-                </Typography>
-              )}
-            </Paper>
-          ))}
-        </Box>
-      )
+        <SorteosList sorteos={sorteos} loading={loading} onSelect={handleSeleccionarSorteo} onEdit={handleAbrirEdicion} />
       )}
 
-      {/* Modal para crear sorteo */}
-      <Dialog open={modalOpen} onClose={() => setModalOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ backgroundColor: "#d7171a", color: "white", fontWeight: "bold" }}>
-          🎲 Crear Nuevo Sorteo
-        </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <TextField
-              label="ID del Sorteo (identificador único)"
-              fullWidth
-              value={nuevoSorteo.id}
-              onChange={(e) => setNuevoSorteo({ ...nuevoSorteo, id: e.target.value })}
-              placeholder="Ej: sorteo_navidad_2025"
-              size="small"
-              helperText="Usa caracteres alfanuméricos y guiones bajos. Este será el ID del documento."
-            />
-            <TextField
-              label="Descripción (Opcional)"
-              fullWidth
-              multiline
-              rows={3}
-              value={nuevoSorteo.descripcion}
-              onChange={(e) => setNuevoSorteo({ ...nuevoSorteo, descripcion: e.target.value })}
-              placeholder="Describe los detalles del sorteo..."
-              size="small"
-            />
-            <FormControl fullWidth>
-              <InputLabel>Modo del Sorteo</InputLabel>
-              <Select
-                value={nuevoSorteo.modo}
-                onChange={(e) => setNuevoSorteo({ ...nuevoSorteo, modo: e.target.value })}
-                label="Modo del Sorteo"
-              >
-                <MenuItem value="pasajero">👤 Pasajero</MenuItem>
-                <MenuItem value="trabajador">👷 Trabajador</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl fullWidth>
-              <InputLabel>Departamentos Disponibles</InputLabel>
-              <Select
-                multiple
-                value={nuevoSorteo.departamentos}
-                onChange={(e) => setNuevoSorteo({ ...nuevoSorteo, departamentos: e.target.value })}
-                label="Departamentos Disponibles"
-              >
-                {DEPARTAMENTOS.map((departamento) => (
-                  <MenuItem key={departamento} value={departamento}>
-                    {departamento}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <TextField
-              label="Fecha de Inicio"
-              fullWidth
-              type="datetime-local"
-              value={nuevoSorteo.fechaInicio}
-              onChange={(e) => setNuevoSorteo({ ...nuevoSorteo, fechaInicio: e.target.value })}
-              size="small"
-              InputLabelProps={{ shrink: true }}
-            />
-            <TextField
-              label="Fecha de Finalización"
-              fullWidth
-              type="datetime-local"
-              value={nuevoSorteo.fechaFin}
-              onChange={(e) => setNuevoSorteo({ ...nuevoSorteo, fechaFin: e.target.value })}
-              size="small"
-              InputLabelProps={{ shrink: true }}
-            />
-            <FormControl fullWidth>
-              <InputLabel>Categorías Aplicables (Opcional)</InputLabel>
-              <Select
-                multiple
-                value={nuevoSorteo.categorias}
-                onChange={(e) => setNuevoSorteo({ ...nuevoSorteo, categorias: e.target.value })}
-                label="Categorías Aplicables (Opcional)"
-              >
-                {categoriasDisponibles.map((categoria) => (
-                  <MenuItem key={categoria} value={categoria}>
-                    {categoria}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                Imagen de Promoción
-              </Typography>
-              {imagenPreview && (
-                <Box sx={{ mb: 2 }}>
-                  <img
-                    src={imagenPreview}
-                    alt="Preview"
-                    style={{
-                      maxWidth: "100%",
-                      maxHeight: "200px",
-                      borderRadius: "8px",
-                      border: "1px solid #ddd",
-                    }}
-                  />
-                </Box>
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImagenChange}
-                disabled={imagenSubiendo}
-                style={{ width: "100%" }}
-              />
-              {imagenSubiendo && (
-                <Box sx={{ mt: 2, display: "flex", justifyContent: "center" }}>
-                  <CircularProgress size={40} />
-                </Box>
-              )}
-            </Box>
-            <Box sx={{ p: 2, backgroundColor: "#fff3cd", borderRadius: 1, border: "1px solid #ffc107" }}>
-              <Typography variant="body2" sx={{ color: "#856404", fontWeight: 500 }}>
-                ⚠️ Nota: Si ya existe un sorteo activo para {nuevoSorteo.modo === "trabajador" ? "trabajadores" : "pasajeros"}, será desactivado automáticamente. Los cupones se almacenarán en una subcolección del documento.
-              </Typography>
-            </Box>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setModalOpen(false)} sx={{ color: "#666" }}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleCrearSorteo}
-            variant="contained"
-            sx={{
-              background: "linear-gradient(135deg, #d7171a 0%, #b01217 100%)",
-              "&:hover": {
-                background: "linear-gradient(135deg, #b01217 0%, #a01012 100%)",
-              },
-              fontWeight: 600,
-            }}
-          >
-            Crear Sorteo
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <CrearSorteoModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        nuevoSorteo={nuevoSorteo}
+        onChange={setNuevoSorteo}
+        onSubmit={handleCrearSorteo}
+        imagenPreview={imagenPreview}
+        imagenSubiendo={imagenSubiendo}
+        onImagenChange={handleImagenChange}
+        categoriasDisponibles={categoriasDisponibles}
+        departamentos={DEPARTAMENTOS}
+      />
+
+      <EditSorteoModal
+        open={editModalOpen}
+        onClose={handleCerrarEdicion}
+        sorteo={sorteoEdicion || nuevoSorteo}
+        onChange={setSorteoEdicion}
+        onSubmit={handleEditarSorteo}
+        imagenPreview={imagenPreviewEdicion || (sorteoEdicion && sorteoEdicion.imagenUrl) || null}
+        imagenSubiendo={imagenSubiendoEdicion}
+        onImagenChange={handleImagenChangeEdicion}
+        categoriasDisponibles={categoriasDisponibles}
+        departamentos={DEPARTAMENTOS}
+      />
     </Box>
   );
 };
