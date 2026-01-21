@@ -105,6 +105,16 @@ const GestionFlotas = () => {
     setPageFlotas(0);
   }, [searchFlotas, filterEstadoFlotas]);
 
+  // Función para limpiar todos los filtros incluyendo período
+  const handleClearAllFilters = () => {
+    setSearchFlotas("");
+    setFilterEstadoFlotas("todos");
+    setDateFilterTypeFlotas("todos");
+    setCustomStartDateFlotas("");
+    setCustomEndDateFlotas("");
+    setPageFlotas(0);
+  };
+
   // Filtrado y ordenamiento de flotas
   const flotasFiltradas = useMemo(() => {
     let filtered = flotas;
@@ -622,6 +632,7 @@ const GestionFlotas = () => {
               visibleColumns={visibleColumnsFlotas}
               onColumnChange={(col, visible) => setVisibleColumnsFlotas(prev => ({ ...prev, [col]: visible }))}
               showClearButton={true}
+              onClearAll={handleClearAllFilters}
               dateFilter={dateFilterTypeFlotas}
             />
           </Box>

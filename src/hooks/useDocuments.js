@@ -76,7 +76,7 @@ export const useDocuments = () => {
   };
 
   /* ── TOGGLE “activo” (optimista) ─────────────────── */
-  const toggleActivo = async (id, nuevoValor) => {
+  const toggleActivo = async (id, nuevoValor, ciudad) => {
     setRows((prev) =>
       prev.map((r) =>
         r.id === id ? { ...r, activo: nuevoValor } : r
@@ -84,7 +84,7 @@ export const useDocuments = () => {
     );
 
     try {
-      await repo.update(id, { activo: nuevoValor });
+      await repo.update(id, { activo: nuevoValor, ciudad });
       writeCount.current += 1;
     } catch (e) {
       setRows((prev) =>

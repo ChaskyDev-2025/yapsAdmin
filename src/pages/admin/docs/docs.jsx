@@ -60,6 +60,10 @@ const Documentos = () => {
   const [docToDelete, setDocToDelete] = useState(null);
   const [openSistemaWarning, setOpenSistemaWarning] = useState(false);
   const [docToProtect, setDocToProtect] = useState(null);
+  
+  // Estados para confirmación de toggle activo
+  const [openConfirmToggle, setOpenConfirmToggle] = useState(false);
+  const [pendingToggle, setPendingToggle] = useState(null);
 
   // Cargar información de la flota si es admin
   useEffect(() => {
@@ -142,10 +146,27 @@ const Documentos = () => {
   };
 
   // dentro de Documentos
-  const handleToggleActivo = (id, nuevoValor) => {
-    toggleActivo(id, nuevoValor).catch((err) =>
-      console.error("❌ Error al cambiar activo:", err)
-    );
+  const handleToggleActivo = (id, nuevoValor, ciudad) => {
+    setPendingToggle({ id, nuevoValor, ciudad });
+    setOpenConfirmToggle(true);
+  };
+
+  // Confirmar cambio de estado
+  const handleConfirmToggle = () => {
+    if (pendingToggle) {
+      const { id, nuevoValor, ciudad } = pendingToggle;
+      toggleActivo(id, nuevoValor, ciudad).catch((err) =>
+        console.error("❌ Error al cambiar activo:", err)
+      );
+    }
+    setOpenConfirmToggle(false);
+    setPendingToggle(null);
+  };
+
+  // Cancelar cambio de estado
+  const handleCancelToggle = () => {
+    setOpenConfirmToggle(false);
+    setPendingToggle(null);
   };
 
 
@@ -365,12 +386,12 @@ const Documentos = () => {
                     <TableCell sx={{ fontFamily: "Mulish, sans-serif" }}>{doc.ciudad}</TableCell>
                   )}
                   {visibleColumnsDocumentos.activo && (
-                    <TableCell align="center">
+                    <TableCell align="center" onClick={(e) => e.stopPropagation()}>
                       <Switch
                         checked={!!doc.activo}
                         onChange={(e) => {
                           e.stopPropagation();
-                          handleToggleActivo(doc.firebaseId, e.target.checked);
+                          handleToggleActivo(doc.id, e.target.checked, doc.ciudad);
                         }}
                         sx={{
                           '& .MuiSwitch-switchBase.Mui-checked': {
@@ -533,6 +554,38 @@ const Documentos = () => {
             variant="contained"
           >
             Sí, Proteger Documento
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog de confirmación para cambiar estado activo */}
+      <Dialog
+        open={openConfirmToggle}
+        onClose={handleCancelToggle}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontFamily: "Mulish, sans-serif", fontWeight: 700, color: "#d7171a" }}>
+          ⚠️ Confirmar cambio de estado
+        </DialogTitle>
+        <DialogContent sx={{ fontFamily: "Mulish, sans-serif", pt: 2 }}>
+          <Typography sx={{ mb: 2 }}>
+            ¿Estás seguro de que deseas {pendingToggle?.nuevoValor ? "activar" : "desactivar"} este documento?
+          </Typography>
+          <Box sx={{ backgroundColor: "#e3f2fd", p: 2, borderRadius: 1, border: "1px solid #1976d2" }}>
+            <Typography variant="body2" sx={{ color: "#1565c0", fontWeight: 600 }}>
+              {pendingToggle?.nuevoValor ? "✅ Activar" : "❌ Desactivar"} - El documento {pendingToggle?.nuevoValor ? "será visible y disponible" : "no será visible en la aplicación"}
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCancelToggle}>Cancelar</Button>
+          <Button 
+            onClick={handleConfirmToggle} 
+            color={pendingToggle?.nuevoValor ? "success" : "error"} 
+            variant="contained"
+          >
+            {pendingToggle?.nuevoValor ? "Activar" : "Desactivar"}
           </Button>
         </DialogActions>
       </Dialog>
