@@ -78,6 +78,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
   const [imagenSeleccionada, setImagenSeleccionada] = useState(null);
   const [modalImagenesOpen, setModalImagenesOpen] = useState(false);
   const [originalServiceId, setOriginalServiceId] = useState(null);
+  const [validationError, setValidationError] = useState(false);
   const [formData, setFormData] = useState({
     activo: true,
     tarifa_general: {
@@ -347,7 +348,10 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
   
 
   const handleSubmit = async () => {
-    if (!category || !serviceName) return alert('Debe seleccionar una categoría y un servicio');
+    if (!category || !serviceName) {
+      setValidationError(true);
+      return;
+    }
     setLoading(true);
     try {
       let dataToSave;
@@ -477,51 +481,109 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
       <DialogContent dividers sx={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
         <Grid container spacing={3}>
           {/* SECTION 1: Category & Service Selection (TOP) */}
-          <Grid item xs={12} md={6}>
-            <FormControl fullWidth disabled={!!service}>
-              <InputLabel>Categoría</InputLabel>
-              <Select
-                value={category}
-                label="Categoría"
-                onChange={(e) => {
-                  const newCategory = e.target.value;
-                  setCategory(newCategory);
-                  setServiceName(''); // Reset service when category changes
-                  
-                  // Actualizar tipo_calculo según la categoría
-                  if (newCategory === 'Viajes' || newCategory === 'Envios') {
-                    setFormData(prev => ({ ...prev, tipo_calculo: 'distancia_tiempo' }));
-                  }
-                }}
-              >
-                {Object.keys(SERVICE_CATALOG).map((cat) => (
-                  <MenuItem key={cat} value={cat}>{cat}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <FormControl fullWidth disabled={!category || !!service}>
-              <InputLabel>Servicio</InputLabel>
-              <Select
-                value={serviceName}
-                label="Servicio"
-                onChange={(e) => setServiceName(e.target.value)}
-              >
-                {category && SERVICE_CATALOG[category]?.map((srv) => (
-                  <MenuItem key={srv} value={srv}>{srv}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+          <Grid item xs={12}>
+            <Box sx={{ 
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+              gap: 3,
+              p: 2
+            }}>
+              {/* Categoría Field */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#333' }}>
+                  Categoría
+                </Typography>
+                <FormControl fullWidth disabled={!!service} size="medium">
+                  <Select
+                    value={category}
+                    onChange={(e) => {
+                      const newCategory = e.target.value;
+                      setCategory(newCategory);
+                      setServiceName(''); // Reset service when category changes
+                      
+                      // Actualizar tipo_calculo según la categoría
+                      if (newCategory === 'Viajes' || newCategory === 'Envios') {
+                        setFormData(prev => ({ ...prev, tipo_calculo: 'distancia_tiempo' }));
+                      }
+                    }}
+                    displayEmpty
+                    sx={{
+                      backgroundColor: '#fff',
+                      borderRadius: 1,
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                          borderColor: '#ccc',
+                        },
+                        '&:hover fieldset': {
+                          borderColor: '#999',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#d7171a',
+                          borderWidth: '2px'
+                        }
+                      },
+                      '& .MuiOutlinedInput-input': {
+                        padding: '12px 14px',
+                        fontSize: '0.95rem'
+                      }
+                    }}
+                  >
+                    <MenuItem value="" disabled>Seleccionar categoría...</MenuItem>
+                    {Object.keys(SERVICE_CATALOG).map((cat) => (
+                      <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {/* Servicio Field */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#333' }}>
+                  Servicio
+                </Typography>
+                <FormControl fullWidth disabled={!category || !!service} size="medium">
+                  <Select
+                    value={serviceName}
+                    onChange={(e) => setServiceName(e.target.value)}
+                    displayEmpty
+                    sx={{
+                      backgroundColor: '#fff',
+                      borderRadius: 1,
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                          borderColor: '#ccc',
+                        },
+                        '&:hover fieldset': {
+                          borderColor: '#999',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#d7171a',
+                          borderWidth: '2px'
+                        }
+                      },
+                      '& .MuiOutlinedInput-input': {
+                        padding: '12px 14px',
+                        fontSize: '0.95rem'
+                      }
+                    }}
+                  >
+                    <MenuItem value="" disabled>Seleccionar servicio...</MenuItem>
+                    {category && SERVICE_CATALOG[category]?.map((srv) => (
+                      <MenuItem key={srv} value={srv}>{srv}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            </Box>
           </Grid>
 
-          <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
             <FormControlLabel
               control={<Switch checked={formData.activo} onChange={(e) => setFormData({ ...formData, activo: e.target.checked })} />}
               label="Activo"
             />
             {!isEspecialCategory && (
-              <FormControl sx={{ minWidth: 120 }}>
+              <FormControl sx={{ minWidth: 150 }}>
                 <InputLabel>Unidad Precio</InputLabel>
                 <Select
                   value={formData.unidad_precio || 'Bs'}
@@ -535,7 +597,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
             )}
             {/* Mantener solo selector de zona junto a Unidad Precio (sin lógica adicional) */}
             {department === 'La Paz' && (
-              <FormControl sx={{ minWidth: 160 }}>
+              <FormControl sx={{ minWidth: 180 }}>
                 <InputLabel>Zona</InputLabel>
                 <Select
                   value={selectedZona || 'La Paz'}
@@ -551,7 +613,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
 
           {/* SECTION 2: Tarifas Base (MIDDLE - Full Width) */}
           <Grid item xs={12}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
+            <Typography variant="h6" sx={{ mb: 3 }}>
               {modoPrueba ? 'Reglas de Tarifa (Modo Prueba)' : 'Tarifas Base'}
             </Typography>
             
@@ -576,6 +638,8 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
                           type="number"
                           fullWidth
                           size="small"
+                          variant="outlined"
+                          InputLabelProps={{ shrink: true }}
                           value={formData.reglas_tarifa?.[key] ?? ''}
                           onChange={(e) => setFormData(prev => ({
                             ...prev,
@@ -600,6 +664,8 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
                         type="number"
                         fullWidth
                         size="small"
+                        variant="outlined"
+                        InputLabelProps={{ shrink: true }}
                         value={formData.tarifa_general[key]}
                         onChange={(e) => {
                           const tarifa_general_numerica = {};
@@ -608,6 +674,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
                           });
                           setFormData(prev => ({ ...prev, tarifa_general: tarifa_general_numerica }));
                         }}
+                        step="0.01"
                       />
                     </Grid>
                   ))
@@ -618,29 +685,59 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
 
           {/* Tarifas Aeropuerto */}
           <Grid item xs={12}>
-            <Box sx={{ p: 2, border: '1px solid #ddd', borderRadius: 1, bgcolor: '#f9f9f9' }}>
+            <Box sx={{ p: 2, pt: 3, border: '1px solid #ddd', borderRadius: 1, bgcolor: '#f9f9f9' }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>Tarifas Aeropuerto</Typography>
                 <IconButton onClick={addAeropuerto} color="primary" size="small"><AddCircleOutlineIcon /></IconButton>
               </Box>
               <Box sx={{ maxHeight: '250px', overflowY: 'auto' }}>
                 {formData.tarifasAeropuerto.map((tramo, idx) => (
-                  <Box key={idx} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
+                  <Box key={idx} sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 2, mt: 1, alignItems: 'center' }}>
                     <TextField 
                       label="Desde Km" 
                       size="small" 
                       type="number"
+                      variant="outlined"
+                      InputLabelProps={{ shrink: true }}
                       value={tramo.desdeKm} 
                       onChange={(e) => updateAeropuerto(idx, 'desdeKm', e.target.value)} 
-                      sx={{ flex: 1 }}
+                      sx={{ 
+                        minWidth: '120px',
+                        '& .MuiOutlinedInput-root': {
+                          padding: '8px 12px',
+                        },
+                        '& .MuiOutlinedInput-input': {
+                          fontSize: '0.9rem',
+                          padding: '10px 8px'
+                        },
+                        '& .MuiInputLabel-root': {
+                          fontSize: '0.9rem',
+                          fontWeight: 500
+                        }
+                      }}
                     />
                     <TextField 
                       label="Precio (Bs)" 
                       size="small" 
                       type="number" 
+                      variant="outlined"
+                      InputLabelProps={{ shrink: true }}
                       value={tramo.precio} 
                       onChange={(e) => updateAeropuerto(idx, 'precio', e.target.value)} 
-                      sx={{ flex: 1 }}
+                      sx={{ 
+                        minWidth: '120px',
+                        '& .MuiOutlinedInput-root': {
+                          padding: '8px 12px',
+                        },
+                        '& .MuiOutlinedInput-input': {
+                          fontSize: '0.9rem',
+                          padding: '10px 8px'
+                        },
+                        '& .MuiInputLabel-root': {
+                          fontSize: '0.9rem',
+                          fontWeight: 500
+                        }
+                      }}
                     />
                     <IconButton onClick={() => removeAeropuerto(idx)} color="error" size="small"><RemoveCircleOutlineIcon /></IconButton>
                   </Box>
@@ -658,11 +755,12 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
               </Box>
               <Box sx={{ maxHeight: '250px', overflowY: 'auto' }}>
                 {formData.horasPico.map((franja, idx) => (
-                  <Box key={idx} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
+                  <Box key={idx} sx={{ display: 'flex', gap: 1, mt: 1, alignItems: 'center' }}>
                     <TextField 
                       label="Desde" 
                       type="time" 
                       size="small" 
+                      variant="outlined"
                       InputLabelProps={{ shrink: true }} 
                       value={franja.desde} 
                       onChange={(e) => updateHoraPico(idx, 'desde', e.target.value)} 
@@ -672,6 +770,7 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
                       label="Hasta" 
                       type="time" 
                       size="small" 
+                      variant="outlined"
                       InputLabelProps={{ shrink: true }} 
                       value={franja.hasta} 
                       onChange={(e) => updateHoraPico(idx, 'hasta', e.target.value)} 
@@ -746,6 +845,8 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
                 fullWidth
                 size="small" 
                 type="number"
+                variant="outlined"
+                InputLabelProps={{ shrink: true }}
                 inputProps={{ step: "1", min: "0" }}
                 value={formData.precio_ayudante || 0}
                 onChange={(e) => setFormData(prev => ({ ...prev, precio_ayudante: parseFloat(e.target.value) || 0 }))}
@@ -847,6 +948,57 @@ const ServiceModal = ({ open, onClose, service, department, onSave, modoPrueba }
         onClose={() => setModalImagenesOpen(false)}
         onSelect={(imagen) => setImagenSeleccionada(imagen)}
       />
+
+      {/* Validation Error Dialog */}
+      <Dialog
+        open={validationError}
+        onClose={() => setValidationError(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ 
+          fontFamily: "Mulish, sans-serif", 
+          fontWeight: 700,
+          backgroundColor: '#fff3e0',
+          color: '#d7171a',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1
+        }}>
+          ⚠️ Formulario Incompleto
+        </DialogTitle>
+        <DialogContent sx={{ fontFamily: "Mulish, sans-serif", pt: 3 }}>
+          <Typography sx={{ mb: 2, fontWeight: 500 }}>
+            Por favor, completa los siguientes campos requeridos:
+          </Typography>
+          <Box sx={{ 
+            backgroundColor: '#f5f5f5', 
+            p: 2, 
+            borderRadius: 1,
+            borderLeft: '4px solid #d7171a'
+          }}>
+            {!category && (
+              <Typography variant="body2" sx={{ mb: 1, color: '#666' }}>
+                ✓ <strong>Categoría</strong> - Selecciona una categoría de servicio
+              </Typography>
+            )}
+            {!serviceName && (
+              <Typography variant="body2" sx={{ color: '#666' }}>
+                ✓ <strong>Servicio</strong> - Selecciona un servicio específico
+              </Typography>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button 
+            onClick={() => setValidationError(false)}
+            variant="contained"
+            sx={{ backgroundColor: '#d7171a', '&:hover': { backgroundColor: '#b01217' } }}
+          >
+            Entendido
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 };
@@ -1183,9 +1335,15 @@ const GestionServicios = () => {
                     value={selectedDept}
                     label="Seleccionar Departamento"
                     onChange={(e) => setSelectedDept(e.target.value)}
+                    sx={{
+                      '& .MuiOutlinedInput-input': {
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }
+                    }}
                   >
                     {deptOptions.map(opt => (
-                      <MenuItem key={opt.value} value={opt.value}>
+                      <MenuItem key={opt.value} value={opt.value} sx={{ whiteSpace: 'normal', wordWrap: 'break-word' }}>
                         {opt.label}
                       </MenuItem>
                     ))}

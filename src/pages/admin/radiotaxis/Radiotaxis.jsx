@@ -227,24 +227,54 @@ const Radiotaxis = () => {
       return;
     }
 
+    if (!editingRadio) {
+      setErrorMessage("Error: No se encontró el radiotaxi a editar");
+      return;
+    }
+
     setLoading(true);
     try {
-      await updateDoc(doc(db, "trabajadores", editingRadio.firebaseId), {
+      // Usar el ID correcto - intentar con id o firebaseId
+      const docId = editingRadio.firebaseId || editingRadio.id;
+      
+      if (!docId) {
+        setErrorMessage("Error: No se puede identificar el radiotaxi");
+        setLoading(false);
+        return;
+      }
+
+      console.log("Guardando cambios para ID:", docId);
+
+      const updateData = {
         nombreEmpresa: editFormData.nombreEmpresa,
+        nombre: editFormData.nombreEmpresa, // También guardar en nombre
         email: editFormData.email,
         telefono: editFormData.telefono,
+        phoneNumber: editFormData.telefono, // También guardar en phoneNumber
         departamento: editFormData.departamento,
         updatedAt: new Date(),
-      });
+      };
+
+      await updateDoc(doc(db, "trabajadores", docId), updateData);
+      
       setSuccessMessage("Radiotaxi actualizado correctamente");
       setEditDialogOpen(false);
       setEditingRadio(null);
       setErrorMessage("");
+      setEditFormData({
+        nombreEmpresa: "",
+        email: "",
+        telefono: "",
+        departamento: "",
+      });
+      
+      // Refrescar datos después de actualizar
       setTimeout(() => {
         setSuccessMessage("");
         refetch();
-      }, 2000);
+      }, 1500);
     } catch (error) {
+      console.error("Error al guardar:", error);
       setErrorMessage("Error al actualizar: " + error.message);
     } finally {
       setLoading(false);
