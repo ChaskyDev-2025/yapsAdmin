@@ -424,17 +424,17 @@ const SolicitudesAsignadas = () => {
   // Obtener conductores filtrados por categoría y servicio de la solicitud
   const obtenerConductoresFiltrados = (solicitud) => {
     if (!solicitud) return conductores;
-    
+
     const categoria = solicitud?.solicitud?.categoria || solicitud?.categoria;
     const servicio = solicitud?.solicitud?.servicio || solicitud?.servicio;
-    
+
     const categoriaNormalizada = normalizarString(categoria);
     const servicioNormalizado = normalizarString(servicio);
-    
+
     return conductores.filter(conductor => {
       // Filtrar por activo
       if (!conductor.activo) return false;
-      
+
       // Filtrar por categoría (comparación normalizada)
       if (categoria && conductor.categorias) {
         const categoriaEncontrada = conductor.categorias.some(cat => 
@@ -442,18 +442,26 @@ const SolicitudesAsignadas = () => {
         );
         if (!categoriaEncontrada) return false;
       }
-      
-      // Filtrar por servicio - buscar en servicios map (comparación normalizada)
+
+      // Filtrar por servicio - buscar en servicios map (comparación robusta)
       if (servicio && conductor.servicios) {
-        const serviciosConductor = Object.values(conductor.servicios).map(s => 
-          normalizarString(s)
-        );
-        
-        if (!serviciosConductor.some(s => s === servicioNormalizado || s.includes(servicioNormalizado))) {
+        // Puede ser un objeto tipo {id: {nombre, ...}} o {id: nombre}
+        let serviciosConductor = [];
+        if (Array.isArray(conductor.servicios)) {
+          serviciosConductor = conductor.servicios.map(s =>
+            typeof s === "string" ? normalizarString(s) : normalizarString(s?.nombre || s?.servicio || "")
+          );
+        } else if (typeof conductor.servicios === "object") {
+          serviciosConductor = Object.values(conductor.servicios).map(s =>
+            typeof s === "string" ? normalizarString(s) : normalizarString(s?.nombre || s?.servicio || s?.nombre_visible || s?.servicio_visible || "")
+          );
+        }
+
+        if (!serviciosConductor.some(s => s === servicioNormalizado || s.includes(servicioNormalizado) || servicioNormalizado.includes(s))) {
           return false;
         }
       }
-      
+
       return true;
     });
   };
@@ -1157,31 +1165,52 @@ const SolicitudesAsignadas = () => {
                 <Box sx={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 2 }}>
                   <Typography variant="body2" sx={{ fontWeight: "bold", color: "#666" }}>Categoría:</Typography>
                   <Typography variant="body2" sx={{ fontWeight: "600", color: "#333" }}>
-                    {selectedSolicitud?.solicitud?.categoria || "-"}
+                    {selectedSolicitud?.solicitud?.categoria ?? ""}
                   </Typography>
                 </Box>
                 <Box sx={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 2 }}>
                   <Typography variant="body2" sx={{ fontWeight: "bold", color: "#666" }}>Servicio:</Typography>
                   <Typography variant="body2" sx={{ fontWeight: "600", color: "#333" }}>
-                    {selectedSolicitud?.solicitud?.servicio || "-"}
+                    {selectedSolicitud?.solicitud?.servicio ?? ""}
                   </Typography>
                 </Box>
                 <Box sx={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 2 }}>
                   <Typography variant="body2" sx={{ fontWeight: "bold", color: "#666" }}>Ubicación:</Typography>
                   <Typography variant="body2" sx={{ fontWeight: "600", color: "#333" }}>
-                    {selectedSolicitud?.solicitud?.ubicacion?.direccion || "-"}
+                    {
+                      (() => {
+                        const solicitud = selectedSolicitud?.solicitud || {};
+                        let valor = "";
+                        if (solicitud.destino && typeof solicitud.destino === 'object' && solicitud.destino.direccion) {
+                          valor = solicitud.destino.direccion;
+                        } else {
+                          const ubic = solicitud.ubicacion;
+                          if (typeof ubic === 'string') valor = ubic;
+                          else if (ubic && typeof ubic === 'object') {
+                            if (ubic.direccion) valor = ubic.direccion;
+                            else if (ubic.ubicacion) valor = ubic.ubicacion;
+                            else {
+                              const keys = Object.keys(ubic);
+                              if (keys.length > 0) valor = keys.map(k => `${k}: ${ubic[k]}`).join(' | ');
+                            }
+                          } else if (solicitud.direccion) valor = solicitud.direccion;
+                          else if (solicitud.lugar) valor = solicitud.lugar;
+                        }
+                        return valor ?? "";
+                      })()
+                    }
                   </Typography>
                 </Box>
                 <Box sx={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 2 }}>
                   <Typography variant="body2" sx={{ fontWeight: "bold", color: "#666" }}>Aceptación:</Typography>
                   <Typography variant="body2" sx={{ fontWeight: "600", color: "#333" }}>
-                    {formatearFecha(selectedSolicitud?.fechaAceptacion) || "-"}
+                    {selectedSolicitud?.fechaAceptacion ? formatearFecha(selectedSolicitud?.fechaAceptacion) : ""}
                   </Typography>
                 </Box>
                 <Box sx={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 2 }}>
                   <Typography variant="body2" sx={{ fontWeight: "bold", color: "#666" }}>Costo:</Typography>
                   <Typography variant="body2" sx={{ fontWeight: "600", color: "#d7171a" }}>
-                    {selectedSolicitud?.solicitud?.oferta?.costo ? `Bs. ${selectedSolicitud.solicitud.oferta.costo.toFixed(2)}` : "-"}
+                    {selectedSolicitud?.solicitud?.oferta?.costo != null ? `Bs. ${selectedSolicitud.solicitud.oferta.costo.toFixed(2)}` : ""}
                   </Typography>
                 </Box>
               </Box>
@@ -1335,11 +1364,11 @@ const SolicitudesAsignadas = () => {
         onClose={handleCloseDetalles}
         solicitudSeleccionada={solicitudSeleccionada}
         formatearFecha={formatearFecha}
-        disabledTextFieldStyles={disabledTextFieldStyles}
         obtenerNombreUsuario={obtenerNombreUsuario}
         obtenerNombreConductor={obtenerNombreConductor}
         sendWhatsApp={sendWhatsApp}
         pasajeros={pasajeros}
+        limpiarNull={(valor) => (valor === null || valor === undefined || valor === 'null' ? null : (typeof valor === 'object' ? null : valor))}
       />
 
       {/* Dialog para ver oferta */}
@@ -1455,7 +1484,21 @@ const SolicitudesAsignadas = () => {
                   <strong>Servicio:</strong> {solicitudParaRechazar.solicitud?.servicio || "N/A"}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Dirección:</strong> {solicitudParaRechazar.solicitud?.ubicacion?.direccion || "N/A"}
+                  <strong>Dirección:</strong> {
+                    (() => {
+                      const ubic = solicitudParaRechazar?.solicitud?.ubicacion;
+                      if (typeof ubic === 'string') return ubic;
+                      if (ubic && typeof ubic === 'object') {
+                        if (ubic.direccion) return ubic.direccion;
+                        if (ubic.ubicacion) return ubic.ubicacion;
+                        const keys = Object.keys(ubic);
+                        if (keys.length > 0) return keys.map(k => `${k}: ${ubic[k]}`).join(' | ');
+                      }
+                      if (solicitudParaRechazar?.solicitud?.direccion) return solicitudParaRechazar.solicitud.direccion;
+                      if (solicitudParaRechazar?.solicitud?.lugar) return solicitudParaRechazar.solicitud.lugar;
+                      return "N/A";
+                    })()
+                  }
                 </Typography>
               </Box>
             )}

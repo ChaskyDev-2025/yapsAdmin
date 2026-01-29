@@ -15,6 +15,14 @@ const DetallesDialog = ({
   obtenerNombreConductor,
   sendWhatsApp,
   pasajeros,
+  limpiarNull = (v) => {
+    // Si es null, undefined o 'null', retorna null
+    if (v === null || v === undefined || v === 'null') return null;
+    // Si es un objeto, NO lo renderices, excepto si es un Date
+    if (typeof v === 'object' && !(v instanceof Date)) return null;
+    return v;
+  },
+  mostrarBooleano = (v) => v === true ? 'Sí' : v === false ? 'No' : limpiarNull(v),
 }) => {
   const [imagenExpandida, setImagenExpandida] = useState(null);
   const [userPhoneNumber, setUserPhoneNumber] = useState(null);
@@ -147,11 +155,11 @@ const DetallesDialog = ({
                 <Grid item xs={6}>
                   <TextField
                     label="Categoría"
-                    value={s.categoria}
+                    value={limpiarNull(s.categoria)}
                     disabled
                     fullWidth
                     size="small"
-                    sx={disabledTextFieldStyles}
+                    sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                   />
                 </Grid>
               )}
@@ -160,11 +168,11 @@ const DetallesDialog = ({
                 <Grid item xs={6}>
                   <TextField
                     label="Servicio"
-                    value={s.servicio}
+                    value={limpiarNull(s.servicio)}
                     disabled
                     fullWidth
                     size="small"
-                    sx={disabledTextFieldStyles}
+                    sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                   />
                 </Grid>
               )}
@@ -173,11 +181,11 @@ const DetallesDialog = ({
                 <Grid item xs={6}>
                   <TextField
                     label="Estado"
-                    value={estado}
+                    value={limpiarNull(estado)}
                     disabled
                     fullWidth
                     size="small"
-                    sx={disabledTextFieldStyles}
+                    sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                   />
                 </Grid>
               )}
@@ -186,11 +194,11 @@ const DetallesDialog = ({
                 <Grid item xs={6}>
                   <TextField
                     label="Fecha de Creación"
-                    value={formatMaybeTimestamp(solicitudSeleccionada.fechaCreacion || s.fechaCreacion)}
+                    value={limpiarNull(formatMaybeTimestamp(solicitudSeleccionada.fechaCreacion || s.fechaCreacion))}
                     disabled
                     fullWidth
                     size="small"
-                    sx={disabledTextFieldStyles}
+                    sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                   />
                 </Grid>
               )}
@@ -199,11 +207,11 @@ const DetallesDialog = ({
                 <Grid item xs={6}>
                   <TextField
                     label="Tipo de Contenido"
-                    value={s.tipoContenido}
+                    value={limpiarNull(s.tipoContenido)}
                     disabled
                     fullWidth
                     size="small"
-                    sx={disabledTextFieldStyles}
+                    sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                   />
                 </Grid>
               )}
@@ -212,11 +220,11 @@ const DetallesDialog = ({
                 <Grid item xs={6}>
                   <TextField
                     label="Precio Base"
-                    value={s.precioBase}
+                    value={limpiarNull(s.precioBase)}
                     disabled
                     fullWidth
                     size="small"
-                    sx={disabledTextFieldStyles}
+                    sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                   />
                 </Grid>
               )}
@@ -225,11 +233,11 @@ const DetallesDialog = ({
                 <Grid item xs={6}>
                   <TextField
                     label="Precio Estimado"
-                    value={s.precioEstimado}
+                    value={limpiarNull(s.precioEstimado)}
                     disabled
                     fullWidth
                     size="small"
-                    sx={disabledTextFieldStyles}
+                    sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                   />
                 </Grid>
               )}
@@ -238,11 +246,11 @@ const DetallesDialog = ({
                 <Grid item xs={6}>
                   <TextField
                     label="Duración (horas)"
-                    value={s.duracionHoras}
+                    value={limpiarNull(s.duracionHoras)}
                     disabled
                     fullWidth
                     size="small"
-                    sx={disabledTextFieldStyles}
+                    sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                   />
                 </Grid>
               )}
@@ -251,11 +259,11 @@ const DetallesDialog = ({
                 <Grid item xs={6}>
                   <TextField
                     label="Conductor Asignado"
-                    value={obtenerNombreConductor ? obtenerNombreConductor(solicitudSeleccionada.conductor_asignado) : (solicitudSeleccionada.conductor_asignado || '')}
+                    value={limpiarNull(obtenerNombreConductor ? obtenerNombreConductor(solicitudSeleccionada.conductor_asignado) : (solicitudSeleccionada.conductor_asignado || ''))}
                     disabled
                     fullWidth
                     size="small"
-                    sx={disabledTextFieldStyles}
+                    sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                   />
                 </Grid>
               )}
@@ -270,13 +278,13 @@ const DetallesDialog = ({
               </Typography>
               <TextField
                 label="Dirección"
-                value={solicitudSeleccionada.solicitud.origen.direccion || ""}
+                value={limpiarNull(solicitudSeleccionada.solicitud.origen.direccion)}
                 disabled
                 fullWidth
                 size="small"
                 multiline
                 minRows={3}
-                sx={disabledTextFieldStyles}
+                sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
               />
             </Box>
           )}
@@ -290,13 +298,13 @@ const DetallesDialog = ({
               {solicitudSeleccionada.solicitud?.descripcion && (
                 <TextField
                   label="Descripción"
-                  value={solicitudSeleccionada.solicitud.descripcion || ""}
+                  value={limpiarNull(solicitudSeleccionada.solicitud.descripcion)}
                   disabled
                   fullWidth
                   size="small"
                   multiline
                   minRows={2}
-                  sx={{ mb: 1, ...disabledTextFieldStyles }}
+                  sx={{ mb: 1, ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                 />
               )}
               {solicitudSeleccionada.solicitud?.datosEspecificos && Object.keys(solicitudSeleccionada.solicitud.datosEspecificos).length > 0 && (
@@ -308,54 +316,50 @@ const DetallesDialog = ({
                         <TextField
                           key={k}
                           label={String(k)}
-                          value={formatMaybeTimestamp(v)}
+                          value={limpiarNull(formatMaybeTimestamp(v))}
                           disabled
                           fullWidth
                           size="small"
-                          sx={{ mb: 1, ...disabledTextFieldStyles }}
+                          sx={{ mb: 1, ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                         />
                       );
                     } else if (typeof v === 'object' && v !== null) {
-                      // Si es un objeto, mostrar cada propiedad en un campo separado
-                      return (
-                        <Box key={k} sx={{ mb: 2, p: 1, backgroundColor: "#f9f9f9", borderRadius: 1, border: "1px solid #e8e8e8" }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: "#333" }}>
-                            {k}
-                          </Typography>
-                          {Object.entries(v).map(([subK, subV]) => {
-                            let subDisplay = "";
-                            if (subV && typeof subV === 'object' && (typeof subV.seconds === 'number' || typeof subV.toDate === 'function')) {
-                              subDisplay = formatMaybeTimestamp(subV);
-                            } else if (typeof subV === 'object') {
-                              subDisplay = JSON.stringify(subV);
-                            } else {
-                              subDisplay = String(subV);
-                            }
-                            return (
-                              <TextField
-                                key={`${k}-${subK}`}
-                                label={String(subK)}
-                                value={subDisplay}
-                                disabled
-                                fullWidth
-                                size="small"
-                                sx={{ mb: 1, ...disabledTextFieldStyles }}
-                              />
-                            );
-                          })}
-                        </Box>
-                      );
+                      // Si es un objeto, mostrar solo una propiedad representativa si existe
+                      const resumen = v.nombre || v.name || v.email || v.id || v.displayName || null;
+                      if (resumen && typeof resumen !== 'object') {
+                        return (
+                          <TextField
+                            key={k}
+                            label={String(k)}
+                            value={limpiarNull(resumen)}
+                            disabled
+                            fullWidth
+                            size="small"
+                            sx={{ mb: 1, ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
+                          />
+                        );
+                      }
+                      // Si no hay campo representativo o es objeto, ignorar el campo
+                      return null;
                     } else {
                       // Valor primitivo
+                      let displayValue = v;
+                      if (typeof v === 'boolean') {
+                        displayValue = mostrarBooleano(v);
+                      } else {
+                        displayValue = limpiarNull(String(v));
+                      }
+                      // Si limpiarNull retorna null, no renderizar
+                      if (displayValue === null) return null;
                       return (
                         <TextField
                           key={k}
                           label={String(k)}
-                          value={String(v)}
+                          value={displayValue}
                           disabled
                           fullWidth
                           size="small"
-                          sx={{ mb: 1, ...disabledTextFieldStyles }}
+                          sx={{ mb: 1, ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                         />
                       );
                     }
@@ -373,13 +377,13 @@ const DetallesDialog = ({
               </Typography>
               <TextField
                 label="Dirección"
-                value={solicitudSeleccionada.solicitud.destino.direccion || ""}
+                value={limpiarNull(solicitudSeleccionada.solicitud.destino.direccion)}
                 disabled
                 fullWidth
                 size="small"
                 multiline
                 minRows={3}
-                sx={disabledTextFieldStyles}
+                sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
               />
             </Box>
           )}
@@ -392,13 +396,13 @@ const DetallesDialog = ({
               </Typography>
               <TextField
                 label="Dirección"
-                value={solicitudSeleccionada.solicitud.ubicacion.direccion || ""}
+                value={limpiarNull(solicitudSeleccionada.solicitud.ubicacion.direccion)}
                 disabled
                 fullWidth
                 size="small"
                 multiline
                 minRows={3}
-                sx={disabledTextFieldStyles}
+                sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
               />
             </Box>
           )}
@@ -413,45 +417,45 @@ const DetallesDialog = ({
                 <Grid item xs={6}>
                   <TextField
                       label="Fecha Programada"
-                      value={formatMaybeTimestamp(
+                      value={limpiarNull(formatMaybeTimestamp(
                         solicitudSeleccionada.solicitud?.fechaProgramada ||
                         solicitudSeleccionada.solicitud?.detalles?.fechaProgramada ||
                         solicitudSeleccionada.solicitud?.detalles?.fechaProgramada
-                      )}
+                      ))}
                       disabled
                       fullWidth
                       size="small"
-                      sx={disabledTextFieldStyles}
+                      sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                     />
                 </Grid>
                 <Grid item xs={6}>
                   <TextField
                     label="Hora Programada"
-                    value={solicitudSeleccionada.solicitud?.horaProgramada || ""}
+                    value={limpiarNull(solicitudSeleccionada.solicitud?.horaProgramada)}
                     disabled
                     fullWidth
                     size="small"
-                    sx={disabledTextFieldStyles}
+                    sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                   />
                 </Grid>
                 <Grid item xs={6}>
                   <TextField
                     label="Lo necesito ahora"
-                    value={String(solicitudSeleccionada.solicitud?.loNecesitoAhora ?? '')}
+                    value={limpiarNull(String(solicitudSeleccionada.solicitud?.loNecesitoAhora ?? ''))}
                     disabled
                     fullWidth
                     size="small"
-                    sx={disabledTextFieldStyles}
+                    sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                   />
                 </Grid>
                 <Grid item xs={6}>
                   <TextField
                     label="Precio Estimado"
-                    value={solicitudSeleccionada.solicitud?.precioEstimado ?? ''}
+                    value={limpiarNull(solicitudSeleccionada.solicitud?.precioEstimado)}
                     disabled
                     fullWidth
                     size="small"
-                    sx={disabledTextFieldStyles}
+                    sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                   />
                 </Grid>
               </Grid>
@@ -469,19 +473,19 @@ const DetallesDialog = ({
                   <Grid item xs={12} md={6}>
                     <TextField
                       label="Remitente"
-                      value={solicitudSeleccionada.solicitud.remitente?.nombre || ''}
+                      value={limpiarNull(solicitudSeleccionada.solicitud.remitente?.nombre)}
                       disabled
                       fullWidth
                       size="small"
-                      sx={disabledTextFieldStyles}
+                      sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                     />
                     <TextField
                       label="Teléfono Remitente"
-                      value={solicitudSeleccionada.solicitud.remitente?.telefono || ''}
+                      value={limpiarNull(solicitudSeleccionada.solicitud.remitente?.telefono)}
                       disabled
                       fullWidth
                       size="small"
-                      sx={{ mt: 1, ...disabledTextFieldStyles }}
+                      sx={{ mt: 1, ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                     />
                   </Grid>
                 )}
@@ -490,19 +494,19 @@ const DetallesDialog = ({
                   <Grid item xs={12} md={6}>
                     <TextField
                       label="Destinatario"
-                      value={solicitudSeleccionada.solicitud.destinatario?.nombre || ''}
+                      value={limpiarNull(solicitudSeleccionada.solicitud.destinatario?.nombre)}
                       disabled
                       fullWidth
                       size="small"
-                      sx={disabledTextFieldStyles}
+                      sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                     />
                     <TextField
                       label="Teléfono Destinatario"
-                      value={solicitudSeleccionada.solicitud.destinatario?.telefono || ''}
+                      value={limpiarNull(solicitudSeleccionada.solicitud.destinatario?.telefono)}
                       disabled
                       fullWidth
                       size="small"
-                      sx={{ mt: 1, ...disabledTextFieldStyles }}
+                      sx={{ mt: 1, ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                     />
                   </Grid>
                 )}
@@ -511,13 +515,13 @@ const DetallesDialog = ({
                   <Grid item xs={12}>
                     <TextField
                       label="Descripción del Paquete"
-                      value={solicitudSeleccionada.solicitud.paquete?.descripcion || ''}
+                      value={limpiarNull(solicitudSeleccionada.solicitud.paquete?.descripcion)}
                       disabled
                       fullWidth
                       size="small"
                       multiline
                       minRows={2}
-                      sx={{ ...disabledTextFieldStyles }}
+                      sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                     />
                   </Grid>
                 )}
@@ -535,11 +539,11 @@ const DetallesDialog = ({
                 <Grid item xs={6}>
                   <TextField
                     label="Número de referencia"
-                    value={solicitudSeleccionada.solicitud.numeroReferencia}
+                    value={limpiarNull(solicitudSeleccionada.solicitud.numeroReferencia)}
                     disabled
                     fullWidth
                     size="small"
-                    sx={disabledTextFieldStyles}
+                    sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                   />
                 </Grid>
               )}
@@ -548,11 +552,11 @@ const DetallesDialog = ({
                 <Grid item xs={6}>
                   <TextField
                     label="Requiere comprobante"
-                    value={String(solicitudSeleccionada.solicitud.requiereComprobante)}
+                    value={mostrarBooleano(solicitudSeleccionada.solicitud.requiereComprobante)}
                     disabled
                     fullWidth
                     size="small"
-                    sx={disabledTextFieldStyles}
+                    sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                   />
                 </Grid>
               )}
@@ -599,11 +603,11 @@ const DetallesDialog = ({
                     <Grid item xs={6}>
                       <TextField
                         label="Fecha Inicio"
-                        value={formatMaybeTimestamp(solicitudSeleccionada.solicitud.fechaInicio)}
+                        value={limpiarNull(formatMaybeTimestamp(solicitudSeleccionada.solicitud.fechaInicio))}
                         disabled
                         fullWidth
                         size="small"
-                        sx={disabledTextFieldStyles}
+                        sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                       />
                     </Grid>
                   )}
@@ -611,11 +615,11 @@ const DetallesDialog = ({
                     <Grid item xs={6}>
                       <TextField
                         label="Hora Inicio"
-                        value={solicitudSeleccionada.solicitud.horaInicio}
+                        value={limpiarNull(solicitudSeleccionada.solicitud.horaInicio)}
                         disabled
                         fullWidth
                         size="small"
-                        sx={disabledTextFieldStyles}
+                        sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                       />
                     </Grid>
                   )}
@@ -630,12 +634,12 @@ const DetallesDialog = ({
                     <TextField
                       label="Usuario"
                       value={
-                        passengerName || (obtenerNombreUsuario ? obtenerNombreUsuario(uidUser) : (uidUser || ''))
+                        limpiarNull(passengerName || (obtenerNombreUsuario ? obtenerNombreUsuario(uidUser) : (uidUser || '')))
                       }
                       disabled
                       fullWidth
                       size="small"
-                      sx={disabledTextFieldStyles}
+                      sx={{ ...disabledTextFieldStyles, '& .MuiInputBase-input.Mui-disabled': { color: '#000', WebkitTextFillColor: '#000' } }}
                     />
                     {sendWhatsApp && (
                       <Tooltip title={phoneNumber ? "Contactar por WhatsApp" : "Sin teléfono disponible"}>
